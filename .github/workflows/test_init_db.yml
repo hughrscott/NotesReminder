@@ -1,0 +1,34 @@
+name: Test SQLite DB Initialization
+
+on:
+  workflow_dispatch: # Allows manual triggering clearly
+
+jobs:
+  initialize-db:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run SQLite DB Initialization
+        run: |
+          python init_db.py
+
+      - name: Verify DB creation
+        run: |
+          ls -l reminders.db
+          sqlite3 reminders.db ".tables"
+          sqlite3 reminders.db "PRAGMA table_info(reminders);"
+
+      # Optional (clearly helpful): upload reminders.db to verify manually
+      - name: Upload DB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reminders-db
+          path: reminders.db
