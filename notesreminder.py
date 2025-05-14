@@ -36,7 +36,8 @@ conn.close()
 
 print("📂 SQLite database and 'reminders' table created successfully!")
 
-# Verify table structure
+#code to check that this is a valid table
+""" Verify table structure
 conn = sqlite3.connect('reminders.db')
 cursor = conn.cursor()
 
@@ -52,4 +53,4 @@ print("\n🔍 Clearly checking 'reminders' table structure:")
 for col in columns:
     print(col)
 
-conn.close()
+conn.close()"""
