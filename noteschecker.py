@@ -199,4 +199,4 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
 if __name__ == "__main__":
     # Optionally add CLI usage here in the future
-    pass
+    await scrape_lessons("westu-sor", dates=["2025-06-07"])
