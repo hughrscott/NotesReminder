@@ -25,9 +25,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install python-dotenv boto3
-      - name: Install Playwright browsers
-        run: |
-           python -m playwright install chromium
+      - name: Install Playwright Browsers
+        uses: microsoft/playwright-github-action@v1
+        with:
+          install-deps: true
       - name: Run notes reminder for West U
         run: |
           python run_daily.py --school westu-sor
@@ -51,9 +52,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install python-dotenv boto3
-      - name: Install Playwright browsers
-        run: |
-           python -m playwright install chromium
+      - name: Install Playwright Browsers
+        uses: microsoft/playwright-github-action@v1
+        with:
+          install-deps: true
       - name: Run notes reminder for The Heights
         run: |
           python run_daily.py --school theheights-sor
