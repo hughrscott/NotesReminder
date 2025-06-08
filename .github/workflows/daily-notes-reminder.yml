@@ -13,6 +13,8 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      PIKE13_USER: ${{ secrets.PIKE13_USER }}
+      PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,6 +64,8 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      PIKE13_USER: ${{ secrets.PIKE13_USER }}
+      PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

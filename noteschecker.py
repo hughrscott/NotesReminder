@@ -13,6 +13,9 @@ import os
 PIKE13_USER = os.environ.get("PIKE13_USER")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
+if not PIKE13_USER or not PIKE13_PASS:
+    raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
+
 async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date=None, verbose=True):
     if dates is None and start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
