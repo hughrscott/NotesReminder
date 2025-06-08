@@ -10,8 +10,8 @@ import asyncio
 from datetime import datetime, timedelta
 import os
 
-PIKE13_USER = "huscott@schoolofrock.com"
-PIKE13_PASS = "Coventry12$"
+PIKE13_USER = os.environ.get("PIKE13_USER")
+PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
 async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date=None, verbose=True):
     if dates is None and start_date and end_date:
@@ -199,4 +199,4 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
 if __name__ == "__main__":
     # Optionally add CLI usage here in the future
-    await scrape_lessons("westu-sor", dates=["2025-06-07"])
+    asyncio.run(scrape_lessons("westu-sor", dates=["2025-06-07"]))
