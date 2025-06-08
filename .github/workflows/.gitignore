@@ -1,8 +1,0 @@
-.env
-   __pycache__/
-   *.pyc
-   venv/
-   reminders.db
-   *.sqlite3
-   *.log
-   .DS_Store
