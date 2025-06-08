@@ -24,7 +24,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
     lessons_data = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
 
         if verbose:
