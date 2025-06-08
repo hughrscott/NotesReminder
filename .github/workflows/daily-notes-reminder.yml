@@ -16,24 +16,44 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install python-dotenv boto3
-          python -m playwright install
+          python -m playwright install --with-deps chromium
+      
+      - name: Create screenshots directory
+        run: mkdir -p screenshots
+      
       - name: Run notes reminder for West U
         run: |
           python run_daily.py --school westu-sor
+        continue-on-error: true
+      
       - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
-          path: '*.png'
+          name: westu-screenshots
+          path: |
+            screenshots/*.png
+            screenshots/trace.zip
+      
+      - name: Upload error logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: westu-logs
+          path: |
+            *.log
+            westu-sor_lessons_*.csv
 
   run-theheights:
     name: Run for The Heights
@@ -45,21 +65,41 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install python-dotenv boto3
-          python -m playwright install
+          python -m playwright install --with-deps chromium
+      
+      - name: Create screenshots directory
+        run: mkdir -p screenshots
+      
       - name: Run notes reminder for The Heights
         run: |
           python run_daily.py --school theheights-sor
-          - name: Upload screenshots
-          uses: actions/upload-artifact@v4
-          with:
-            name: screenshots
-            path: '*.png'
+        continue-on-error: true
+      
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theheights-screenshots
+          path: |
+            screenshots/*.png
+            screenshots/trace.zip
+      
+      - name: Upload error logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theheights-logs
+          path: |
+            *.log
+            theheights-sor_lessons_*.csv
