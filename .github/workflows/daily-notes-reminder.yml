@@ -29,6 +29,11 @@ jobs:
       - name: Run notes reminder for West U
         run: |
           python run_daily.py --school westu-sor
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: '*.png'
 
   run-theheights:
     name: Run for The Heights
@@ -53,3 +58,8 @@ jobs:
       - name: Run notes reminder for The Heights
         run: |
           python run_daily.py --school theheights-sor
+          - name: Upload screenshots
+          uses: actions/upload-artifact@v4
+          with:
+            name: screenshots
+            path: '*.png'

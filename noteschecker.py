@@ -37,6 +37,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
         await page.wait_for_selector('a:has-text("Schedule")', timeout=60000)
         if verbose:
             print("✅ Logged in successfully")
+            await page.screenshot(path="after_login.png", full_page=True)
 
         await page.screenshot(path="login_attempt.png")
 
@@ -45,6 +46,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
             await page.goto(schedule_url)
             await page.wait_for_selector("div.calendar-lane", timeout=20000)
             await page.wait_for_timeout(7000)  # Wait longer for JS to render
+            await page.screenshot(path=f"schedule_{date}.png", full_page=True)
 
             # Try waiting for a staff name or lesson block (e.g., Zach Jones)
             try:
