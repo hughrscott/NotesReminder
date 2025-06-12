@@ -208,7 +208,7 @@ async def main():
             continue
 
         # Filter out group lessons (more than one student)
-        if ',' in students:
+        if students and ',' in students:
             continue
 
         report_missing_notes.append({
