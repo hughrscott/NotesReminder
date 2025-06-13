@@ -5,4 +5,7 @@ venv/
 reminders.db
 *.sqlite3
 *.log
+*.csv
+screenshots/
 .DS_Store
+debug_theheights.py

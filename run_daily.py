@@ -116,9 +116,20 @@ def send_email_report(missing_notes, school_subdomain, start_date, end_date):
         print(f"⚠️ Error sending email: {e}")
 
 def upload_db_to_s3(local_path, bucket, s3_key):
-    s3 = boto3.client('s3')
-    s3.upload_file(local_path, bucket, s3_key)
-    print(f"✅ Uploaded {local_path} to s3://{bucket}/{s3_key}")
+    """Upload the database to S3"""
+    print("\n🔍 Checking AWS credentials...")
+    print(f"AWS_ACCESS_KEY_ID: {'*' * 5}{os.getenv('AWS_ACCESS_KEY_ID')[-4:] if os.getenv('AWS_ACCESS_KEY_ID') else 'Not found'}")
+    print(f"AWS_SECRET_ACCESS_KEY: {'*' * 5}{os.getenv('AWS_SECRET_ACCESS_KEY')[-4:] if os.getenv('AWS_SECRET_ACCESS_KEY') else 'Not found'}")
+    print(f"AWS_DEFAULT_REGION: {os.getenv('AWS_DEFAULT_REGION', 'Not found')}")
+    
+    try:
+        s3 = boto3.client('s3')
+        print(f"\n📤 Uploading {local_path} to s3://{bucket}/{s3_key}")
+        s3.upload_file(local_path, bucket, s3_key)
+        print("✅ Database uploaded successfully")
+    except Exception as e:
+        print(f"⚠️ Error uploading to S3: {str(e)}")
+        raise
 
 def download_db_from_s3(local_path, bucket, s3_key):
     s3 = boto3.client('s3')
