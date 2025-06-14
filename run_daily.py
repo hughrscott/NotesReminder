@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--school', type=str, default='westu-sor', help='Pike13 subdomain (e.g., westu-sor or theheights-sor)')
     parser.add_argument('--start-date', type=str, help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end-date', type=str, help='End date in YYYY-MM-DD format')
+    parser.add_argument('--init-db', action='store_true', help='Initialize and upload a fresh database')
     return parser.parse_args()
 
 def get_lessons_without_notes(school_subdomain):
@@ -141,11 +142,20 @@ def download_db_from_s3(local_path, bucket, s3_key):
         print(f"⚠️ Could not download {s3_key} from s3://{bucket}: {e}")
 
 async def main():
-    # Download the latest DB from S3 (if it exists)
-    download_db_from_s3('reminders.db', S3_BUCKET, S3_KEY)
-
     args = parse_args()
     school_subdomain = args.school
+
+    # If init-db flag is set, create a fresh database and upload it
+    if args.init_db:
+        print("Initializing fresh database...")
+        from init_db import initialize_db
+        initialize_db()
+        upload_db_to_s3('reminders.db', S3_BUCKET, S3_KEY)
+        print("Fresh database initialized and uploaded to S3")
+        return
+
+    # Download the latest DB from S3 (if it exists)
+    download_db_from_s3('reminders.db', S3_BUCKET, S3_KEY)
 
     # Get lessons without notes from the database
     # We're retrieving all records first to determine current status, then filtering for the report

@@ -34,6 +34,12 @@ jobs:
       - name: Create screenshots directory
         run: mkdir -p screenshots
       
+      - name: Initialize database
+        run: |
+          python init_db.py
+          python run_daily.py --school westu-sor --init-db
+        continue-on-error: true
+      
       - name: Run notes reminder for West U
         run: |
           python run_daily.py --school westu-sor
@@ -84,6 +90,12 @@ jobs:
       
       - name: Create screenshots directory
         run: mkdir -p screenshots
+      
+      - name: Initialize database
+        run: |
+          python init_db.py
+          python run_daily.py --school theheights-sor --init-db
+        continue-on-error: true
       
       - name: Run notes reminder for The Heights
         run: |
