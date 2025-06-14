@@ -32,12 +32,12 @@ def parse_args():
     parser.add_argument('--end-date', type=str, help='End date in YYYY-MM-DD format')
     return parser.parse_args()
 
-def get_lessons_without_notes():
-    """Get all lessons from the database that don't have notes."""
+def get_lessons_without_notes(school_subdomain):
+    """Get all lessons from the database that don't have notes for a specific school."""
     conn = sqlite3.connect('reminders.db')
     cursor = conn.cursor()
     
-    # Get lessons from the last 7 days that don't have notes
+    # Get lessons from the last 7 days that don't have notes for the specific school
     seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     
     cursor.execute('''
@@ -45,8 +45,9 @@ def get_lessons_without_notes():
         FROM reminders
         WHERE note_completed = 0
         AND lesson_date >= ?
+        AND school = ?
         ORDER BY lesson_date, lesson_time
-    ''', (seven_days_ago,))
+    ''', (seven_days_ago, school_subdomain))
     
     lessons = cursor.fetchall()
     conn.close()
@@ -148,7 +149,7 @@ async def main():
 
     # Get lessons without notes from the database
     # We're retrieving all records first to determine current status, then filtering for the report
-    lessons_without_notes_from_db = get_lessons_without_notes()
+    lessons_without_notes_from_db = get_lessons_without_notes(school_subdomain)
 
     # Scrape recent lessons (last 7 days by default, or custom range)
     if args.start_date and args.end_date:
@@ -168,7 +169,7 @@ async def main():
     # Process each lesson from the scraped data
     # This part updates the database based on the latest scrape
     for index, row in df.iterrows():
-        lesson_id = str(row['Lesson Type']) + "-" + str(row['Date']) + "-" + str(row['Time']) + "-" + str(row['Students'])
+        lesson_id = f"{row['Lesson Type']}-{row['Date']}-{row['Time']}-{row['Students']}"
         instructor_name = row['Instructor']
         lesson_date = row['Date']
         lesson_time = row['Time']
@@ -181,7 +182,7 @@ async def main():
         # Check if the lesson already exists in the database
         conn = sqlite3.connect('reminders.db')
         cursor = conn.cursor()
-        cursor.execute('''SELECT lesson_id FROM reminders WHERE lesson_id = ?''', (lesson_id,))
+        cursor.execute('''SELECT lesson_id FROM reminders WHERE lesson_id = ? AND school = ?''', (lesson_id, school_subdomain))
         existing_lesson = cursor.fetchone()
 
         if existing_lesson:
@@ -194,19 +195,19 @@ async def main():
                     lesson_time = ?,
                     lesson_type = ?,
                     students = ?
-                WHERE lesson_id = ?
-            ''', (1 if has_notes else 0, instructor_name, lesson_date, lesson_time, lesson_type, students, lesson_id))
+                WHERE lesson_id = ? AND school = ?
+            ''', (1 if has_notes else 0, instructor_name, lesson_date, lesson_time, lesson_type, students, lesson_id, school_subdomain))
         else:
             cursor.execute('''
-                INSERT INTO reminders (lesson_id, instructor_name, lesson_date, lesson_time, lesson_type, students, note_completed, last_checked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
-            ''', (lesson_id, instructor_name, lesson_date, lesson_time, lesson_type, students, 1 if has_notes else 0))
+                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, note_completed, last_checked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
+            ''', (lesson_id, school_subdomain, instructor_name, lesson_date, lesson_time, lesson_type, students, 1 if has_notes else 0))
         conn.commit()
         conn.close()
 
     # Now, retrieve all currently missing notes from the DB to generate the report
     # This ensures we capture previously missing notes that might not be in the current scrape range
-    all_missing_notes = get_lessons_without_notes()
+    all_missing_notes = get_lessons_without_notes(school_subdomain)
 
     # Filter the notes for the report based on your criteria
     report_missing_notes = []
