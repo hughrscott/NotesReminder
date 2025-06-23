@@ -204,14 +204,15 @@ async def main():
                     lesson_date = ?,
                     lesson_time = ?,
                     lesson_type = ?,
-                    students = ?
+                    students = ?,
+                    attendance_status = ?
                 WHERE lesson_id = ? AND school = ?
-            ''', (1 if has_notes else 0, instructor_name, lesson_date, lesson_time, lesson_type, students, lesson_id, school_subdomain))
+            ''', (1 if has_notes else 0, instructor_name, lesson_date, lesson_time, lesson_type, students, row.get('Attendance Status', 'unknown'), lesson_id, school_subdomain))
         else:
             cursor.execute('''
-                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, note_completed, last_checked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
-            ''', (lesson_id, school_subdomain, instructor_name, lesson_date, lesson_time, lesson_type, students, 1 if has_notes else 0))
+                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, note_completed, attendance_status, last_checked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
+            ''', (lesson_id, school_subdomain, instructor_name, lesson_date, lesson_time, lesson_type, students, 1 if has_notes else 0, row.get('Attendance Status', 'unknown')))
         conn.commit()
         conn.close()
 

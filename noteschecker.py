@@ -58,8 +58,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
             
             # Fill login form
             await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
-            await page.fill('input[placeholder="Email address"]', PIKE13_USER)
-            await page.fill('input[placeholder="Password"]', PIKE13_PASS)
+            await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
+            await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
             await page.screenshot(path="screenshots/02_login_form_filled.png")
             
             # Click login and wait for navigation
@@ -134,9 +134,11 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                             student_elements = await page.query_selector_all(".person-name a.name-link")
                             students = []
                             for elem in student_elements:
-                                student_text = (await elem.text_content()).replace('\n', ' ').strip()
-                                student_full_name = ' '.join(student_text.split())
-                                students.append(student_full_name)
+                                student_raw = await elem.text_content()
+                                if student_raw:
+                                    student_text = student_raw.replace('\n', ' ').strip()
+                                    student_full_name = ' '.join(student_text.split())
+                                    students.append(student_full_name)
 
                             students_str = ", ".join(students)
 
@@ -170,10 +172,13 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                             notes_element = await page.query_selector("div.richtext_output.unbordered")
                             if notes_element:
                                 notes_raw = await notes_element.text_content()
-                                try:
-                                    notes = notes_raw.encode('latin1').decode('utf-8').strip()
-                                except UnicodeEncodeError:
-                                    notes = notes_raw.strip()
+                                if notes_raw:
+                                    try:
+                                        notes = notes_raw.encode('latin1').decode('utf-8').strip()
+                                    except UnicodeEncodeError:
+                                        notes = notes_raw.strip()
+                                else:
+                                    notes = "No notes"
                             else:
                                 notes = "No notes"
 
@@ -181,7 +186,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                             note_timestamp = "No timestamp found"
 
                             if timestamp_element:
-                                timestamp_text = (await timestamp_element.text_content()).strip()
+                                timestamp_raw = await timestamp_element.text_content()
+                                timestamp_text = timestamp_raw.strip() if timestamp_raw else ""
                                 match = re.search(r'on ([A-Za-z]{3}, [A-Za-z]{3} \d{1,2}, \d{4} at [\d:apm]+)', timestamp_text)
                                 if match:
                                     note_timestamp = match.group(1).strip()
