@@ -140,17 +140,24 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
                             students_str = ", ".join(students)
 
-                            # Check for attendance status (confirmed, canceled, complete, etc.)
+                            # Check for attendance status near student names
                             attendance_status = "unknown"
                             try:
-                                # Look for common attendance status keywords
-                                page_content = await page.content()
-                                if "confirmed" in page_content.lower():
-                                    attendance_status = "confirmed"
-                                elif "canceled" in page_content.lower():
-                                    attendance_status = "canceled"
-                                elif "complete" in page_content.lower():
-                                    attendance_status = "complete"
+                                # Look for attendance status elements near student information
+                                # This will capture whatever status text appears (confirmed, canceled, complete, no show, etc.)
+                                status_elements = await page.query_selector_all('.person-name, .attendance-status, .status, [class*="status"], [class*="attendance"]')
+                                for elem in status_elements:
+                                    elem_text = await elem.text_content()
+                                    if elem_text:
+                                        elem_text = elem_text.strip().lower()
+                                        # Look for common status words
+                                        status_words = ['confirmed', 'canceled', 'cancelled', 'complete', 'no show', 'pending', 'booked']
+                                        for word in status_words:
+                                            if word in elem_text:
+                                                attendance_status = word.replace('cancelled', 'canceled')  # normalize spelling
+                                                break
+                                        if attendance_status != "unknown":
+                                            break
                             except Exception as e:
                                 if verbose:
                                     print(f"⚠️ Error checking attendance for lesson {lesson_id}: {e}")
@@ -218,5 +225,5 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
     return df
 
 if __name__ == "__main__":
-    # Optionally add CLI usage here in the future
-    asyncio.run(scrape_lessons("westu-sor", dates=["2025-06-07"]))
+    # Test with date that has multiple attendance statuses
+    asyncio.run(scrape_lessons("westu-sor", dates=["2025-06-19"]))
