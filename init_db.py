@@ -17,6 +17,7 @@ def initialize_db():
         reminder_sent INTEGER DEFAULT 0,
         reminder_count INTEGER DEFAULT 0,
         note_completed INTEGER DEFAULT 0,
+        attendance_status TEXT DEFAULT 'unknown',
         last_checked DATE,
         last_reminder_sent TIMESTAMP
     );

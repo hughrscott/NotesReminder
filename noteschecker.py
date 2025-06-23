@@ -140,6 +140,22 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
                             students_str = ", ".join(students)
 
+                            # Check for attendance status (confirmed, canceled, complete, etc.)
+                            attendance_status = "unknown"
+                            try:
+                                # Look for common attendance status keywords
+                                page_content = await page.content()
+                                if "confirmed" in page_content.lower():
+                                    attendance_status = "confirmed"
+                                elif "canceled" in page_content.lower():
+                                    attendance_status = "canceled"
+                                elif "complete" in page_content.lower():
+                                    attendance_status = "complete"
+                            except Exception as e:
+                                if verbose:
+                                    print(f"⚠️ Error checking attendance for lesson {lesson_id}: {e}")
+                                attendance_status = "unknown"
+
                             await page.goto(notes_url)
                             await page.wait_for_load_state("networkidle", timeout=30000)
                             await page.screenshot(path=f"screenshots/notes_{lesson_id}.png")
@@ -171,7 +187,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                                 "Students": students_str,
                                 "Lesson Type": lesson_type.strip() if lesson_type else "",
                                 "Notes": notes,
-                                "Note Timestamp": note_timestamp
+                                "Note Timestamp": note_timestamp,
+                                "Attendance Status": attendance_status
                             })
 
                             if verbose:
