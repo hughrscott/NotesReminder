@@ -3,7 +3,6 @@ import asyncio
 import sqlite3
 from datetime import datetime, timedelta
 import pandas as pd
-from noteschecker import scrape_lessons
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -14,6 +13,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+from noteschecker import scrape_lessons
 
 # Email configuration
 SMTP_SERVER = "smtp.mail.me.com"
@@ -74,7 +75,7 @@ def send_email_report(missing_notes, school_subdomain, start_date, end_date):
     if not missing_notes:
         return
 
-    # Group by date and then by instructor
+    # Group by date and then by instructor for easier formatting later
     report_content = {}
     for note in missing_notes:
         date = note['date']
@@ -83,29 +84,66 @@ def send_email_report(missing_notes, school_subdomain, start_date, end_date):
             report_content[date] = {}
         if instructor not in report_content[date]:
             report_content[date][instructor] = []
-        report_content[date][instructor].append(f"  {note['time']} - {note['students']}")
+        report_content[date][instructor].append({
+            'time': note['time'],
+            'students': note['students'],
+            'lesson_type': note['lesson_type']
+        })
 
     # Sort dates and instructors for consistent reporting
     sorted_dates = sorted(report_content.keys())
 
-    body = ""
-    body += f"This report lists all lessons with missing notes.\n\n"
+    plain_body_lines = ["This report lists all lessons with missing notes.\n"]
+    table_rows = []
 
     for date in sorted_dates:
-        body += f"Date: {date}\n\n"
+        plain_body_lines.append(f"Date: {date}\n")
         sorted_instructors = sorted(report_content[date].keys())
         for instructor in sorted_instructors:
-            body += f"Instructor: {instructor}\n"
-            for lesson_line in report_content[date][instructor]:
-                body += f"{lesson_line}\n"
-            body += "\n"
+            plain_body_lines.append(f"Instructor: {instructor}\n")
+            for lesson in report_content[date][instructor]:
+                plain_body_lines.append(f"  {lesson['time']} - {lesson['students']} ({lesson['lesson_type']})\n")
+                table_rows.append(
+                    f"<tr>"
+                    f"<td>{date}</td>"
+                    f"<td>{instructor}</td>"
+                    f"<td>{lesson['time']}</td>"
+                    f"<td>{lesson['students']}</td>"
+                    f"<td>{lesson['lesson_type']}</td>"
+                    f"</tr>"
+                )
+            plain_body_lines.append("\n")
 
-    msg = MIMEMultipart()
+    plain_body = "".join(plain_body_lines)
+    html_body = f"""
+    <html>
+        <body style="font-family:Arial,sans-serif;font-size:14px;color:#222;">
+            <p>This report lists all lessons with missing notes.</p>
+            <table style="border-collapse:collapse;width:100%;">
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Date</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Instructor</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Time</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Student</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Lesson Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {''.join(table_rows)}
+                </tbody>
+            </table>
+        </body>
+    </html>
+    """
+
+    msg = MIMEMultipart('alternative')
     msg['From'] = SENDER_EMAIL
     msg['To'] = ", ".join(RECIPIENT_EMAILS)
     msg['Subject'] = f"Missing Notes for {school_subdomain.replace('-sor', '').replace('westu', 'West U').replace('theheights', 'The Heights').title()} ({start_date} to {end_date})"
 
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(plain_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
 
     try:
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
