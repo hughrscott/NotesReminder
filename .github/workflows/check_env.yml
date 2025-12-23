@@ -1,0 +1,24 @@
+name: Check Env
+
+on:
+  workflow_dispatch:
+
+jobs:
+  show-vars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display env presence
+        env:
+          PIKE13_USER: ${{ secrets.PIKE13_USER }}
+          PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          for var in PIKE13_USER PIKE13_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
+            if [ -z "${!var}" ]; then
+              echo "$var is NOT set"
+            else
+              echo "$var is set"
+            fi
+          done
