@@ -20,14 +20,17 @@ cursor.execute('''
 CREATE TABLE IF NOT EXISTS reminders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lesson_id TEXT UNIQUE,
+    school TEXT,
     instructor_name TEXT,
     lesson_date TEXT,
     lesson_time TEXT,
     lesson_type TEXT,
     students TEXT,
+    location TEXT,
     reminder_sent INTEGER DEFAULT 0,
     reminder_count INTEGER DEFAULT 0,
     note_completed INTEGER DEFAULT 0,
+    attendance_status TEXT DEFAULT 'unknown',
     last_checked DATE,
     last_reminder_sent TIMESTAMP
 );

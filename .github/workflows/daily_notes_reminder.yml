@@ -80,10 +80,20 @@ jobs:
       - name: Compute weekly date range
         id: week
         run: |
-          START=$(TZ=America/Chicago date -d 'last monday' '+%Y-%m-%d')
-          END=$(TZ=America/Chicago date -d 'last saturday' '+%Y-%m-%d')
-          echo "start_date=$START" >> "$GITHUB_OUTPUT"
-          echo "end_date=$END" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          import os
+
+          tz = ZoneInfo("America/Chicago")
+          today = datetime.now(tz).date()
+          end_date = today - timedelta(days=1)
+          start_date = end_date - timedelta(days=5)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              print(f"start_date={start_date}", file=f)
+              print(f"end_date={end_date}", file=f)
+          PY
 
       - name: Run weekly reminder
         env:

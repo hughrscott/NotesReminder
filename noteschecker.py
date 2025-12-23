@@ -16,7 +16,7 @@ PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 if not PIKE13_USER or not PIKE13_PASS:
     raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
 
-async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date=None, verbose=True):
+async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date=None, verbose=False):
     if dates is None and start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -78,7 +78,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
             for date in dates:
                 schedule_url = f"https://{school_subdomain}.pike13.com/schedule#/day?dt={date}&lt=staff&el=1"
-                print(f"\nNavigating to schedule for {date}...")
+                if verbose:
+                    print(f"\nNavigating to schedule for {date}...")
                 await page.goto(schedule_url)
                 
                 # Wait for calendar to load
@@ -88,17 +89,19 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                     await page.screenshot(path=f"screenshots/schedule_{date}.png", full_page=True)
                     
                     # Print page title and URL for debugging
-                    print(f"Page title: {await page.title()}")
-                    print(f"Current URL: {page.url}")
+                    if verbose:
+                        print(f"Page title: {await page.title()}")
+                        print(f"Current URL: {page.url}")
                     
                     # Try waiting for a staff name or lesson block
                     try:
                         await page.wait_for_selector('text=Zach Jones', timeout=15000)
                     except Exception as e:
-                        print(f"⚠️ Could not find staff name on {date}: {e}")
-                        # Print the HTML of the schedule area for debugging
-                        schedule_html = await page.inner_html("div.calendar-lane")
-                        print(f"\n===== HTML for {date} =====\n{schedule_html}\n==========================\n")
+                        if verbose:
+                            print(f"⚠️ Could not find staff name on {date}: {e}")
+                            # Print the HTML of the schedule area for debugging
+                            schedule_html = await page.inner_html("div.calendar-lane")
+                            print(f"\n===== HTML for {date} =====\n{schedule_html}\n==========================\n")
                     
                     # Get all lesson links
                     lesson_links = await page.evaluate("""
@@ -128,7 +131,17 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                             await page.screenshot(path=f"screenshots/lesson_{lesson_id}.png")
 
                             lesson_type = await page.text_content("span#title")
-                            lesson_time = await page.text_content("span#subtitle")
+                            lesson_time_raw = await page.text_content("span#subtitle")
+                            lesson_time_clean = lesson_time_raw or ""
+                            lesson_time_clean = re.sub(r'\s+', ' ', lesson_time_clean).strip()
+                            location = ""
+                            if " - " in lesson_time_clean:
+                                time_part, _, location_part = lesson_time_clean.rpartition(" - ")
+                                lesson_time_clean = time_part.strip()
+                                location = location_part.strip()
+                            if " on " in lesson_time_clean:
+                                lesson_time_clean = lesson_time_clean.split(" on ", 1)[0].strip()
+                            lesson_time = lesson_time_clean
                             instructor = await page.text_content(".sidebar_group.sidebar_menu li.person_menu_item a")
 
                             student_elements = await page.query_selector_all(".person-name a.name-link")
@@ -201,7 +214,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                                 "Lesson Type": lesson_type.strip() if lesson_type else "",
                                 "Notes": notes,
                                 "Note Timestamp": note_timestamp,
-                                "Attendance Status": attendance_status
+                                "Attendance Status": attendance_status,
+                                "Location": location
                             })
 
                             if verbose:
@@ -232,4 +246,4 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
 if __name__ == "__main__":
     # Test with date that has multiple attendance statuses
-    asyncio.run(scrape_lessons("westu-sor", dates=["2025-06-19"]))
+    asyncio.run(scrape_lessons("westu-sor", dates=["2025-06-19"], verbose=True))

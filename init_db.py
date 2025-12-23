@@ -14,6 +14,7 @@ def initialize_db():
         lesson_time TEXT,
         lesson_type TEXT,
         students TEXT,
+        location TEXT,
         reminder_sent INTEGER DEFAULT 0,
         reminder_count INTEGER DEFAULT 0,
         note_completed INTEGER DEFAULT 0,
