@@ -10,6 +10,7 @@ from instructormapping import get_instructor_email
 import argparse
 import boto3
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -323,11 +324,18 @@ def ensure_location_column():
         conn.commit()
     conn.close()
 
-def should_skip_lesson(lesson_type, students):
-    if lesson_type == "Admin Time":
+def should_skip_lesson(lesson_type, students, instructor=None):
+    lt = (lesson_type or "").lower()
+    if "admin" in lt or "meeting" in lt:
         return True
     if students and ',' in students:
         return True
+    if instructor:
+        instructor_clean = instructor.strip().lower()
+        if not re.search(r"[a-zA-Z]", instructor_clean):
+            return True
+        if "admin" in instructor_clean or "trial" in instructor_clean or "rookies" in instructor_clean:
+            return True
     return False
 
 def format_note_snippet(note_text, word_limit=10):
@@ -446,7 +454,7 @@ async def main():
         conn.commit()
         conn.close()
 
-        if has_notes and not should_skip_lesson(lesson_type, students):
+        if has_notes and not should_skip_lesson(lesson_type, students, instructor_name):
             completed_lessons.append({
                 'date': lesson_date,
                 'time': lesson_time,
@@ -474,7 +482,7 @@ async def main():
             continue
         seen_lessons.add(dedup_key)
 
-        if should_skip_lesson(lesson_type, students):
+        if should_skip_lesson(lesson_type, students, instructor_clean):
             continue
 
         report_missing_notes.append({
