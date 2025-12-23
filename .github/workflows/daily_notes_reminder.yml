@@ -1,0 +1,101 @@
+name: Daily Notes Reminder
+
+on:
+  schedule:
+    # Daily run at 9PM Central (03:00 UTC) Monday–Saturday
+    - cron: '0 3 * * 1-6'
+    # Weekly summary on Sunday 9AM Central (15:00 UTC)
+    - cron: '0 15 * * 0'
+  workflow_dispatch:
+
+jobs:
+  daily-reminder:
+    if: ${{ github.event_name != 'schedule' || github.event.schedule == '0 3 * * 1-6' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - school: westu-sor
+            to: "huscott@schoolofrock.com vscott@schoolofrock.com cabarnhill@schoolofrock.com"
+          - school: theheights-sor
+            to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Compute daily date range
+        id: dates
+        run: |
+          START=$(TZ=America/Chicago date '+%Y-%m-%d')
+          echo "start_date=$START" >> "$GITHUB_OUTPUT"
+          echo "end_date=$START" >> "$GITHUB_OUTPUT"
+
+      - name: Run daily reminder
+        env:
+          PIKE13_USER: ${{ secrets.PIKE13_USER }}
+          PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          python run_daily.py \
+            --school ${{ matrix.school }} \
+            --start-date ${{ steps.dates.outputs.start_date }} \
+            --end-date ${{ steps.dates.outputs.end_date }} \
+            --summary both \
+            --to ${{ matrix.to }}
+
+  weekly-reminder:
+    if: ${{ github.event_name != 'schedule' || github.event.schedule == '0 15 * * 0' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - school: westu-sor
+            to: "huscott@schoolofrock.com vscott@schoolofrock.com cabarnhill@schoolofrock.com"
+          - school: theheights-sor
+            to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Compute weekly date range
+        id: week
+        run: |
+          START=$(TZ=America/Chicago date -d 'last monday' '+%Y-%m-%d')
+          END=$(TZ=America/Chicago date -d 'last saturday' '+%Y-%m-%d')
+          echo "start_date=$START" >> "$GITHUB_OUTPUT"
+          echo "end_date=$END" >> "$GITHUB_OUTPUT"
+
+      - name: Run weekly reminder
+        env:
+          PIKE13_USER: ${{ secrets.PIKE13_USER }}
+          PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          python run_daily.py \
+            --school ${{ matrix.school }} \
+            --start-date ${{ steps.week.outputs.start_date }} \
+            --end-date ${{ steps.week.outputs.end_date }} \
+            --summary both \
+            --to ${{ matrix.to }}
