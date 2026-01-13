@@ -2,6 +2,7 @@
 
 ## Required Environment Variables
 Set these before running any scripts (e.g., in a local `.env` file that `dotenv` loads or via `export` in your shell):
+Copy the template once with `cp .env.example .env`, then fill in your real values.
 
 | Variable | Purpose |
 | --- | --- |
@@ -63,7 +64,7 @@ Example command (quiet mode):
 
 ```bash
 python run_daily.py --school westu-sor --start-date 2025-06-18 --end-date 2025-06-18 \
-  --to huscott@schoolofrock.com vscott@schoolofrock.com
+  --to you@example.com manager@example.com
 ```
 
 Add `--summary both` for CLI summaries or `--verbose` for scrape-level logs. After a successful run you’ll receive an email report and see the database synced back to S3.
