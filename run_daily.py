@@ -26,8 +26,8 @@ def log(message, force=False):
 # Email configuration
 SMTP_SERVER = "smtp.mail.me.com"
 SMTP_PORT = 587
-SENDER_EMAIL = "hughrscott@mac.com"
-SENDER_PASSWORD = "lamk-mwgz-snxk-wusw"
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
 S3_BUCKET = 'notesreminder-db'
 S3_KEY = 'reminders.db'
@@ -119,6 +119,9 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
         return
     if not to_recipients:
         print("⚠️ No recipients specified; skipping email send.")
+        return
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        print("⚠️ Missing SENDER_EMAIL or SENDER_PASSWORD; skipping email send.")
         return
 
     missing_available = include_missing and missing_notes
@@ -328,7 +331,7 @@ def should_skip_lesson(lesson_type, students, instructor=None):
     lt = (lesson_type or "").lower()
     if "admin" in lt or "meeting" in lt:
         return True
-    if students and ',' in students:
+    if students and isinstance(students, str) and ',' in students:
         return True
     if instructor:
         instructor_clean = instructor.strip().lower()

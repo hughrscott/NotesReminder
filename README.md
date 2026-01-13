@@ -10,8 +10,10 @@ Set these before running any scripts (e.g., in a local `.env` file that `dotenv`
 | `AWS_ACCESS_KEY_ID` | AWS credential for syncing `reminders.db` to S3. |
 | `AWS_SECRET_ACCESS_KEY` | Matching AWS secret. |
 | `AWS_DEFAULT_REGION` | Region for the S3 client (e.g., `us-east-1`). |
+| `SENDER_EMAIL` | SMTP sender email address for the summary report. |
+| `SENDER_PASSWORD` | SMTP password or app-specific password for the sender email. |
 
-Optional: update `run_daily.py` if you need different SMTP credentials or recipient emails.
+Optional: update `run_daily.py` if you need different SMTP server settings or recipient emails.
 
 ## CLI Usage
 Run the help command anytime to see the full synopsis:
