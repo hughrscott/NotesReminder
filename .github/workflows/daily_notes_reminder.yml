@@ -18,7 +18,7 @@ jobs:
           - school: westu-sor
             to: "huscott@schoolofrock.com vscott@schoolofrock.com cabarnhill@schoolofrock.com"
           - school: theheights-sor
-            to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com"
+            to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com agarza@schoolofrock.com"
     steps:
       - uses: actions/checkout@v4
 
