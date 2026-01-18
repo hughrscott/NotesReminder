@@ -41,10 +41,12 @@ def parse_args():
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging output')
     parser.add_argument('--summary', choices=['none', 'notes', 'missing', 'both'], default='none',
                         help='Select which sections to include in the summary email')
-    parser.add_argument('--to', nargs='+', required=True,
+    parser.add_argument('--to', nargs='+', default=[],
                         help='One or more recipient email addresses')
     parser.add_argument('--cc', nargs='*', default=[],
                         help='Optional list of extra email addresses to CC on the summary email')
+    parser.add_argument('--no-email', action='store_true',
+                        help='Skip sending the summary email (useful for backfills)')
     return parser.parse_args()
 
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
@@ -327,6 +329,41 @@ def ensure_location_column():
         conn.commit()
     conn.close()
 
+def ensure_unique_lesson_ids():
+    conn = sqlite3.connect('reminders.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM reminders WHERE lesson_id LIKE school || '-%'")
+    prefixed_count = cursor.fetchone()[0]
+    if prefixed_count == 0:
+        cursor.execute("""
+            UPDATE reminders
+            SET lesson_id = school || '-' || lesson_id
+        """)
+        conn.commit()
+    conn.close()
+
+def ensure_notes_columns():
+    conn = sqlite3.connect('reminders.db')
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(reminders)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'notes_text' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN notes_text TEXT")
+    if 'note_timestamp' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_timestamp TEXT")
+    conn.commit()
+    conn.close()
+
+def ensure_pike13_column():
+    conn = sqlite3.connect('reminders.db')
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(reminders)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'pike13_lesson_id' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN pike13_lesson_id TEXT")
+        conn.commit()
+    conn.close()
+
 def should_skip_lesson(lesson_type, students, instructor=None):
     lt = (lesson_type or "").lower()
     if "admin" in lt or "meeting" in lt:
@@ -352,6 +389,8 @@ async def main():
     global VERBOSE
     VERBOSE = args.verbose
     school_subdomain = args.school
+    if not args.no_email and not args.to:
+        raise SystemExit("Missing --to recipients (or use --no-email to skip sending).")
 
     # If init-db flag is set, create a fresh database and upload it
     if args.init_db:
@@ -365,6 +404,9 @@ async def main():
     # Download the latest DB from S3 (if it exists)
     download_db_from_s3('reminders.db', S3_BUCKET, S3_KEY)
     ensure_location_column()
+    ensure_notes_columns()
+    ensure_pike13_column()
+    ensure_unique_lesson_ids()
 
     # Scrape recent lessons (last 7 days by default, or custom range)
     if args.start_date and args.end_date:
@@ -380,14 +422,32 @@ async def main():
 
     # Read the scraped data
     csv_file = f"{school_subdomain}_lessons_{start_date}_to_{end_date}.csv"
-    df = pd.read_csv(csv_file)
+    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
+        raise SystemExit(
+            f"CSV file {csv_file} is missing or empty. "
+            "Scrape likely failed (login/permissions/network)."
+        )
+    try:
+        df = pd.read_csv(csv_file)
+    except pd.errors.EmptyDataError:
+        raise SystemExit(
+            f"CSV file {csv_file} has no columns. "
+            "Scrape likely returned no data (login/permissions/network)."
+        )
     has_location_column = 'Location' in df.columns
     completed_lessons = []
 
     # Process each lesson from the scraped data
     # This part updates the database based on the latest scrape
     for index, row in df.iterrows():
-        lesson_id = f"{row['Lesson Type']}-{row['Date']}-{row['Time']}-{row['Students']}"
+        base_lesson_id = f"{row['Lesson Type']}-{row['Date']}-{row['Time']}-{row['Students']}"
+        pike13_lesson_id = row.get('Lesson ID', None)
+        if isinstance(pike13_lesson_id, float) and pd.isna(pike13_lesson_id):
+            pike13_lesson_id = None
+        if pike13_lesson_id:
+            lesson_id = f"{school_subdomain}-{pike13_lesson_id}"
+        else:
+            lesson_id = f"{school_subdomain}-{base_lesson_id}"
         instructor_name = row['Instructor']
         lesson_date = row['Date']
         lesson_time = row['Time']
@@ -406,12 +466,44 @@ async def main():
         notes_str = (notes_value if isinstance(notes_value, str) else str(notes_value or "")).strip()
         normalized_notes = notes_str.lower()
         has_notes = notes_str != "" and normalized_notes not in ("no notes", "nan", "none")
+        notes_text = notes_str if has_notes else None
+        note_timestamp = row.get('Note Timestamp', None)
 
         # Check if the lesson already exists in the database
         conn = sqlite3.connect('reminders.db')
         cursor = conn.cursor()
         cursor.execute('''SELECT lesson_id FROM reminders WHERE lesson_id = ? AND school = ?''', (lesson_id, school_subdomain))
         existing_lesson = cursor.fetchone()
+        if not existing_lesson:
+            legacy_lesson_id = base_lesson_id
+            cursor.execute('''
+                SELECT lesson_id FROM reminders
+                WHERE lesson_id = ? AND school = ?
+            ''', (legacy_lesson_id, school_subdomain))
+            legacy_lesson = cursor.fetchone()
+            if legacy_lesson:
+                cursor.execute('''
+                    UPDATE reminders
+                    SET lesson_id = ?
+                    WHERE lesson_id = ? AND school = ?
+                ''', (lesson_id, legacy_lesson_id, school_subdomain))
+                conn.commit()
+                existing_lesson = (lesson_id,)
+        if not existing_lesson and pike13_lesson_id:
+            legacy_prefixed = f"{school_subdomain}-{base_lesson_id}"
+            cursor.execute('''
+                SELECT lesson_id FROM reminders
+                WHERE lesson_id = ? AND school = ?
+            ''', (legacy_prefixed, school_subdomain))
+            legacy_prefixed_row = cursor.fetchone()
+            if legacy_prefixed_row:
+                cursor.execute('''
+                    UPDATE reminders
+                    SET lesson_id = ?
+                    WHERE lesson_id = ? AND school = ?
+                ''', (lesson_id, legacy_prefixed, school_subdomain))
+                conn.commit()
+                existing_lesson = (lesson_id,)
 
         if existing_lesson:
             cursor.execute('''
@@ -424,7 +516,10 @@ async def main():
                     lesson_type = ?,
                     students = ?,
                     location = COALESCE(?, location),
-                    attendance_status = ?
+                    attendance_status = ?,
+                    notes_text = ?,
+                    note_timestamp = ?,
+                    pike13_lesson_id = COALESCE(?, pike13_lesson_id)
                 WHERE lesson_id = ? AND school = ?
             ''', (
                 1 if has_notes else 0,
@@ -435,13 +530,18 @@ async def main():
                 students,
                 location_clean,
                 row.get('Attendance Status', 'unknown'),
+                notes_text,
+                note_timestamp,
+                pike13_lesson_id,
                 lesson_id,
                 school_subdomain
             ))
+            if args.verbose:
+                print(f"🔁 Updated lesson {lesson_id}")
         else:
             cursor.execute('''
-                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, location, note_completed, attendance_status, last_checked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
+                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, location, note_completed, attendance_status, notes_text, note_timestamp, pike13_lesson_id, last_checked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
             ''', (
                 lesson_id,
                 school_subdomain,
@@ -452,8 +552,13 @@ async def main():
                 students,
                 location_clean,
                 1 if has_notes else 0,
-                row.get('Attendance Status', 'unknown')
+                row.get('Attendance Status', 'unknown'),
+                notes_text,
+                note_timestamp,
+                pike13_lesson_id
             ))
+            if args.verbose:
+                print(f"🆕 Inserted lesson {lesson_id}")
         conn.commit()
         conn.close()
 
@@ -499,17 +604,18 @@ async def main():
 
     include_missing_section = args.summary in ('none', 'missing', 'both')
     include_notes_section = args.summary in ('notes', 'both')
-    send_email_report(
-        report_missing_notes,
-        completed_lessons,
-        school_subdomain,
-        start_date,
-        end_date,
-        include_missing_section,
-        include_notes_section,
-        to_recipients=args.to,
-        cc_recipients=args.cc
-    )
+    if not args.no_email:
+        send_email_report(
+            report_missing_notes,
+            completed_lessons,
+            school_subdomain,
+            start_date,
+            end_date,
+            include_missing_section,
+            include_notes_section,
+            to_recipients=args.to,
+            cc_recipients=args.cc
+        )
     if include_missing_section and not report_missing_notes:
         log(f"✅ All lessons for {school_subdomain} (from {start_date} to {end_date}) have notes (or were filtered out)!")
 

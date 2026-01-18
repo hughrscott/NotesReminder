@@ -30,6 +30,21 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
     # Create screenshots directory if it doesn't exist
     os.makedirs('screenshots', exist_ok=True)
 
+    async def goto_with_retry(target_url, attempts=3, wait_ms=2000):
+        last_error = None
+        for attempt in range(1, attempts + 1):
+            try:
+                await page.goto(target_url)
+                return True
+            except Exception as e:
+                last_error = e
+                if verbose:
+                    print(f"⚠️ Page.goto failed (attempt {attempt}/{attempts}) for {target_url}: {e}")
+                await page.wait_for_timeout(wait_ms)
+        if verbose:
+            print(f"❌ Giving up on {target_url}: {last_error}")
+        return False
+
     async with async_playwright() as p:
         # Launch browser with more debugging options
         browser = await p.chromium.launch(
@@ -80,12 +95,23 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                 schedule_url = f"https://{school_subdomain}.pike13.com/schedule#/day?dt={date}&lt=staff&el=1"
                 if verbose:
                     print(f"\nNavigating to schedule for {date}...")
-                await page.goto(schedule_url)
+                if not await goto_with_retry(schedule_url):
+                    if verbose:
+                        print(f"⚠️ Skipping {date} due to repeated navigation failures.")
+                    continue
                 
                 # Wait for calendar to load
                 try:
                     await page.wait_for_selector("div.calendar-lane", timeout=30000)
-                    await page.wait_for_timeout(10000)  # Wait longer for JS to render
+                    await page.wait_for_load_state("networkidle")
+                    await page.wait_for_timeout(5000)  # Wait longer for JS to render
+                    date_obj = datetime.strptime(date, "%Y-%m-%d")
+                    date_label = date_obj.strftime("%b %d, %Y").replace(" 0", " ")
+                    try:
+                        await page.wait_for_selector(f"text={date_label}", timeout=15000)
+                    except Exception as e:
+                        if verbose:
+                            print(f"⚠️ Could not confirm date label {date_label}: {e}")
                     await page.screenshot(path=f"screenshots/schedule_{date}.png", full_page=True)
                     
                     # Print page title and URL for debugging
@@ -93,22 +119,101 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                         print(f"Page title: {await page.title()}")
                         print(f"Current URL: {page.url}")
                     
-                    # Try waiting for a staff name or lesson block
+                    # Try waiting for a lesson block to appear
                     try:
-                        await page.wait_for_selector('text=Zach Jones', timeout=15000)
+                        await page.wait_for_selector('.calendar-lane .event', timeout=15000)
                     except Exception as e:
                         if verbose:
-                            print(f"⚠️ Could not find staff name on {date}: {e}")
-                            # Print the HTML of the schedule area for debugging
+                            print(f"⚠️ Could not find any event blocks on {date}: {e}")
                             schedule_html = await page.inner_html("div.calendar-lane")
                             print(f"\n===== HTML for {date} =====\n{schedule_html}\n==========================\n")
                     
-                    # Get all lesson links
+                    # Get all lesson links (broader search across the page)
                     lesson_links = await page.evaluate("""
-                        () => Array.from(document.querySelectorAll(".calendar-lane .event a"))
+                        () => Array.from(document.querySelectorAll("a[href*='/e/']"))
                                   .map(a => a.getAttribute("href"))
                                   .filter(href => href && href.includes('/e/'))
                     """)
+
+                    # Fallback: click day-view events to extract lesson IDs
+                    if not lesson_links:
+                        events = page.locator(".calendar-lane .event")
+                        event_count = await events.count()
+                        if verbose:
+                            print(f"🔍 Found {event_count} event blocks on {date}.")
+                        for idx in range(event_count):
+                            event = events.nth(idx)
+                            try:
+                                event_text = (await event.inner_text()).lower()
+                            except Exception:
+                                event_text = ""
+                            if "unavailable" in event_text:
+                                continue
+                            try:
+                                if await event.locator(".availability").count() > 0:
+                                    continue
+                            except Exception:
+                                pass
+                            try:
+                                await event.click(force=True, timeout=5000)
+                                await page.wait_for_url(re.compile(r"/e/\\d+"), timeout=8000)
+                                match = re.search(r"/e/(\\d+)", page.url)
+                                if match:
+                                    lesson_links.append(f"/e/{match.group(1)}")
+                                await page.goto(schedule_url)
+                                await page.wait_for_selector("div.calendar-lane", timeout=30000)
+                                await page.wait_for_timeout(2000)
+                            except Exception as e:
+                                if verbose:
+                                    print(f"⚠️ Could not open event {idx + 1} on {date}: {e}")
+                                try:
+                                    await page.keyboard.press("Escape")
+                                    await page.wait_for_timeout(500)
+                                except Exception:
+                                    pass
+                                continue
+                        lesson_links = list(dict.fromkeys(lesson_links))
+
+                    # Fallback: try List view (tab click) if day view has no links
+                    if not lesson_links:
+                        switched = False
+                        for selector in (
+                            'button:has-text("List")',
+                            'a:has-text("List")',
+                            'role=tab[name="List"]',
+                            'role=button[name="List"]',
+                        ):
+                            try:
+                                await page.click(selector, timeout=5000)
+                                await page.wait_for_timeout(3000)
+                                switched = True
+                                break
+                            except Exception:
+                                continue
+                        if not switched and verbose:
+                            print(f"⚠️ Could not click List tab on {date}.")
+
+                    # Fallback: load list view by URL if still no links
+                    if not lesson_links:
+                        list_urls = [
+                            f"https://{school_subdomain}.pike13.com/schedule#/list?dt={date}&lt=staff&el=1",
+                            f"https://{school_subdomain}.pike13.com/schedule#/list?dt={date}",
+                        ]
+                        for list_url in list_urls:
+                            try:
+                                await page.goto(list_url)
+                                await page.wait_for_load_state("networkidle")
+                                await page.wait_for_timeout(3000)
+                                lesson_links = await page.evaluate("""
+                                    () => Array.from(document.querySelectorAll("a[href*='/e/']"))
+                                              .map(a => a.getAttribute("href"))
+                                              .filter(href => href && href.includes('/e/'))
+                                """)
+                                if lesson_links:
+                                    break
+                            except Exception as e:
+                                if verbose:
+                                    print(f"⚠️ Could not load list view {list_url}: {e}")
                     
                     if verbose:
                         print(f"🔍 Found {len(lesson_links)} lessons on {date}.")
@@ -126,7 +231,10 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                         notes_url = f"https://{school_subdomain}.pike13.com/desk/e/{lesson_id}/notes"
 
                         try:
-                            await page.goto(lesson_url)
+                            if not await goto_with_retry(lesson_url):
+                                if verbose:
+                                    print(f"⚠️ Skipping lesson {lesson_id} on {date} due to navigation failures.")
+                                continue
                             await page.wait_for_selector("span#title", timeout=15000)
                             await page.screenshot(path=f"screenshots/lesson_{lesson_id}.png")
 
@@ -207,6 +315,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
                             lessons_data.append({
                                 "School": school_subdomain,
+                                "Lesson ID": lesson_id,
                                 "Date": date,
                                 "Time": lesson_time.strip() if lesson_time else "",
                                 "Instructor": instructor.strip() if instructor else "",
