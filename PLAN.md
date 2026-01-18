@@ -63,3 +63,10 @@
      - recording_url, transcript_text, transcript_provider, transcript_confidence, created_at
    - Separate job: download each `dialpad_recordings.recording_url`, transcribe, and persist results.
    - Keep raw call data intact; link transcripts via `call_id` only.
+
+10) Next steps (current)
+   - Set `.env` values for `OPENAI_API_KEY` and `TRANSCRIBE_BUCKET` (if using AWS Transcribe).
+   - Install new deps: `pip install -r requirements.txt` (adds `openai`, `certifi`).
+   - Download recordings (no API): `python3 download_recordings_playwright.py --out-dir recordings --limit 5`.
+   - Transcribe locally: `python3 transcribe_recordings_whisper.py --recordings-dir recordings --model small --limit 2`.
+   - Analyze transcripts: `python3 analyze_transcripts_openai.py --model gpt-4o-mini --limit 10`.
