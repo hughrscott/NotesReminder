@@ -9,3 +9,7 @@ reminders.db
 screenshots/
 .DS_Store
 debug_theheights.py
+node_modules/
+dialpad_profile/
+logs/
+recordings/

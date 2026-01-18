@@ -1,5 +1,8 @@
 # NotesReminder Data Pipeline Plan
 
+First step when resuming:
+- Re-read `README.md` and `docs/data_pipeline.md` for the current pipeline map and commands.
+
 1) Make `reminders.db` the single source of truth
    - Always update locally, then sync to S3.
    - Don’t edit multiple copies in parallel.
