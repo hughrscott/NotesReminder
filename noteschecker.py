@@ -63,6 +63,35 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
         
         page = await context.new_page()
 
+        async def handle_post_login_interstitial():
+            """
+            Pike13 may show a 2FA setup interstitial after login.
+            If present, click "Skip for Now" so scraping can continue.
+            """
+            try:
+                skip_btn = page.get_by_role("button", name=re.compile(r"skip for now", re.I))
+                if await skip_btn.count() > 0 and await skip_btn.first.is_visible():
+                    if verbose:
+                        print("ℹ️ Detected Pike13 security interstitial. Clicking 'Skip for Now'.")
+                    await skip_btn.first.click()
+                    await page.wait_for_timeout(1500)
+                    return True
+            except Exception:
+                pass
+
+            # Fallback selector in case the control is not exposed as a role button.
+            try:
+                fallback_skip = page.locator("text=Skip for Now").first
+                if await fallback_skip.is_visible():
+                    if verbose:
+                        print("ℹ️ Clicking fallback 'Skip for Now' selector.")
+                    await fallback_skip.click()
+                    await page.wait_for_timeout(1500)
+                    return True
+            except Exception:
+                pass
+            return False
+
         try:
             if verbose:
                 print(f"Logging into {school_subdomain}.pike13.com...")
@@ -79,10 +108,17 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
             
             # Click login and wait for navigation
             await page.click('button:has-text("Sign In")')
+            await page.wait_for_timeout(1500)
+            await handle_post_login_interstitial()
             
             # Wait for successful login
             try:
-                await page.wait_for_selector('a:has-text("Schedule")', timeout=60000)
+                # Interstitial can appear a bit later; try once more before failing login.
+                try:
+                    await page.wait_for_selector('a:has-text("Schedule")', timeout=15000)
+                except Exception:
+                    await handle_post_login_interstitial()
+                    await page.wait_for_selector('a:has-text("Schedule")', timeout=60000)
                 if verbose:
                     print("✅ Logged in successfully")
                 await page.screenshot(path="screenshots/03_after_login.png")

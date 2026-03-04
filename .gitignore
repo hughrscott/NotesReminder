@@ -1,8 +1,15 @@
 .env
 __pycache__/
+.DS_Store
+outputs/
+archive/
+notebooks/
 *.pyc
 venv/
 reminders.db
+reminders_mcp.db
+reminders.dbBAK
+reminders.db.BAK2
 *.sqlite3
 *.log
 *.csv

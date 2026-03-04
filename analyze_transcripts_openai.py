@@ -35,6 +35,10 @@ def get_pending_transcripts(conn, limit=None, force=False):
     return conn.execute(base_sql).fetchall()
 
 
+def has_meaningful_text(text: str) -> bool:
+    return any(char.isalnum() for char in text or "")
+
+
 def build_prompt(transcript):
     instructions = (
         "Extract structured call metadata. Return strict JSON with keys:\n"
@@ -48,6 +52,8 @@ def build_prompt(transcript):
 
 
 def parse_json_response(text):
+    if not text or not text.strip():
+        raise ValueError("Empty response from model")
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -150,16 +156,24 @@ def main():
             return
         for call_id, transcript in rows:
             print(f"Analyzing call {call_id}")
+            if not has_meaningful_text(transcript):
+                print(f"Call {call_id} skipped: transcript has no meaningful text.")
+                continue
             prompt = build_prompt(transcript)
-            response = client.responses.create(
-                model=args.model,
-                input=prompt,
-                temperature=0,
-            )
-            text = response.output_text
-            payload = parse_json_response(text)
-            analysis = normalize_analysis(payload)
-            store_analysis(conn, call_id, analysis)
+            try:
+                response = client.responses.create(
+                    model=args.model,
+                    input=prompt,
+                    temperature=0,
+                )
+                text = response.output_text
+                payload = parse_json_response(text)
+                analysis = normalize_analysis(payload)
+                store_analysis(conn, call_id, analysis)
+            except Exception as exc:
+                print(f"Call {call_id} failed: {exc}")
+                time.sleep(args.sleep)
+                continue
             time.sleep(args.sleep)
     finally:
         conn.close()

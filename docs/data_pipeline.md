@@ -121,6 +121,13 @@ Load it:
 launchctl load ~/Library/LaunchAgents/com.notesreminder.daily.plist
 ```
 
+## Publish DB to S3 (manual)
+If Claude auto-syncs from S3, upload your latest working DB first:
+
+```bash
+python3 scripts/publish_db_to_s3.py --db reminders.db
+```
+
 ## Data hygiene
 - Keep new CSVs in dated subfolders under `Call Log/` and `ClientList/`.
 - Avoid editing local DB copies in parallel; rely on S3 sync.

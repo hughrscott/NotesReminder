@@ -25,6 +25,8 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 - `build_reporting_schema.py` : create/backfill reporting tables (`lessons`, `lesson_students`, etc.)
 - `transcribe_recordings.py` : download recording URLs, transcribe with AWS, store in `recording_transcripts`
 - `transcribe_recordings_whisper.py` : transcribe local recordings with Whisper (CPU)
+- `transcribe_recordings_openai.py` : transcribe downloaded recordings with OpenAI Whisper
+- `scripts/rebuild_recording_downloads.py` : rebuild `recording_downloads` from local `recordings/` files
 - `analyze_transcripts_openai.py` : tag transcripts with intent/sentiment/topic/outcome via OpenAI
 - `download_recordings_playwright.py` : download Dialpad recordings using a logged-in browser session
 - `scripts/` : shell wrappers for the above and an end-to-end `update_all.sh`
@@ -42,6 +44,7 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 4) Recording pipeline (download + transcribe + analyze)
    - `download_recordings_playwright.py` (browser-auth download)
    - `transcribe_recordings_whisper.py` (local Whisper)
+   - `transcribe_recordings_openai.py` (OpenAI Whisper API)
    - `transcribe_recordings.py` (AWS Transcribe, optional)
    - `analyze_transcripts_openai.py` (LLM tags)
 5) MCP query pipeline
@@ -56,7 +59,36 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 6) (Optional) Transcribe recordings: `python3 transcribe_recordings.py --bucket YOUR_BUCKET --delete-after`.
 7) (Optional) Download recordings via browser: `python3 download_recordings_playwright.py --out-dir recordings --limit 5` (use `--all` for full download).
 8) (Optional) Transcribe local recordings: `python3 transcribe_recordings_whisper.py --recordings-dir recordings --model small`.
+8b) (Optional) Transcribe recordings via OpenAI: `python3 transcribe_recordings_openai.py --limit 100`.
 9) (Optional) Analyze transcripts: `python3 analyze_transcripts_openai.py --model gpt-4o-mini --limit 10`.
+
+If `recording_downloads` is missing but `recordings/` exists, rebuild it:
+```bash
+python3 scripts/rebuild_recording_downloads.py --recordings-dir recordings
+```
+
+Generated files:
+- `outputs/` holds CSV exports and screenshots (e.g., `missed_signup_leads.csv`).
+- `notebooks/` holds Jupyter notebooks.
+- `archive/` holds legacy or backup files.
+
+`transcribe_recordings_whisper.py` skips any `call_id` that already exists in
+`recording_transcripts`. Use `--force` to re-transcribe.
+
+Idempotency:
+- Downloads skip `call_id` values already marked `success` in `recording_downloads`.
+- Local transcription skips any `call_id` already present in `recording_transcripts` unless `--force`.
+- Transcript analysis skips rows that already have `intent` unless `--force`.
+
+Hardware acceleration (Apple Silicon):
+```bash
+python3 transcribe_recordings_whisper.py --device mps --workers 1 --model small
+```
+
+CPU parallelism (use smaller models to avoid memory pressure):
+```bash
+python3 transcribe_recordings_whisper.py --device cpu --workers 4 --model base
+```
 
 ## CLI Usage
 Run the help command anytime to see the full synopsis:
@@ -97,12 +129,21 @@ This repo automates “missing lesson notes” reminders for School of Rock loca
 
 4. `instructormapping.py` provides instructor contact details if you extend the workflow to notify teachers directly.
 
+## Session Notes
+Use `docs/SESSION_NOTES.md` to resume the latest state and next steps.
+
 ## Running a Report
 Install dependencies once:
 
 ```bash
 pip install -r requirements.txt
 playwright install
+```
+
+If `llvmlite`/`numba` try to build from source, force wheels:
+
+```bash
+pip install --only-binary=:all: llvmlite numba
 ```
 
 Example command (quiet mode):
@@ -173,13 +214,23 @@ Claude Desktop config (macOS):
         "AWS_ACCESS_KEY_ID": "YOUR_KEY",
         "AWS_SECRET_ACCESS_KEY": "YOUR_SECRET",
         "AWS_DEFAULT_REGION": "us-east-1",
-        "REMINDERS_DB_PATH": "/Users/hughscott/Documents/Coding/NotesReminder/reminders.db",
+        "REMINDERS_DB_PATH": "/Users/hughscott/Documents/Coding/NotesReminder/reminders_mcp.db",
         "REMINDERS_S3_BUCKET": "notesreminder-db",
         "REMINDERS_S3_KEY": "reminders.db"
       }
     }
   }
 }
+```
+
+To avoid overwriting your working DB, publish a copy for MCP:
+```bash
+./scripts/publish_mcp_db.sh
+```
+
+To upload the latest working DB to S3 (so Claude sync sees it):
+```bash
+python3 scripts/publish_db_to_s3.py --db reminders.db
 ```
 
 Available tools:
