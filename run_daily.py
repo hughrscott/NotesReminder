@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--end-date', type=str, help='End date in YYYY-MM-DD format')
     parser.add_argument('--init-db', action='store_true', help='Initialize and upload a fresh database')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging output')
-    parser.add_argument('--summary', choices=['none', 'notes', 'missing', 'both'], default='none',
+    parser.add_argument('--summary', choices=['none', 'notes', 'missing', 'both'], default='both',
                         help='Select which sections to include in the summary email')
     parser.add_argument('--to', nargs='+', default=[],
                         help='One or more recipient email addresses')
@@ -116,7 +116,8 @@ def normalize_lesson_time(time_str):
     return cleaned
 
 def send_email_report(missing_notes, completed_notes, school_subdomain, start_date, end_date,
-                      include_missing, include_notes, to_recipients, cc_recipients=None):
+                      include_missing, include_notes, to_recipients, cc_recipients=None,
+                      total_lessons_override=None, notes_count_override=None, missing_count_override=None):
     if not include_missing and not include_notes:
         return
     if not to_recipients:
@@ -134,9 +135,23 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     school_label = format_school_label(school_subdomain)
     date_phrase = format_date_range(start_date, end_date)
 
-    missing_count = len(missing_notes) if missing_available else 0
-    notes_count = len(completed_notes) if notes_available else 0
-    total_count = missing_count + notes_count
+    # Header totals should reflect true reportable counts, independent of which
+    # sections are included in the body.
+    missing_count = (
+        missing_count_override
+        if missing_count_override is not None
+        else len(missing_notes)
+    )
+    notes_count = (
+        notes_count_override
+        if notes_count_override is not None
+        else len(completed_notes)
+    )
+    total_count = (
+        total_lessons_override
+        if total_lessons_override is not None
+        else (missing_count + notes_count)
+    )
 
     plain_lines = [
         f"For {date_phrase} there were {total_count} lessons "
@@ -602,19 +617,46 @@ async def main():
             'location': location
         })
 
+    # Deduplicate and normalize completed lessons for consistent reporting counts.
+    report_completed_notes = []
+    seen_completed = set()
+    for lesson in completed_lessons:
+        dedup_key = (
+            lesson.get('instructor', '').strip(),
+            lesson.get('date', '').strip(),
+            normalize_lesson_time(lesson.get('time', '')),
+            lesson.get('lesson_type', '').strip(),
+            ' '.join((lesson.get('students') or '').split())
+        )
+        if dedup_key in seen_completed:
+            continue
+        seen_completed.add(dedup_key)
+        report_completed_notes.append({
+            **lesson,
+            'time': normalize_lesson_time(lesson.get('time', '')),
+            'instructor': lesson.get('instructor', '').strip(),
+            'lesson_type': lesson.get('lesson_type', '').strip(),
+            'students': ' '.join((lesson.get('students') or '').split())
+        })
+
+    total_reportable_lessons = len(report_missing_notes) + len(report_completed_notes)
+
     include_missing_section = args.summary in ('none', 'missing', 'both')
     include_notes_section = args.summary in ('notes', 'both')
     if not args.no_email:
         send_email_report(
             report_missing_notes,
-            completed_lessons,
+            report_completed_notes,
             school_subdomain,
             start_date,
             end_date,
             include_missing_section,
             include_notes_section,
             to_recipients=args.to,
-            cc_recipients=args.cc
+            cc_recipients=args.cc,
+            total_lessons_override=total_reportable_lessons,
+            notes_count_override=len(report_completed_notes),
+            missing_count_override=len(report_missing_notes),
         )
     if include_missing_section and not report_missing_notes:
         log(f"✅ All lessons for {school_subdomain} (from {start_date} to {end_date}) have notes (or were filtered out)!")
