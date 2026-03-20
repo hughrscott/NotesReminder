@@ -1,6 +1,6 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-01-30
+Last updated: 2026-03-09
 
 ## Current State
 - Working DB: `reminders.db` (~67MB). Latest uploaded to S3 via `scripts/publish_db_to_s3.py`.
@@ -22,6 +22,10 @@ Last updated: 2026-01-30
 ## Key Scripts
 - `scripts/publish_mcp_db.sh` — copy working DB to MCP DB
 - `scripts/publish_db_to_s3.py` — upload working DB to S3
+- `scripts/db_guard.py` — verify/backup/replace guard to prevent stale DB overwrites
+- `scripts/discover_db_sources.py` — list S3 versions/candidate DB keys
+- `scripts/recover_legacy_scores.py` — discover/compare/extract legacy score rows
+- `scripts/merge_legacy_scores.py` — import matched legacy scores into `lesson_note_scores_history`
 - `scripts/rebuild_recording_downloads.py` — rebuild recording_downloads from `recordings/`
 - `scripts/find_missed_signup_leads.py` — produce missed leads CSV (default outputs/)
 - `scripts/classify_intents_openai.py` — AI bucket classification
@@ -31,6 +35,8 @@ Last updated: 2026-01-30
 - `outputs/alt_contact_numbers.csv`
 - `outputs/alt_contact_numbers_leads.csv`
 - `outputs/alt_contact_numbers_leads_with_callback.csv`
+- `outputs/matched_legacy_scores.csv`
+- `outputs/unmatched_legacy_scores.csv`
 
 ## Known Gotchas
 - Claude auto-sync from S3 can overwrite MCP DB; use `publish_mcp_db.sh` instead of syncing to working DB.

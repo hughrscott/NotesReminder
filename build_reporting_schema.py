@@ -97,12 +97,41 @@ def ensure_reporting_tables(conn):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS lesson_note_scores_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lesson_id TEXT NOT NULL,
+            pike13_lesson_id TEXT,
+            score REAL NOT NULL,
+            scoring_source TEXT NOT NULL,
+            scoring_model TEXT,
+            scoring_version TEXT NOT NULL,
+            justification TEXT,
+            strength_or_weakness TEXT,
+            improvement TEXT,
+            scored_at TEXT NOT NULL,
+            import_run_id TEXT NOT NULL,
+            source_db_fingerprint TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(lesson_id, scoring_source, scoring_version, scored_at)
+        )
+        """
+    )
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lessons_school_date ON lessons(school_id, lesson_date)"
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lesson_students_student ON lesson_students(student_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lesson_note_scores_history_lesson "
+        "ON lesson_note_scores_history(lesson_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lesson_note_scores_history_scored_at "
+        "ON lesson_note_scores_history(scored_at)"
     )
 
 

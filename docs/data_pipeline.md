@@ -128,6 +128,44 @@ If Claude auto-syncs from S3, upload your latest working DB first:
 python3 scripts/publish_db_to_s3.py --db reminders.db
 ```
 
+## Pre-sync overwrite guard
+Before replacing a local DB with a downloaded/synced copy:
+
+```bash
+# check safety (blocks if incoming is older/smaller)
+python3 scripts/db_guard.py verify --current reminders.db --incoming /tmp/incoming_reminders.db
+
+# if safe, backup then replace
+python3 scripts/db_guard.py replace --current reminders.db --incoming /tmp/incoming_reminders.db
+```
+
+This prevents accidental loss when a stale S3/MCP sync file appears.
+
+## Legacy score recovery
+Use the dedicated recovery utilities:
+
+```bash
+# local discovery
+python3 scripts/recover_legacy_scores.py discover \
+  --paths reminders.db reminders_mcp.db reminders.db.BAK2 reminders.dbBAK
+
+# cloud discovery
+python3 scripts/discover_db_sources.py --bucket notesreminder-db --key reminders.db
+
+# compare + extract
+python3 scripts/recover_legacy_scores.py compare --current-db reminders.db --source-db /path/to/scored_snapshot.db
+python3 scripts/recover_legacy_scores.py extract --current-db reminders.db --source-db /path/to/scored_snapshot.db
+
+# merge matched rows into lesson_note_scores_history
+python3 scripts/merge_legacy_scores.py \
+  --db reminders.db \
+  --matched-csv outputs/matched_legacy_scores.csv \
+  --source-db /path/to/scored_snapshot.db
+
+# verify
+sqlite3 reminders.db < scripts/sql/verify_scores.sql
+```
+
 ## Data hygiene
 - Keep new CSVs in dated subfolders under `Call Log/` and `ClientList/`.
 - Avoid editing local DB copies in parallel; rely on S3 sync.

@@ -109,6 +109,9 @@ Key flags:
 | `--to` | Required list of primary recipients for the summary email. |
 | `--cc` | Optional list of CC email addresses. |
 | `--no-email` | Skip sending the summary email (useful for backfills). |
+| `--skip-note-scoring` | Skip LLM note scoring for this run. |
+| `--note-score-model` | Model used for note scoring (default `gpt-4o-mini`). |
+| `--note-score-version` | Version label stored with each score. |
 
 ## What the Project Does
 This repo automates “missing lesson notes” reminders for School of Rock locations:
@@ -118,6 +121,7 @@ This repo automates “missing lesson notes” reminders for School of Rock loca
    - Runs the Playwright scraper (`noteschecker.py`) for the requested school/date window to capture lesson details, note status, attendance, and room locations.
    - Updates the SQLite database with the latest scrape results.
    - Stores full note text and timestamps in the database for analysis.
+   - Scores each completed note (1-10) and stores explanation text in DB fields (`note_score`, `note_score_explanation`).
    - Stores the Pike13 lesson id for stable uniqueness across schools.
    - Filters single-student lessons without notes for the selected dates and emails a grouped HTML/plain-text report through the configured SMTP server.
    - Re-uploads the refreshed database to S3 so subsequent runs stay in sync.
@@ -232,6 +236,45 @@ To upload the latest working DB to S3 (so Claude sync sees it):
 ```bash
 python3 scripts/publish_db_to_s3.py --db reminders.db
 ```
+
+Before replacing a local DB from any downloaded/synced copy, run the guard:
+```bash
+# Verify incoming DB is not unexpectedly older/smaller
+python3 scripts/db_guard.py verify --current reminders.db --incoming /tmp/incoming_reminders.db
+
+# If allowed, backup + replace in one step
+python3 scripts/db_guard.py replace --current reminders.db --incoming /tmp/incoming_reminders.db
+```
+
+## Legacy Score Recovery
+Recover historical lesson-note scores from backup/cloud DB snapshots:
+
+```bash
+# 1) Inspect local DB files for score-like columns
+python3 scripts/recover_legacy_scores.py discover \
+  --paths reminders.db reminders_mcp.db reminders.db.BAK2 reminders.dbBAK
+
+# 2) Discover candidate S3 snapshots/versions
+python3 scripts/discover_db_sources.py --bucket notesreminder-db --key reminders.db
+
+# 3) Compare a scored source DB against current reminders.db
+python3 scripts/recover_legacy_scores.py compare --current-db reminders.db --source-db /path/to/scored_snapshot.db
+
+# 4) Extract matched + unmatched rows for manual validation
+python3 scripts/recover_legacy_scores.py extract --current-db reminders.db --source-db /path/to/scored_snapshot.db
+
+# 5) Import matched rows into lesson_note_scores_history (idempotent)
+python3 scripts/merge_legacy_scores.py \
+  --db reminders.db \
+  --matched-csv outputs/matched_legacy_scores.csv \
+  --source-db /path/to/scored_snapshot.db
+
+# 6) Run verification query pack
+sqlite3 reminders.db < scripts/sql/verify_scores.sql
+```
+
+Default unmatched output:
+- `outputs/unmatched_legacy_scores.csv`
 
 Available tools:
 - `sync_db_from_s3` downloads the latest DB from S3.

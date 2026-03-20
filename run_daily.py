@@ -2,6 +2,8 @@
 import asyncio
 import sqlite3
 from datetime import datetime, timedelta
+import hashlib
+import json
 import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
@@ -47,6 +49,12 @@ def parse_args():
                         help='Optional list of extra email addresses to CC on the summary email')
     parser.add_argument('--no-email', action='store_true',
                         help='Skip sending the summary email (useful for backfills)')
+    parser.add_argument('--skip-note-scoring', action='store_true',
+                        help='Skip LLM note scoring and email score columns')
+    parser.add_argument('--note-score-model', default='gpt-4o-mini',
+                        help='OpenAI model for note scoring (default: gpt-4o-mini)')
+    parser.add_argument('--note-score-version', default='v1-note-quality',
+                        help='Version tag for note scoring prompt/rubric')
     return parser.parse_args()
 
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
@@ -114,6 +122,81 @@ def normalize_lesson_time(time_str):
     if " on " in cleaned:
         cleaned = cleaned.split(" on ", 1)[0].strip()
     return cleaned
+
+
+def normalize_students_field(value):
+    if isinstance(value, str):
+        return " ".join(value.split())
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+    return " ".join(str(value).split())
+
+
+NOTE_SCORING_SYSTEM_PROMPT = """You score music lesson notes from 1 to 10.
+Return strict JSON with keys: score, explanation.
+
+Scoring guidance:
+- 1-3: extremely weak or empty note quality.
+- 4-6: acceptable but generic; lacks specificity.
+- 7-8: strong quality with clear specifics and progress.
+- 9-10: excellent, specific, actionable, and clearly student-focused.
+
+Be strict. Use decimal-free integers 1-10 only.
+"""
+
+
+def score_note_quality(note_text, lesson_type, model_name):
+    if not note_text or not note_text.strip():
+        return None, None
+    try:
+        from openai import OpenAI
+    except Exception:
+        return None, "Scoring skipped: openai package not available."
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None, "Scoring skipped: OPENAI_API_KEY not set."
+
+    client = OpenAI()
+    user_payload = {
+        "lesson_type": lesson_type or "",
+        "note_text": note_text.strip(),
+    }
+    try:
+        response = client.responses.create(
+            model=model_name,
+            input=[
+                {"role": "system", "content": NOTE_SCORING_SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
+            ],
+            temperature=0,
+        )
+        text = response.output_text.strip()
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start == -1 or end == -1 or end <= start:
+                return None, "Scoring parse failed."
+            parsed = json.loads(text[start : end + 1])
+        raw_score = parsed.get("score")
+        try:
+            score = int(raw_score)
+        except Exception:
+            return None, "Scoring parse failed."
+        score = max(1, min(10, score))
+        explanation = str(parsed.get("explanation", "")).strip()
+        if not explanation:
+            explanation = "No explanation returned."
+        return score, explanation
+    except Exception as exc:
+        return None, f"Scoring error: {exc}"
 
 def send_email_report(missing_notes, completed_notes, school_subdomain, start_date, end_date,
                       include_missing, include_notes, to_recipients, cc_recipients=None,
@@ -213,7 +296,9 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
             plain_lines.append(
                 f"  - {lesson['date']} {lesson['time']} | {lesson['instructor']} | "
                 f"{lesson['students']} ({lesson['lesson_type']}){location_text}\n"
-                f"    Notes: {lesson['snippet']}\n"
+                f"    Note: {lesson.get('note_text', '')}\n"
+                f"    Score: {lesson.get('note_score', 'N/A')} | "
+                f"Why: {lesson.get('note_score_explanation', '')}\n"
             )
             notes_rows.append(
                 f"<tr>"
@@ -223,7 +308,9 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
                 f"<td>{lesson['students']}</td>"
                 f"<td>{lesson['lesson_type']}</td>"
                 f"<td>{lesson.get('location', '') or ''}</td>"
-                f"<td>{lesson['snippet']}</td>"
+                f"<td>{lesson.get('note_text', '') or ''}</td>"
+                f"<td>{lesson.get('note_score', '') if lesson.get('note_score') is not None else ''}</td>"
+                f"<td>{lesson.get('note_score_explanation', '') or ''}</td>"
                 f"</tr>"
             )
 
@@ -238,7 +325,9 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
                         <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Student</th>
                         <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Lesson Type</th>
                         <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Location</th>
-                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Note Snippet</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Note</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Score (1-10)</th>
+                        <th style="border:1px solid #ccc;padding:8px;background:#f6f6f6;text-align:left;">Score Explanation</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -369,6 +458,27 @@ def ensure_notes_columns():
     conn.commit()
     conn.close()
 
+
+def ensure_note_score_columns():
+    conn = sqlite3.connect('reminders.db')
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(reminders)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'note_score' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score REAL")
+    if 'note_score_explanation' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score_explanation TEXT")
+    if 'note_score_model' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score_model TEXT")
+    if 'note_score_version' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score_version TEXT")
+    if 'note_score_updated_at' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score_updated_at TEXT")
+    if 'note_score_hash' not in columns:
+        cursor.execute("ALTER TABLE reminders ADD COLUMN note_score_hash TEXT")
+    conn.commit()
+    conn.close()
+
 def ensure_pike13_column():
     conn = sqlite3.connect('reminders.db')
     cursor = conn.cursor()
@@ -393,12 +503,6 @@ def should_skip_lesson(lesson_type, students, instructor=None):
             return True
     return False
 
-def format_note_snippet(note_text, word_limit=10):
-    words = note_text.split()
-    if len(words) <= word_limit:
-        return note_text
-    return ' '.join(words[:word_limit]) + "..."
-
 async def main():
     args = parse_args()
     global VERBOSE
@@ -420,6 +524,7 @@ async def main():
     download_db_from_s3('reminders.db', S3_BUCKET, S3_KEY)
     ensure_location_column()
     ensure_notes_columns()
+    ensure_note_score_columns()
     ensure_pike13_column()
     ensure_unique_lesson_ids()
 
@@ -467,7 +572,7 @@ async def main():
         lesson_date = row['Date']
         lesson_time = row['Time']
         lesson_type = row['Lesson Type']
-        students = row['Students']
+        students = normalize_students_field(row['Students'])
         location_value = row['Location'] if has_location_column else None
         if isinstance(location_value, str):
             location_clean = location_value.strip()
@@ -484,10 +589,21 @@ async def main():
         notes_text = notes_str if has_notes else None
         note_timestamp = row.get('Note Timestamp', None)
 
+        note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
+        note_score = None
+        note_score_explanation = None
+
         # Check if the lesson already exists in the database
         conn = sqlite3.connect('reminders.db')
         cursor = conn.cursor()
-        cursor.execute('''SELECT lesson_id FROM reminders WHERE lesson_id = ? AND school = ?''', (lesson_id, school_subdomain))
+        cursor.execute(
+            '''
+            SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+            FROM reminders
+            WHERE lesson_id = ? AND school = ?
+            ''',
+            (lesson_id, school_subdomain),
+        )
         existing_lesson = cursor.fetchone()
         if not existing_lesson:
             legacy_lesson_id = base_lesson_id
@@ -503,7 +619,15 @@ async def main():
                     WHERE lesson_id = ? AND school = ?
                 ''', (lesson_id, legacy_lesson_id, school_subdomain))
                 conn.commit()
-                existing_lesson = (lesson_id,)
+                cursor.execute(
+                    '''
+                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+                    FROM reminders
+                    WHERE lesson_id = ? AND school = ?
+                    ''',
+                    (lesson_id, school_subdomain),
+                )
+                existing_lesson = cursor.fetchone()
         if not existing_lesson and pike13_lesson_id:
             legacy_prefixed = f"{school_subdomain}-{base_lesson_id}"
             cursor.execute('''
@@ -518,7 +642,34 @@ async def main():
                     WHERE lesson_id = ? AND school = ?
                 ''', (lesson_id, legacy_prefixed, school_subdomain))
                 conn.commit()
-                existing_lesson = (lesson_id,)
+                cursor.execute(
+                    '''
+                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+                    FROM reminders
+                    WHERE lesson_id = ? AND school = ?
+                    ''',
+                    (lesson_id, school_subdomain),
+                )
+                existing_lesson = cursor.fetchone()
+
+        if has_notes:
+            if (
+                existing_lesson
+                and existing_lesson[1] is not None
+                and existing_lesson[3]
+                and existing_lesson[3] == note_hash
+            ):
+                note_score = existing_lesson[1]
+                note_score_explanation = existing_lesson[2]
+            elif args.skip_note_scoring:
+                note_score = None
+                note_score_explanation = "Scoring skipped by flag."
+            else:
+                note_score, note_score_explanation = score_note_quality(
+                    notes_text,
+                    lesson_type,
+                    args.note_score_model,
+                )
 
         if existing_lesson:
             cursor.execute('''
@@ -534,7 +685,13 @@ async def main():
                     attendance_status = ?,
                     notes_text = ?,
                     note_timestamp = ?,
-                    pike13_lesson_id = COALESCE(?, pike13_lesson_id)
+                    pike13_lesson_id = COALESCE(?, pike13_lesson_id),
+                    note_score = ?,
+                    note_score_explanation = ?,
+                    note_score_model = ?,
+                    note_score_version = ?,
+                    note_score_updated_at = ?,
+                    note_score_hash = ?
                 WHERE lesson_id = ? AND school = ?
             ''', (
                 1 if has_notes else 0,
@@ -548,6 +705,12 @@ async def main():
                 notes_text,
                 note_timestamp,
                 pike13_lesson_id,
+                note_score if has_notes else None,
+                note_score_explanation if has_notes else None,
+                args.note_score_model if has_notes else None,
+                args.note_score_version if has_notes else None,
+                datetime.now().isoformat(timespec="seconds") if has_notes else None,
+                note_hash if has_notes else None,
                 lesson_id,
                 school_subdomain
             ))
@@ -555,8 +718,29 @@ async def main():
                 print(f"🔁 Updated lesson {lesson_id}")
         else:
             cursor.execute('''
-                INSERT INTO reminders (lesson_id, school, instructor_name, lesson_date, lesson_time, lesson_type, students, location, note_completed, attendance_status, notes_text, note_timestamp, pike13_lesson_id, last_checked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
+                INSERT INTO reminders (
+                    lesson_id,
+                    school,
+                    instructor_name,
+                    lesson_date,
+                    lesson_time,
+                    lesson_type,
+                    students,
+                    location,
+                    note_completed,
+                    attendance_status,
+                    notes_text,
+                    note_timestamp,
+                    pike13_lesson_id,
+                    note_score,
+                    note_score_explanation,
+                    note_score_model,
+                    note_score_version,
+                    note_score_updated_at,
+                    note_score_hash,
+                    last_checked
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
             ''', (
                 lesson_id,
                 school_subdomain,
@@ -570,7 +754,13 @@ async def main():
                 row.get('Attendance Status', 'unknown'),
                 notes_text,
                 note_timestamp,
-                pike13_lesson_id
+                pike13_lesson_id,
+                note_score if has_notes else None,
+                note_score_explanation if has_notes else None,
+                args.note_score_model if has_notes else None,
+                args.note_score_version if has_notes else None,
+                datetime.now().isoformat(timespec="seconds") if has_notes else None,
+                note_hash if has_notes else None,
             ))
             if args.verbose:
                 print(f"🆕 Inserted lesson {lesson_id}")
@@ -585,7 +775,9 @@ async def main():
                 'students': students,
                 'lesson_type': lesson_type,
                 'location': location_clean,
-                'snippet': format_note_snippet(notes_str)
+                'note_text': notes_str,
+                'note_score': note_score,
+                'note_score_explanation': note_score_explanation,
             })
 
     # Now, retrieve missing notes from the DB within the requested window
@@ -626,7 +818,7 @@ async def main():
             lesson.get('date', '').strip(),
             normalize_lesson_time(lesson.get('time', '')),
             lesson.get('lesson_type', '').strip(),
-            ' '.join((lesson.get('students') or '').split())
+            normalize_students_field(lesson.get('students'))
         )
         if dedup_key in seen_completed:
             continue
@@ -636,7 +828,7 @@ async def main():
             'time': normalize_lesson_time(lesson.get('time', '')),
             'instructor': lesson.get('instructor', '').strip(),
             'lesson_type': lesson.get('lesson_type', '').strip(),
-            'students': ' '.join((lesson.get('students') or '').split())
+            'students': normalize_students_field(lesson.get('students'))
         })
 
     total_reportable_lessons = len(report_missing_notes) + len(report_completed_notes)
