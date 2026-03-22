@@ -11,6 +11,7 @@ Copy the template once with `cp .env.example .env`, then fill in your real value
 | `AWS_ACCESS_KEY_ID` | AWS credential for syncing `reminders.db` to S3. |
 | `AWS_SECRET_ACCESS_KEY` | Matching AWS secret. |
 | `AWS_DEFAULT_REGION` | Region for the S3 client (e.g., `us-east-1`). |
+| `OPENAI_API_KEY` | API key for OpenAI |
 | `SENDER_EMAIL` | SMTP sender email address for the summary report. |
 | `SENDER_PASSWORD` | SMTP password or app-specific password for the sender email. |
 
