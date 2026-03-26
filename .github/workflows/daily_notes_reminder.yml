@@ -2,15 +2,17 @@ name: Daily Notes Reminder
 
 on:
   schedule:
-    # Daily run at 9PM Central (03:00 UTC) Monday–Saturday
-    - cron: '0 3 * * 1-6'
-    # Weekly summary on Sunday 9AM Central (15:00 UTC)
+    # Daily run at 9PM America/Chicago year-round.
+    # GitHub cron is UTC, so schedule both DST/standard candidates and gate in-job.
+    - cron: '0 2 * * *'
+    - cron: '0 3 * * *'
+    # Weekly summary on Sunday 9AM America/Chicago year-round.
+    - cron: '0 14 * * 0'
     - cron: '0 15 * * 0'
   workflow_dispatch:
 
 jobs:
   daily-reminder:
-    if: ${{ github.event_name != 'schedule' || github.event.schedule == '0 3 * * 1-6' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -22,24 +24,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Decide whether this daily run should execute
+        id: daily_gate
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          import os
+
+          tz = ZoneInfo("America/Chicago")
+          now = datetime.now(tz)
+          target = now.date() - timedelta(days=1)
+          should_run = "true"
+
+          if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+              should_run = "true" if (now.hour == 21 and now.weekday() <= 5) else "false"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              print(f"should_run={should_run}", file=f)
+              print(f"start_date={target}", file=f)
+              print(f"end_date={target}", file=f)
+              print(f"local_time={now.isoformat(timespec='seconds')}", file=f)
+          PY
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+
+      - name: Log skipped daily run
+        if: ${{ steps.daily_gate.outputs.should_run != 'true' }}
+        run: |
+          echo "Skipping daily run at local time ${{ steps.daily_gate.outputs.local_time }}"
+
       - uses: actions/setup-python@v5
+        if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
         with:
           python-version: '3.11'
 
       - name: Install dependencies
+        if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
-      - name: Compute daily date range
-        id: dates
-        run: |
-          START=$(TZ=America/Chicago date '+%Y-%m-%d')
-          echo "start_date=$START" >> "$GITHUB_OUTPUT"
-          echo "end_date=$START" >> "$GITHUB_OUTPUT"
-
       - name: Run daily reminder
+        if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
         env:
           PIKE13_USER: ${{ secrets.PIKE13_USER }}
           PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
@@ -52,13 +80,12 @@ jobs:
         run: |
           python run_daily.py \
             --school ${{ matrix.school }} \
-            --start-date ${{ steps.dates.outputs.start_date }} \
-            --end-date ${{ steps.dates.outputs.end_date }} \
+            --start-date ${{ steps.daily_gate.outputs.start_date }} \
+            --end-date ${{ steps.daily_gate.outputs.end_date }} \
             --summary both \
             --to ${{ matrix.to }}
 
   weekly-reminder:
-    if: ${{ github.event_name != 'schedule' || github.event.schedule == '0 15 * * 0' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -70,18 +97,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          python -m playwright install --with-deps chromium
-
-      - name: Compute weekly date range
-        id: week
+      - name: Decide whether this weekly run should execute
+        id: weekly_gate
         run: |
           python - <<'PY'
           from datetime import datetime, timedelta
@@ -89,16 +106,42 @@ jobs:
           import os
 
           tz = ZoneInfo("America/Chicago")
-          today = datetime.now(tz).date()
-          end_date = today - timedelta(days=1)
+          now = datetime.now(tz)
+          end_date = now.date() - timedelta(days=1)
           start_date = end_date - timedelta(days=5)
+          should_run = "true"
+
+          if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+              should_run = "true" if (now.hour == 9 and now.weekday() == 6) else "false"
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              print(f"should_run={should_run}", file=f)
               print(f"start_date={start_date}", file=f)
               print(f"end_date={end_date}", file=f)
+              print(f"local_time={now.isoformat(timespec='seconds')}", file=f)
           PY
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+
+      - name: Log skipped weekly run
+        if: ${{ steps.weekly_gate.outputs.should_run != 'true' }}
+        run: |
+          echo "Skipping weekly run at local time ${{ steps.weekly_gate.outputs.local_time }}"
+
+      - uses: actions/setup-python@v5
+        if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       - name: Run weekly reminder
+        if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
         env:
           PIKE13_USER: ${{ secrets.PIKE13_USER }}
           PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
@@ -111,7 +154,7 @@ jobs:
         run: |
           python run_daily.py \
             --school ${{ matrix.school }} \
-            --start-date ${{ steps.week.outputs.start_date }} \
-            --end-date ${{ steps.week.outputs.end_date }} \
+            --start-date ${{ steps.weekly_gate.outputs.start_date }} \
+            --end-date ${{ steps.weekly_gate.outputs.end_date }} \
             --summary both \
             --to ${{ matrix.to }}
