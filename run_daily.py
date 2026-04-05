@@ -20,10 +20,15 @@ load_dotenv()
 from noteschecker import scrape_lessons
 
 VERBOSE = False
+DELAY_NOTICE_FALLBACK_EMAIL = "hughrscott@mac.com"
 
 def log(message, force=False):
     if VERBOSE or force:
         print(message)
+
+
+class FatalScoringError(RuntimeError):
+    pass
 
 # Email configuration
 SMTP_SERVER = "smtp.mail.me.com"
@@ -150,17 +155,147 @@ Be strict. Use decimal-free integers 1-10 only.
 """
 
 
+def is_scoring_auth_error(exc) -> bool:
+    message = str(exc).lower()
+    exc_type = exc.__class__.__name__.lower()
+    auth_markers = [
+        "invalid_api_key",
+        "incorrect api key",
+        "authentication",
+        "unauthorized",
+        "401",
+        "api key provided",
+        "openai_api_key not set",
+    ]
+    return "auth" in exc_type or any(marker in message for marker in auth_markers)
+
+
+def build_github_run_url():
+    server = os.getenv("GITHUB_SERVER_URL")
+    repo = os.getenv("GITHUB_REPOSITORY")
+    run_id = os.getenv("GITHUB_RUN_ID")
+    if server and repo and run_id:
+        return f"{server}/{repo}/actions/runs/{run_id}"
+    return None
+
+
+def normalize_email_list(addresses):
+    seen = set()
+    normalized = []
+    for address in addresses or []:
+        addr = (address or "").strip()
+        if not addr:
+            continue
+        lowered = addr.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        normalized.append(addr)
+    return normalized
+
+
+def send_multipart_email(subject, plain_body, html_body, to_recipients, cc_recipients=None):
+    if not to_recipients:
+        print("⚠️ No recipients specified; skipping email send.")
+        return
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        print("⚠️ Missing SENDER_EMAIL or SENDER_PASSWORD; skipping email send.")
+        return
+
+    msg = MIMEMultipart('alternative')
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = ", ".join(to_recipients)
+    if cc_recipients:
+        msg['Cc'] = ", ".join(cc_recipients)
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(plain_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
+
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+    try:
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+    finally:
+        server.quit()
+
+
+def send_delay_notice(school_subdomain, start_date, end_date, issue_summary, to_recipients):
+    school_label = format_school_label(school_subdomain)
+    date_phrase = format_date_range(start_date, end_date)
+    run_url = build_github_run_url()
+    effective_recipients = normalize_email_list(
+        list(to_recipients or []) + [DELAY_NOTICE_FALLBACK_EMAIL]
+    )
+
+    plain_lines = [
+        f"The lesson notes summary for {school_label} ({date_phrase}) is delayed.\n",
+        f"Issue: {issue_summary}\n",
+        "Reason: note scoring could not run because the OpenAI API key is invalid or misconfigured.\n",
+        "The normal summary email was not sent and will be delayed until the issue is fixed.\n",
+    ]
+    if run_url:
+        plain_lines.append(f"GitHub Actions run: {run_url}\n")
+    plain_body = "".join(plain_lines)
+
+    html_lines = [
+        f"<p>The lesson notes summary for <strong>{school_label}</strong> ({date_phrase}) is delayed.</p>",
+        f"<p><strong>Issue:</strong> {issue_summary}</p>",
+        "<p>The normal summary email was not sent because note scoring could not run due to an invalid or misconfigured OpenAI API key.</p>",
+        "<p>The summary will be delayed until the issue is fixed.</p>",
+    ]
+    if run_url:
+        html_lines.append(f'<p>GitHub Actions run: <a href="{run_url}">{run_url}</a></p>')
+    html_body = (
+        '<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#222;">'
+        + "".join(html_lines)
+        + "</body></html>"
+    )
+
+    send_multipart_email(
+        subject=f"Lesson notes summary delayed for {school_label} ({start_date} to {end_date})",
+        plain_body=plain_body,
+        html_body=html_body,
+        to_recipients=effective_recipients,
+    )
+
+
+def preflight_note_scoring(model_name):
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise FatalScoringError("OpenAI package unavailable for note scoring.") from exc
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise FatalScoringError("OPENAI_API_KEY is missing.")
+
+    client = OpenAI()
+    try:
+        client.responses.create(
+            model=model_name,
+            input=[{"role": "user", "content": "Return exactly: ok"}],
+            temperature=0,
+            max_output_tokens=5,
+        )
+    except Exception as exc:
+        if is_scoring_auth_error(exc):
+            raise FatalScoringError("OpenAI API key is invalid or misconfigured.") from exc
+        raise
+
+
 def score_note_quality(note_text, lesson_type, model_name):
     if not note_text or not note_text.strip():
         return None, None
     try:
         from openai import OpenAI
     except Exception:
-        return None, "Scoring skipped: openai package not available."
+        raise FatalScoringError("OpenAI package unavailable for note scoring.")
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return None, "Scoring skipped: OPENAI_API_KEY not set."
+        raise FatalScoringError("OPENAI_API_KEY is missing.")
 
     client = OpenAI()
     user_payload = {
@@ -183,20 +318,22 @@ def score_note_quality(note_text, lesson_type, model_name):
             start = text.find("{")
             end = text.rfind("}")
             if start == -1 or end == -1 or end <= start:
-                return None, "Scoring parse failed."
+                return None, None
             parsed = json.loads(text[start : end + 1])
         raw_score = parsed.get("score")
         try:
             score = int(raw_score)
         except Exception:
-            return None, "Scoring parse failed."
+            return None, None
         score = max(1, min(10, score))
         explanation = str(parsed.get("explanation", "")).strip()
         if not explanation:
             explanation = "No explanation returned."
         return score, explanation
     except Exception as exc:
-        return None, f"Scoring error: {exc}"
+        if is_scoring_auth_error(exc):
+            raise FatalScoringError("OpenAI API key is invalid or misconfigured.") from exc
+        return None, None
 
 def send_email_report(missing_notes, completed_notes, school_subdomain, start_date, end_date,
                       include_missing, include_notes, to_recipients, cc_recipients=None,
@@ -345,22 +482,14 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     </html>
     """
 
-    msg = MIMEMultipart('alternative')
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = ", ".join(to_recipients)
-    if cc_recipients:
-        msg['Cc'] = ", ".join(cc_recipients)
-    msg['Subject'] = f"Lesson notes summary for {school_label} ({start_date} to {end_date})"
-
-    msg.attach(MIMEText(plain_body, 'plain'))
-    msg.attach(MIMEText(html_body, 'html'))
-
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.send_message(msg)
-        server.quit()
+        send_multipart_email(
+            subject=f"Lesson notes summary for {school_label} ({start_date} to {end_date})",
+            plain_body=plain_body,
+            html_body=html_body,
+            to_recipients=to_recipients,
+            cc_recipients=cc_recipients,
+        )
         log("✅ Email report sent successfully")
     except Exception as e:
         print(f"⚠️ Error sending email: {e}")
@@ -536,6 +665,23 @@ async def main():
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
 
+    if not args.skip_note_scoring:
+        try:
+            preflight_note_scoring(args.note_score_model)
+        except FatalScoringError as exc:
+            if not args.no_email:
+                try:
+                    send_delay_notice(
+                        school_subdomain=school_subdomain,
+                        start_date=start_date,
+                        end_date=end_date,
+                        issue_summary=str(exc),
+                        to_recipients=args.to,
+                    )
+                except Exception as email_exc:
+                    print(f"⚠️ Failed to send delay notice: {email_exc}")
+            raise SystemExit(f"Fatal note scoring error: {exc}")
+
     if args.verbose:
         print(f"🔍 Scraping lessons from {start_date} to {end_date} for {school_subdomain}")
     await scrape_lessons(school_subdomain, start_date=start_date, end_date=end_date, verbose=args.verbose)
@@ -663,13 +809,28 @@ async def main():
                 note_score_explanation = existing_lesson[2]
             elif args.skip_note_scoring:
                 note_score = None
-                note_score_explanation = "Scoring skipped by flag."
+                note_score_explanation = None
             else:
-                note_score, note_score_explanation = score_note_quality(
-                    notes_text,
-                    lesson_type,
-                    args.note_score_model,
-                )
+                try:
+                    note_score, note_score_explanation = score_note_quality(
+                        notes_text,
+                        lesson_type,
+                        args.note_score_model,
+                    )
+                except FatalScoringError as exc:
+                    conn.close()
+                    if not args.no_email:
+                        try:
+                            send_delay_notice(
+                                school_subdomain=school_subdomain,
+                                start_date=start_date,
+                                end_date=end_date,
+                                issue_summary=str(exc),
+                                to_recipients=args.to,
+                            )
+                        except Exception as email_exc:
+                            print(f"⚠️ Failed to send delay notice: {email_exc}")
+                    raise SystemExit(f"Fatal note scoring error: {exc}")
 
         if existing_lesson:
             cursor.execute('''
