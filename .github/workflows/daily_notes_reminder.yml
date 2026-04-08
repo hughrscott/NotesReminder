@@ -15,6 +15,7 @@ jobs:
   daily-reminder:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - school: westu-sor
@@ -123,6 +124,7 @@ jobs:
   weekly-reminder:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - school: westu-sor
