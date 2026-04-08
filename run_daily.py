@@ -283,7 +283,7 @@ def preflight_note_scoring(model_name):
             model=model_name,
             input=[{"role": "user", "content": "Return exactly: ok"}],
             temperature=0,
-            max_output_tokens=5,
+            max_output_tokens=16,
         )
     except Exception as exc:
         if is_scoring_auth_error(exc):
