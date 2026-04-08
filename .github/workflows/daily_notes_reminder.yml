@@ -54,10 +54,44 @@ jobs:
         run: |
           echo "Skipping daily run at local time ${{ steps.daily_gate.outputs.local_time }}"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
         with:
           python-version: '3.11'
+
+      - name: Validate required runtime secrets
+        if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
+        env:
+          PIKE13_USER: ${{ secrets.PIKE13_USER }}
+          PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os
+          required = [
+              "PIKE13_USER",
+              "PIKE13_PASSWORD",
+              "AWS_ACCESS_KEY_ID",
+              "AWS_SECRET_ACCESS_KEY",
+              "AWS_DEFAULT_REGION",
+              "OPENAI_API_KEY",
+              "SENDER_EMAIL",
+              "SENDER_PASSWORD",
+          ]
+          missing = []
+          for key in required:
+              is_set = bool((os.getenv(key) or "").strip())
+              print(f"{key}: {'set' if is_set else 'missing'}")
+              if not is_set:
+                  missing.append(key)
+          if missing:
+              raise SystemExit(f"Missing required secrets: {', '.join(missing)}")
+          PY
 
       - name: Install dependencies
         if: ${{ steps.daily_gate.outputs.should_run == 'true' }}
@@ -83,6 +117,7 @@ jobs:
             --start-date ${{ steps.daily_gate.outputs.start_date }} \
             --end-date ${{ steps.daily_gate.outputs.end_date }} \
             --summary both \
+            --verbose \
             --to ${{ matrix.to }}
 
   weekly-reminder:
@@ -128,10 +163,44 @@ jobs:
         run: |
           echo "Skipping weekly run at local time ${{ steps.weekly_gate.outputs.local_time }}"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
         with:
           python-version: '3.11'
+
+      - name: Validate required runtime secrets
+        if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
+        env:
+          PIKE13_USER: ${{ secrets.PIKE13_USER }}
+          PIKE13_PASSWORD: ${{ secrets.PIKE13_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os
+          required = [
+              "PIKE13_USER",
+              "PIKE13_PASSWORD",
+              "AWS_ACCESS_KEY_ID",
+              "AWS_SECRET_ACCESS_KEY",
+              "AWS_DEFAULT_REGION",
+              "OPENAI_API_KEY",
+              "SENDER_EMAIL",
+              "SENDER_PASSWORD",
+          ]
+          missing = []
+          for key in required:
+              is_set = bool((os.getenv(key) or "").strip())
+              print(f"{key}: {'set' if is_set else 'missing'}")
+              if not is_set:
+                  missing.append(key)
+          if missing:
+              raise SystemExit(f"Missing required secrets: {', '.join(missing)}")
+          PY
 
       - name: Install dependencies
         if: ${{ steps.weekly_gate.outputs.should_run == 'true' }}
@@ -157,4 +226,5 @@ jobs:
             --start-date ${{ steps.weekly_gate.outputs.start_date }} \
             --end-date ${{ steps.weekly_gate.outputs.end_date }} \
             --summary both \
+            --verbose \
             --to ${{ matrix.to }}
