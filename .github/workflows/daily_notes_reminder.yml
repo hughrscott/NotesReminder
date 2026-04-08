@@ -22,7 +22,7 @@ jobs:
           - school: theheights-sor
             to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com agarza@schoolofrock.com"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Decide whether this daily run should execute
         id: daily_gate
@@ -95,7 +95,7 @@ jobs:
           - school: theheights-sor
             to: "huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Decide whether this weekly run should execute
         id: weekly_gate

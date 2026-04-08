@@ -195,22 +195,26 @@ def normalize_email_list(addresses):
 
 
 def send_multipart_email(subject, plain_body, html_body, to_recipients, cc_recipients=None):
-    if not to_recipients:
-        print("⚠️ No recipients specified; skipping email send.")
-        return
+    normalized_to = normalize_email_list(to_recipients)
+    normalized_cc = normalize_email_list(cc_recipients)
+    if not normalized_to:
+        raise ValueError("No recipients specified for email send.")
     if not SENDER_EMAIL or not SENDER_PASSWORD:
-        print("⚠️ Missing SENDER_EMAIL or SENDER_PASSWORD; skipping email send.")
-        return
+        raise RuntimeError("Missing SENDER_EMAIL or SENDER_PASSWORD for email send.")
 
     msg = MIMEMultipart('alternative')
     msg['From'] = SENDER_EMAIL
-    msg['To'] = ", ".join(to_recipients)
-    if cc_recipients:
-        msg['Cc'] = ", ".join(cc_recipients)
+    msg['To'] = ", ".join(normalized_to)
+    if normalized_cc:
+        msg['Cc'] = ", ".join(normalized_cc)
     msg['Subject'] = subject
 
     msg.attach(MIMEText(plain_body, 'plain'))
     msg.attach(MIMEText(html_body, 'html'))
+
+    print(f"📧 Sending email '{subject}' to {', '.join(normalized_to)}")
+    if normalized_cc:
+        print(f"📧 CC: {', '.join(normalized_cc)}")
 
     server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
     try:
@@ -219,6 +223,8 @@ def send_multipart_email(subject, plain_body, html_body, to_recipients, cc_recip
         server.send_message(msg)
     finally:
         server.quit()
+
+    print("✅ Email delivered to SMTP server")
 
 
 def send_delay_notice(school_subdomain, start_date, end_date, issue_summary, to_recipients):
@@ -341,16 +347,12 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     if not include_missing and not include_notes:
         return
     if not to_recipients:
-        print("⚠️ No recipients specified; skipping email send.")
-        return
+        raise ValueError("No recipients specified for summary email.")
     if not SENDER_EMAIL or not SENDER_PASSWORD:
-        print("⚠️ Missing SENDER_EMAIL or SENDER_PASSWORD; skipping email send.")
-        return
+        raise RuntimeError("Missing SENDER_EMAIL or SENDER_PASSWORD for summary email.")
 
     missing_available = include_missing and missing_notes
     notes_available = include_notes and completed_notes
-    if not missing_available and not notes_available:
-        return
 
     school_label = format_school_label(school_subdomain)
     date_phrase = format_date_range(start_date, end_date)
@@ -473,6 +475,12 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
             </table>
         """)
 
+    if not missing_available and not notes_available:
+        plain_lines.append("\nNo reportable lessons matched the summary filters for this run.\n")
+        html_sections.append(
+            "<p>No reportable lessons matched the summary filters for this run.</p>"
+        )
+
     plain_body = "".join(plain_lines)
     html_body = f"""
     <html>
@@ -482,17 +490,14 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     </html>
     """
 
-    try:
-        send_multipart_email(
-            subject=f"Lesson notes summary for {school_label} ({start_date} to {end_date})",
-            plain_body=plain_body,
-            html_body=html_body,
-            to_recipients=to_recipients,
-            cc_recipients=cc_recipients,
-        )
-        log("✅ Email report sent successfully")
-    except Exception as e:
-        print(f"⚠️ Error sending email: {e}")
+    send_multipart_email(
+        subject=f"Lesson notes summary for {school_label} ({start_date} to {end_date})",
+        plain_body=plain_body,
+        html_body=html_body,
+        to_recipients=to_recipients,
+        cc_recipients=cc_recipients,
+    )
+    print("✅ Email report sent successfully")
 
 def upload_db_to_s3(local_path, bucket, s3_key):
     """Upload the database to S3"""
