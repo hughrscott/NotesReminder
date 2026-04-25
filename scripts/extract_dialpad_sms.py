@@ -52,7 +52,19 @@ def extract_message_lines(text):
         if re.search(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{1,2}/\d{1,2}/\d{2,4}|Today|Yesterday)\b", line):
             current_date = line
             continue
-        if len(line) < 2 or line.lower() in {"messages", "calls", "contacts", "search"}:
+        if len(line) < 2 or line.lower() in {
+            "all",
+            "calls",
+            "contacts",
+            "meetings",
+            "messages",
+            "missed",
+            "recordings",
+            "search",
+            "spam",
+            "starred",
+            "voicemails",
+        }:
             continue
         direction = "unknown"
         lowered = line.lower()

@@ -75,6 +75,8 @@ Safety boundary: view/export only; no creates, edits, deletes, sends, or status 
 
 ## Dialpad Source Map
 
+Follow-up discovery for calls, missed calls, voicemails, recordings, transcript availability, and refresh-path decisions is summarized in `docs/discovery/dialpad_communications_discovery.md`.
+
 ### Pages And Reports Inspected
 
 | Area | URL / UI path | Evidence file | Notes |

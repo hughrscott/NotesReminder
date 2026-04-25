@@ -43,7 +43,7 @@ def text_after(label, text):
 
 def parse_deal_text(deal_id, url, text):
     pike13_match = PIKE13_PERSON_RE.search(text)
-    return {
+    row = {
         "deal_id": deal_id,
         "deal_name": text_after("Deal name", text) or text_after("Name", text),
         "stage": text_after("Deal Stage", text) or text_after("Stage", text),
@@ -64,9 +64,33 @@ def parse_deal_text(deal_id, url, text):
         "pike13_person_id": pike13_match.group(1) if pike13_match else None,
         "source_url": url,
         "raw_text": text,
-        "raw_json": json.dumps({"extraction": "deal_detail_text"}, sort_keys=True),
+        "raw_json": None,
         "updated_at": utc_now_iso(),
     }
+    required = [
+        "deal_name",
+        "stage",
+        "owner",
+        "school",
+        "create_date",
+        "last_activity_date",
+        "last_contacted",
+        "follow_up_needed",
+        "trial_date",
+        "pike13_person_id",
+    ]
+    found = [field for field in required if row.get(field)]
+    missing = [field for field in required if not row.get(field)]
+    row["raw_json"] = json.dumps(
+        {
+            "extraction": "deal_detail_text",
+            "fields_found": found,
+            "fields_missing": missing,
+            "source_url": url,
+        },
+        sort_keys=True,
+    )
+    return row
 
 
 def upsert_deal(conn, row):

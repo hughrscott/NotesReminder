@@ -170,6 +170,29 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS dialpad_voice_events (
+                event_id TEXT PRIMARY KEY,
+                source_view TEXT,
+                event_type TEXT,
+                call_id TEXT,
+                phone TEXT,
+                phone_normalized TEXT,
+                contact_name TEXT,
+                direction TEXT,
+                event_at TEXT,
+                school TEXT,
+                department TEXT,
+                outcome TEXT,
+                voicemail_transcript TEXT,
+                recording_url TEXT,
+                transcript_summary TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS pike13_people (
                 person_id TEXT PRIMARY KEY,
                 full_name TEXT,
@@ -238,6 +261,26 @@ def ensure_lead_followup_schema(conn):
                 UNIQUE(source_system, source_table, source_id, target_system, target_table, target_id, match_type)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS communication_ai_insights (
+                insight_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_table TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                model TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                sentiment TEXT,
+                intent TEXT,
+                outcome TEXT,
+                urgency TEXT,
+                topic TEXT,
+                action_items TEXT,
+                summary TEXT,
+                confidence REAL,
+                raw_response_json TEXT,
+                created_at TEXT NOT NULL,
+                UNIQUE(source_table, source_id, model, prompt_version)
+            )
+            """,
         ],
     )
     _execute_many(
@@ -253,9 +296,12 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_hubspot_activities_time ON hubspot_activities(activity_time)",
             "CREATE INDEX IF NOT EXISTS idx_sms_threads_phone ON dialpad_sms_threads(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_sms_messages_thread_time ON dialpad_sms_messages(thread_id, message_at)",
+            "CREATE INDEX IF NOT EXISTS idx_voice_events_phone_time ON dialpad_voice_events(phone_normalized, event_at)",
+            "CREATE INDEX IF NOT EXISTS idx_voice_events_type ON dialpad_voice_events(event_type)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
+            "CREATE INDEX IF NOT EXISTS idx_comm_ai_source ON communication_ai_insights(source_table, source_id)",
         ],
     )
     _create_views(conn)
@@ -266,6 +312,107 @@ def _create_views(conn):
         conn,
         [
             "DROP VIEW IF EXISTS vw_lead_timeline",
+            "DROP VIEW IF EXISTS vw_unanswered_messages",
+            "DROP VIEW IF EXISTS vw_unanswered_communications",
+            "DROP VIEW IF EXISTS vw_dialpad_communications",
+            """
+            CREATE VIEW vw_dialpad_communications AS
+            SELECT
+                'dialpad_sms_messages' AS source_table,
+                m.message_id AS communication_id,
+                'sms' AS channel,
+                'sms' AS event_type,
+                LOWER(COALESCE(m.direction, 'unknown')) AS direction,
+                m.message_at AS event_at,
+                t.phone,
+                t.phone_normalized,
+                t.contact_name,
+                t.school,
+                t.department,
+                m.body,
+                NULL AS summary,
+                NULL AS outcome,
+                COALESCE(m.source_url, t.source_url) AS source_url,
+                0 AS has_transcript,
+                CASE WHEN LOWER(COALESCE(m.direction, '')) = 'inbound' THEN 1 ELSE 0 END AS is_inbound_needing_followup,
+                COALESCE(t.phone_normalized, m.thread_id) AS followup_key
+            FROM dialpad_sms_messages m
+            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            UNION ALL
+            SELECT
+                'call_logs',
+                c.call_id,
+                'call',
+                CASE
+                    WHEN c.voicemail_transcript IS NOT NULL AND c.voicemail_transcript != '' THEN 'voicemail'
+                    WHEN LOWER(COALESCE(c.category, '')) LIKE '%miss%' THEN 'missed_call'
+                    ELSE 'call'
+                END,
+                LOWER(COALESCE(c.direction, 'unknown')),
+                c.date_started,
+                c.external_number,
+                CASE
+                    WHEN c.external_number IS NULL OR c.external_number = '' THEN NULL
+                    ELSE substr(
+                        replace(replace(replace(replace(replace(c.external_number, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''),
+                        -10
+                    )
+                END,
+                c.name,
+                c.school_name,
+                c.school_code,
+                c.voicemail_transcript,
+                rt.summary,
+                COALESCE(rt.outcome, c.category),
+                COALESCE(c.recording_url, c.voicemail_recording_url, rt.recording_url),
+                CASE
+                    WHEN COALESCE(c.voicemail_transcript, rt.transcript_text, rt.summary) IS NOT NULL THEN 1
+                    ELSE 0
+                END,
+                CASE
+                    WHEN LOWER(COALESCE(c.direction, '')) LIKE '%inbound%'
+                     AND (
+                        LOWER(COALESCE(c.category, '')) LIKE '%miss%'
+                        OR LOWER(COALESCE(c.category, '')) LIKE '%voicemail%'
+                        OR c.voicemail_transcript IS NOT NULL
+                     ) THEN 1
+                    ELSE 0
+                END,
+                CASE
+                    WHEN c.external_number IS NULL OR c.external_number = '' THEN c.call_id
+                    ELSE substr(
+                        replace(replace(replace(replace(replace(c.external_number, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''),
+                        -10
+                    )
+                END
+            FROM call_logs c
+            LEFT JOIN recording_transcripts rt ON rt.call_id = c.call_id
+            UNION ALL
+            SELECT
+                'dialpad_voice_events',
+                event_id,
+                'call',
+                event_type,
+                LOWER(COALESCE(direction, 'unknown')),
+                event_at,
+                phone,
+                phone_normalized,
+                contact_name,
+                school,
+                department,
+                voicemail_transcript,
+                transcript_summary,
+                outcome,
+                COALESCE(source_url, recording_url),
+                CASE WHEN COALESCE(voicemail_transcript, transcript_summary) IS NOT NULL THEN 1 ELSE 0 END,
+                CASE
+                    WHEN LOWER(COALESCE(direction, '')) LIKE '%inbound%'
+                     AND LOWER(COALESCE(event_type, '')) IN ('missed_call', 'voicemail') THEN 1
+                    ELSE 0
+                END,
+                COALESCE(phone_normalized, event_id)
+            FROM dialpad_voice_events
+            """,
             """
             CREATE VIEW vw_lead_timeline AS
             SELECT
@@ -318,36 +465,19 @@ def _create_views(conn):
             UNION ALL
             SELECT
                 'dialpad',
-                'sms',
-                m.message_id,
+                channel || ':' || event_type,
+                communication_id,
                 NULL,
                 NULL,
                 NULL,
-                m.message_at,
-                t.school,
-                NULL,
-                COALESCE(t.contact_name, t.phone),
-                COALESCE(m.direction, 'sms'),
-                m.body,
-                COALESCE(m.source_url, t.source_url)
-            FROM dialpad_sms_messages m
-            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
-            UNION ALL
-            SELECT
-                'dialpad',
-                'call',
-                call_id,
-                NULL,
-                NULL,
-                NULL,
-                date_started,
-                school_name,
-                category,
-                COALESCE(name, external_number),
-                COALESCE(direction, 'call'),
-                COALESCE(voicemail_transcript, recording_url, voicemail_recording_url, ''),
-                NULL
-            FROM call_logs
+                event_at,
+                school,
+                department,
+                COALESCE(contact_name, phone),
+                COALESCE(outcome, direction, event_type),
+                COALESCE(summary, body, ''),
+                source_url
+            FROM vw_dialpad_communications
             UNION ALL
             SELECT
                 'pike13',
@@ -403,30 +533,52 @@ def _create_views(conn):
               AND LOWER(COALESCE(d.stage, '')) NOT LIKE '%lost%'
               AND LOWER(COALESCE(d.stage, '')) NOT LIKE '%enrolled%'
             """,
-            "DROP VIEW IF EXISTS vw_unanswered_messages",
+            "DROP VIEW IF EXISTS vw_unanswered_communications",
+            """
+            CREATE VIEW vw_unanswered_communications AS
+            SELECT
+                c.communication_id,
+                c.source_table,
+                c.channel,
+                c.event_type,
+                c.direction,
+                c.event_at,
+                c.phone,
+                c.phone_normalized,
+                c.contact_name,
+                c.school,
+                c.department,
+                c.body,
+                c.summary,
+                c.outcome,
+                CAST(julianday('now') - julianday(c.event_at) AS INTEGER) AS days_since_inbound,
+                c.source_url
+            FROM vw_dialpad_communications c
+            WHERE c.is_inbound_needing_followup = 1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM vw_dialpad_communications later
+                  WHERE later.followup_key = c.followup_key
+                    AND later.event_at > c.event_at
+                    AND LOWER(COALESCE(later.direction, '')) LIKE '%outbound%'
+              )
+            """,
             """
             CREATE VIEW vw_unanswered_messages AS
             SELECT
-                m.message_id,
-                m.thread_id,
-                t.contact_name,
-                t.phone,
-                t.phone_normalized,
-                t.school,
-                t.department,
-                m.message_at,
-                m.body,
-                CAST(julianday('now') - julianday(m.message_at) AS INTEGER) AS days_since_inbound,
-                COALESCE(m.source_url, t.source_url) AS source_url
-            FROM dialpad_sms_messages m
-            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
-            WHERE LOWER(COALESCE(m.direction, '')) = 'inbound'
-              AND NOT EXISTS (
-                  SELECT 1 FROM dialpad_sms_messages later
-                  WHERE later.thread_id = m.thread_id
-                    AND LOWER(COALESCE(later.direction, '')) = 'outbound'
-                    AND later.message_at > m.message_at
-              )
+                communication_id AS message_id,
+                communication_id AS thread_id,
+                contact_name,
+                phone,
+                phone_normalized,
+                school,
+                department,
+                event_at AS message_at,
+                body,
+                days_since_inbound,
+                source_url
+            FROM vw_unanswered_communications
+            WHERE channel = 'sms'
             """,
             "DROP VIEW IF EXISTS vw_no_show_followup",
             """

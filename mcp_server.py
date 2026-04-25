@@ -230,6 +230,24 @@ def unanswered_messages(school: str = "", days: int = 7, limit: int = 50) -> str
 
 
 @mcp.tool()
+def unanswered_communications(school: str = "", days: int = 7, limit: int = 50) -> str:
+    """Return inbound SMS, missed calls, and voicemails with no later outbound follow-up."""
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_unanswered_communications
+        WHERE (:school = '' OR LOWER(COALESCE(school, '')) LIKE '%' || LOWER(:school) || '%')
+          AND (days_since_inbound IS NULL OR days_since_inbound <= :days)
+        ORDER BY event_at DESC
+        LIMIT :limit
+        """,
+        {"school": school or "", "days": days, "limit": limit},
+        limit,
+    )
+
+
+@mcp.tool()
 def no_show_followup(school: str = "", days: int = 30, limit: int = 50) -> str:
     """Return Pike13 no-shows with HubSpot follow-up context where available."""
     limit = max(1, min(limit, MAX_ROWS_DEFAULT))

@@ -29,10 +29,22 @@ class LeadFollowupSchemaTests(unittest.TestCase):
                 direction TEXT,
                 category TEXT,
                 name TEXT,
+                school_code TEXT,
                 school_name TEXT,
                 voicemail_transcript TEXT,
                 voicemail_recording_url TEXT,
                 recording_url TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE recording_transcripts (
+                call_id TEXT PRIMARY KEY,
+                recording_url TEXT,
+                transcript_text TEXT,
+                outcome TEXT,
+                summary TEXT
             )
             """
         )
@@ -66,6 +78,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "pike13_visits",
             "pike13_plans_passes",
             "identity_matches",
+            "communication_ai_insights",
         }:
             self.assertIn(table, tables)
 
@@ -146,7 +159,11 @@ class LeadFollowupSchemaTests(unittest.TestCase):
 
         unanswered = conn.execute("SELECT * FROM vw_unanswered_messages").fetchall()
         self.assertEqual(len(unanswered), 1)
-        self.assertEqual(unanswered[0]["thread_id"], "thread-1")
+        self.assertEqual(unanswered[0]["message_id"], "msg-1")
+
+        unanswered_comms = conn.execute("SELECT * FROM vw_unanswered_communications").fetchall()
+        self.assertEqual(len(unanswered_comms), 1)
+        self.assertEqual(unanswered_comms[0]["communication_id"], "msg-1")
 
         no_show = conn.execute("SELECT * FROM vw_no_show_followup").fetchone()
         self.assertEqual(no_show["deal_id"], "deal-1")
@@ -161,6 +178,50 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "SELECT conversion_state FROM vw_lead_conversion_path WHERE deal_id = 'deal-1'"
         ).fetchone()
         self.assertEqual(conversion["conversion_state"], "trial_no_show")
+
+    def test_unanswered_communications_use_later_outbound_call_followup(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO call_logs (
+                call_id, external_number, date_started, direction, category, name,
+                school_name, voicemail_transcript
+            )
+            VALUES ('call-in-1', '(713) 555-1212', '2025-01-05T10:00:00',
+                    'inbound', 'Voicemail', 'M Sample', 'West U', 'Please call me back')
+            """
+        )
+        rows = conn.execute("SELECT * FROM vw_unanswered_communications").fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["event_type"], "voicemail")
+
+        conn.execute(
+            """
+            INSERT INTO call_logs (
+                call_id, external_number, date_started, direction, category, name,
+                school_name, voicemail_transcript
+            )
+            VALUES ('call-out-1', '(713) 555-1212', '2025-01-05T12:00:00',
+                    'outbound', 'Call', 'M Sample', 'West U', NULL)
+            """
+        )
+        rows = conn.execute("SELECT * FROM vw_unanswered_communications").fetchall()
+        self.assertEqual(rows, [])
+
+        conn.execute(
+            """
+            INSERT INTO communication_ai_insights (
+                source_table, source_id, model, prompt_version, sentiment,
+                intent, summary, created_at
+            )
+            VALUES ('call_logs', 'call-in-1', 'test-model', 'v1',
+                    'concerned', 'callback_request', 'Caller requested follow-up.', ?)
+            """,
+            (now,),
+        )
+        insight = conn.execute("SELECT * FROM communication_ai_insights").fetchone()
+        self.assertEqual(insight["intent"], "callback_request")
 
 
 if __name__ == "__main__":

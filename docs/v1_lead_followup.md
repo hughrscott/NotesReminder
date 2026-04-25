@@ -50,6 +50,12 @@ Dialpad visible SMS thread/message extraction:
 python3 scripts/extract_dialpad_sms.py --db reminders.db --profile-dir browser_profiles/dialpad --thread-limit 20
 ```
 
+Dialpad visible voice history extraction:
+
+```bash
+python3 scripts/extract_dialpad_voice.py --db reminders.db --profile-dir browser_profiles/dialpad --views calls,missed,voicemails,recordings --limit-per-view 25
+```
+
 Pike13 linked person/outcome extraction from HubSpot-linked person IDs:
 
 ```bash
@@ -72,8 +78,11 @@ The MCP server keeps the existing SQL tools and adds:
 - `stale_leads(school, days, limit)`
 - `lead_timeline(search)`
 - `unanswered_messages(school, days, limit)`
+- `unanswered_communications(school, days, limit)`
 - `no_show_followup(school, days, limit)`
 - `lead_conversion_path(search)`
+
+The communications views preserve full available message/transcript text in source tables for later LLM sentiment, intent, urgency, action-item, and outcome analysis. MCP tools should default to concise evidence, not full transcript dumps.
 
 ## Initial Load And Refresh Defaults
 
