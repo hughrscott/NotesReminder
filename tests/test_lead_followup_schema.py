@@ -234,7 +234,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
                 pike13_person_id, source_url, raw_text, updated_at
             )
             VALUES ('deal-1', 'M Sample | West U', 'Scheduled Trial', 'West U',
-                    '2026-04-20', '15046380', 'https://hubspot/deal-1', 'raw deal', ?)
+                    'Apr 20, 2026 at 9:00 AM CDT', '15046380', 'https://hubspot/deal-1', 'raw deal', ?)
             """,
             (now,),
         )
@@ -284,6 +284,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
         self.assertEqual(report["window"]["days"], 7)
         self.assertEqual(report["sources"]["hubspot"]["rows"], 1)
+        self.assertEqual(report["sources"]["hubspot"]["field_coverage"]["create_date"]["fill_rate"], 100.0)
         self.assertEqual(report["sources"]["dialpad"]["sms_rows"], 1)
         self.assertEqual(report["sources"]["pike13"]["people_rows"], 1)
         self.assertIn(report["overall_status"], {"partial", "blocked"})

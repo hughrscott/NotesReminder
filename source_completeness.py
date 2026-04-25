@@ -93,6 +93,8 @@ def valid_date_coverage(conn, table, field, where_sql="1=1", params=None):
               OR CAST({field} AS TEXT) GLOB '[0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]'
               OR CAST({field} AS TEXT) GLOB '[0-9][0-9]/[0-9]/[0-9][0-9][0-9][0-9]'
               OR CAST({field} AS TEXT) GLOB '[0-9]/[0-9]/[0-9][0-9][0-9][0-9]'
+              OR CAST({field} AS TEXT) GLOB '[A-Z][a-z][a-z] [0-9], [0-9][0-9][0-9][0-9]*'
+              OR CAST({field} AS TEXT) GLOB '[A-Z][a-z][a-z] [0-9][0-9], [0-9][0-9][0-9][0-9]*'
           )
         """,
         params,
