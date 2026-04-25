@@ -41,6 +41,8 @@ Known remaining blockers are expected until the non-HubSpot extractors are harde
 - Dialpad SMS direction and valid message timestamp coverage.
 - Pike13 visit/outcome coverage.
 
+After HubSpot enrichment parsing is hardened, the next planned phase is Dialpad communications hardening: SMS direction, message timestamps, calls, missed calls, voicemails, voicemail transcripts, recordings, call transcripts, and follow-up evidence.
+
 ## Matching Priority
 
 Deterministic matching is refreshed when the report runs:
