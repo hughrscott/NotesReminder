@@ -86,9 +86,27 @@ The communications views preserve full available message/transcript text in sour
 
 ## Initial Load And Refresh Defaults
 
-Default initial load window is January 1, 2025 forward where the source UI makes it practical.
+Default proof window is the last 7 days. This is intentionally small so extractor quality, source coverage, and matching can be evaluated before any broad backfill.
+
+HubSpot is the lead spine: every lead/deal has a create date and should eventually be loaded regardless of status. Dialpad and Pike13 are date-indexed event streams that are matched back to HubSpot after ingestion.
+
+Progressive rollout:
+
+- Phase A: last 7 days.
+- Phase B: widen to 30 days after the 7-day proof passes.
+- Phase C: backfill from January 1, 2025 only after 30-day coverage and matching are reliable.
 
 Default refresh cadence is daily batch. Until reliable updated-date filters are proven in each UI, daily jobs should rescan recent rolling windows and rely on idempotent upserts.
+
+Run the source completeness report after each proof load:
+
+```bash
+python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty
+```
+
+The report returns source readiness as `ready`, `partial`, or `blocked`, plus field fill rates, recent row counts, import-run status, blockers, and deterministic identity-match counts.
+
+See `docs/source_completeness_proof.md` for the proof window, matching priority, and rollout gate before LLM insights.
 
 ## Commit Boundaries
 

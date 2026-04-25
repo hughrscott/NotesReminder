@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 
 from import_call_data import run_import
 from lead_followup_schema import ensure_lead_followup_schema
+from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
 DB_PATH = os.getenv("REMINDERS_DB_PATH", DEFAULT_DB_PATH)
@@ -155,6 +156,18 @@ def initialize_lead_followup_schema() -> str:
     finally:
         conn.close()
     return "Lead follow-up schema and views are ready."
+
+
+@mcp.tool()
+def source_completeness(window_days: int = 7, pike13_lookahead_days: int = 30) -> str:
+    """Report whether HubSpot, Dialpad, and Pike13 are complete enough for lead timelines."""
+    conn = _connect()
+    try:
+        report = build_source_completeness_report(conn, window_days, pike13_lookahead_days)
+        conn.commit()
+    finally:
+        conn.close()
+    return json.dumps(report, indent=2, default=str)
 
 
 @mcp.tool()

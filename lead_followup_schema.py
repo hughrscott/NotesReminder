@@ -288,6 +288,7 @@ def ensure_lead_followup_schema(conn):
         [
             "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_school ON hubspot_deals(school)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_stage ON hubspot_deals(stage)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_create_date ON hubspot_deals(create_date)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_last_contacted ON hubspot_deals(last_contacted)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_pike13 ON hubspot_deals(pike13_person_id)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_email ON hubspot_contacts(email_normalized)",
@@ -295,13 +296,17 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_hubspot_tasks_due ON hubspot_tasks(due_date)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_activities_time ON hubspot_activities(activity_time)",
             "CREATE INDEX IF NOT EXISTS idx_sms_threads_phone ON dialpad_sms_threads(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_sms_messages_time ON dialpad_sms_messages(message_at)",
             "CREATE INDEX IF NOT EXISTS idx_sms_messages_thread_time ON dialpad_sms_messages(thread_id, message_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_phone_time ON dialpad_voice_events(phone_normalized, event_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_type ON dialpad_voice_events(event_type)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_visits_time ON pike13_visits(starts_at)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_plans_person_dates ON pike13_plans_passes(person_id, starts_at, ends_at)",
             "CREATE INDEX IF NOT EXISTS idx_comm_ai_source ON communication_ai_insights(source_table, source_id)",
+            "CREATE INDEX IF NOT EXISTS idx_source_import_runs_source_status ON source_import_runs(source, status, started_at)",
         ],
     )
     _create_views(conn)

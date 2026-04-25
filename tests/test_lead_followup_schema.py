@@ -11,6 +11,7 @@ from lead_followup_schema import (
     start_import_run,
     utc_now_iso,
 )
+from source_completeness import build_source_completeness_report
 
 
 class LeadFollowupSchemaTests(unittest.TestCase):
@@ -222,6 +223,71 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         )
         insight = conn.execute("SELECT * FROM communication_ai_insights").fetchone()
         self.assertEqual(insight["intent"], "callback_request")
+
+    def test_source_completeness_report_identifies_partial_and_matching(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_deals (
+                deal_id, deal_name, stage, school, create_date,
+                pike13_person_id, source_url, raw_text, updated_at
+            )
+            VALUES ('deal-1', 'M Sample | West U', 'Scheduled Trial', 'West U',
+                    '2026-04-20', '15046380', 'https://hubspot/deal-1', 'raw deal', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email_normalized, phone_normalized,
+                associated_deal_ids, source_url, raw_text, updated_at
+            )
+            VALUES ('contact-1', 'M Sample', 'parent@example.com', '7135551212',
+                    'deal-1', 'https://hubspot/contact-1', 'raw contact', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, contact_name, school, source_url, raw_text, updated_at
+            )
+            VALUES ('thread-1', '(713) 555-1212', '7135551212', 'M Sample',
+                    'West U', 'https://dialpad/thread-1', 'raw thread', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, source_url, raw_text, updated_at
+            )
+            VALUES ('msg-1', 'thread-1', '2026-04-21', 'inbound',
+                    'I want lessons', 'https://dialpad/msg-1', 'raw sms', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, email_normalized, phone_normalized,
+                membership_state, school, source_url, raw_text, updated_at
+            )
+            VALUES ('15046380', 'M Sample', 'parent@example.com', '7135551212',
+                    'No Membership', 'West U', 'https://pike13/person', 'raw person', ?)
+            """,
+            (now,),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        self.assertEqual(report["window"]["days"], 7)
+        self.assertEqual(report["sources"]["hubspot"]["rows"], 1)
+        self.assertEqual(report["sources"]["dialpad"]["sms_rows"], 1)
+        self.assertEqual(report["sources"]["pike13"]["people_rows"], 1)
+        self.assertIn(report["overall_status"], {"partial", "blocked"})
+        self.assertGreaterEqual(report["matching"]["rows"], 1)
 
 
 if __name__ == "__main__":
