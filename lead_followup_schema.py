@@ -1,0 +1,598 @@
+import argparse
+import json
+import re
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+DEFAULT_INITIAL_LOAD_START = "2025-01-01"
+
+
+def utc_now_iso():
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def normalize_email(value):
+    if not value:
+        return None
+    value = str(value).strip().lower()
+    return value or None
+
+
+def normalize_phone(value):
+    if not value:
+        return None
+    digits = re.sub(r"\D", "", str(value))
+    if not digits:
+        return None
+    return digits[-10:] if len(digits) >= 10 else digits
+
+
+def _execute_many(conn, statements):
+    for statement in statements:
+        conn.execute(statement)
+
+
+def ensure_lead_followup_schema(conn):
+    """Create the V1 lead follow-up tables, indexes, and curated views."""
+    _execute_many(
+        conn,
+        [
+            """
+            CREATE TABLE IF NOT EXISTS source_import_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                extractor TEXT,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                status TEXT NOT NULL,
+                window_start TEXT,
+                window_end TEXT,
+                rows_seen INTEGER DEFAULT 0,
+                rows_inserted INTEGER DEFAULT 0,
+                rows_updated INTEGER DEFAULT 0,
+                error TEXT,
+                metadata_json TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS hubspot_deals (
+                deal_id TEXT PRIMARY KEY,
+                deal_name TEXT,
+                stage TEXT,
+                pipeline TEXT,
+                owner TEXT,
+                school TEXT,
+                create_date TEXT,
+                last_activity_date TEXT,
+                last_contacted TEXT,
+                follow_up_needed TEXT,
+                trial_date TEXT,
+                trial_no_show TEXT,
+                date_entered_scheduled_trial_stage TEXT,
+                area_of_interest TEXT,
+                instrument_type TEXT,
+                lead_source TEXT,
+                marketing_source TEXT,
+                pike13_person_id TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS hubspot_contacts (
+                contact_id TEXT PRIMARY KEY,
+                first_name TEXT,
+                last_name TEXT,
+                full_name TEXT,
+                email TEXT,
+                email_normalized TEXT,
+                phone TEXT,
+                phone_normalized TEXT,
+                sms_opt_in TEXT,
+                owner TEXT,
+                school TEXT,
+                school_lead_status TEXT,
+                associated_deal_ids TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS hubspot_tasks (
+                task_id TEXT PRIMARY KEY,
+                deal_id TEXT,
+                contact_id TEXT,
+                owner TEXT,
+                due_date TEXT,
+                completed_at TEXT,
+                status TEXT,
+                title TEXT,
+                task_type TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS hubspot_activities (
+                activity_id TEXT PRIMARY KEY,
+                deal_id TEXT,
+                contact_id TEXT,
+                activity_type TEXT,
+                activity_time TEXT,
+                owner TEXT,
+                title TEXT,
+                body TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS dialpad_sms_threads (
+                thread_id TEXT PRIMARY KEY,
+                feed_id TEXT,
+                phone TEXT,
+                phone_normalized TEXT,
+                contact_name TEXT,
+                last_message_at TEXT,
+                unread_count INTEGER DEFAULT 0,
+                school TEXT,
+                department TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS dialpad_sms_messages (
+                message_id TEXT PRIMARY KEY,
+                thread_id TEXT NOT NULL,
+                message_at TEXT,
+                direction TEXT,
+                sender TEXT,
+                recipient TEXT,
+                body TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(thread_id) REFERENCES dialpad_sms_threads(thread_id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS pike13_people (
+                person_id TEXT PRIMARY KEY,
+                full_name TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                email TEXT,
+                email_normalized TEXT,
+                phone TEXT,
+                phone_normalized TEXT,
+                membership_state TEXT,
+                school TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS pike13_visits (
+                visit_id TEXT PRIMARY KEY,
+                person_id TEXT,
+                event_id TEXT,
+                service TEXT,
+                starts_at TEXT,
+                status TEXT,
+                no_show_flag INTEGER DEFAULT 0,
+                unpaid_flag INTEGER DEFAULT 0,
+                waiver_flag INTEGER DEFAULT 0,
+                school TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(person_id) REFERENCES pike13_people(person_id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS pike13_plans_passes (
+                plan_pass_id TEXT PRIMARY KEY,
+                person_id TEXT,
+                name TEXT,
+                status TEXT,
+                starts_at TEXT,
+                ends_at TEXT,
+                school TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(person_id) REFERENCES pike13_people(person_id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS identity_matches (
+                match_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_system TEXT NOT NULL,
+                source_table TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                target_system TEXT NOT NULL,
+                target_table TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                match_type TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                evidence TEXT,
+                created_at TEXT NOT NULL,
+                UNIQUE(source_system, source_table, source_id, target_system, target_table, target_id, match_type)
+            )
+            """,
+        ],
+    )
+    _execute_many(
+        conn,
+        [
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_school ON hubspot_deals(school)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_stage ON hubspot_deals(stage)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_last_contacted ON hubspot_deals(last_contacted)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_pike13 ON hubspot_deals(pike13_person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_email ON hubspot_contacts(email_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_phone ON hubspot_contacts(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_tasks_due ON hubspot_tasks(due_date)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_activities_time ON hubspot_activities(activity_time)",
+            "CREATE INDEX IF NOT EXISTS idx_sms_threads_phone ON dialpad_sms_threads(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_sms_messages_thread_time ON dialpad_sms_messages(thread_id, message_at)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
+        ],
+    )
+    _create_views(conn)
+
+
+def _create_views(conn):
+    _execute_many(
+        conn,
+        [
+            "DROP VIEW IF EXISTS vw_lead_timeline",
+            """
+            CREATE VIEW vw_lead_timeline AS
+            SELECT
+                'hubspot' AS source,
+                'deal' AS event_type,
+                deal_id AS source_id,
+                deal_id,
+                NULL AS contact_id,
+                pike13_person_id,
+                create_date AS event_at,
+                school,
+                owner,
+                deal_name AS person_or_lead,
+                stage AS title,
+                'Deal created/current stage: ' || COALESCE(stage, '') AS detail,
+                source_url
+            FROM hubspot_deals
+            UNION ALL
+            SELECT
+                'hubspot',
+                'task',
+                task_id,
+                deal_id,
+                contact_id,
+                NULL,
+                COALESCE(completed_at, due_date),
+                NULL,
+                owner,
+                NULL,
+                title,
+                COALESCE(status, '') || ' ' || COALESCE(task_type, ''),
+                source_url
+            FROM hubspot_tasks
+            UNION ALL
+            SELECT
+                'hubspot',
+                activity_type,
+                activity_id,
+                deal_id,
+                contact_id,
+                NULL,
+                activity_time,
+                NULL,
+                owner,
+                NULL,
+                title,
+                body,
+                source_url
+            FROM hubspot_activities
+            UNION ALL
+            SELECT
+                'dialpad',
+                'sms',
+                m.message_id,
+                NULL,
+                NULL,
+                NULL,
+                m.message_at,
+                t.school,
+                NULL,
+                COALESCE(t.contact_name, t.phone),
+                COALESCE(m.direction, 'sms'),
+                m.body,
+                COALESCE(m.source_url, t.source_url)
+            FROM dialpad_sms_messages m
+            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            UNION ALL
+            SELECT
+                'dialpad',
+                'call',
+                call_id,
+                NULL,
+                NULL,
+                NULL,
+                date_started,
+                school_name,
+                category,
+                COALESCE(name, external_number),
+                COALESCE(direction, 'call'),
+                COALESCE(voicemail_transcript, recording_url, voicemail_recording_url, ''),
+                NULL
+            FROM call_logs
+            UNION ALL
+            SELECT
+                'pike13',
+                'visit',
+                v.visit_id,
+                NULL,
+                NULL,
+                v.person_id,
+                v.starts_at,
+                COALESCE(v.school, p.school),
+                NULL,
+                p.full_name,
+                v.service,
+                COALESCE(v.status, '') ||
+                    CASE WHEN v.no_show_flag = 1 THEN ' no-show' ELSE '' END ||
+                    CASE WHEN v.unpaid_flag = 1 THEN ' unpaid' ELSE '' END,
+                COALESCE(v.source_url, p.source_url)
+            FROM pike13_visits v
+            LEFT JOIN pike13_people p ON p.person_id = v.person_id
+            """,
+            "DROP VIEW IF EXISTS vw_stale_leads",
+            """
+            CREATE VIEW vw_stale_leads AS
+            SELECT
+                d.deal_id,
+                d.deal_name,
+                d.stage,
+                d.owner,
+                d.school,
+                d.create_date,
+                d.last_contacted,
+                d.last_activity_date,
+                d.follow_up_needed,
+                d.trial_date,
+                d.trial_no_show,
+                d.pike13_person_id,
+                CAST(julianday('now') - julianday(COALESCE(d.last_contacted, d.last_activity_date, d.create_date)) AS INTEGER) AS days_since_last_touch,
+                CASE
+                    WHEN LOWER(COALESCE(d.follow_up_needed, '')) IN ('yes', 'true', '1', 'follow up needed') THEN 'follow_up_needed'
+                    WHEN EXISTS (
+                        SELECT 1 FROM hubspot_tasks t
+                        WHERE t.deal_id = d.deal_id
+                          AND COALESCE(LOWER(t.status), '') NOT IN ('completed', 'done')
+                          AND t.due_date IS NOT NULL
+                          AND date(t.due_date) < date('now')
+                    ) THEN 'overdue_task'
+                    WHEN COALESCE(d.last_contacted, d.last_activity_date, d.create_date) IS NULL THEN 'missing_touch_date'
+                    ELSE 'stale_touch'
+                END AS risk_reason,
+                d.source_url
+            FROM hubspot_deals d
+            WHERE LOWER(COALESCE(d.stage, '')) NOT LIKE '%closed%'
+              AND LOWER(COALESCE(d.stage, '')) NOT LIKE '%lost%'
+              AND LOWER(COALESCE(d.stage, '')) NOT LIKE '%enrolled%'
+            """,
+            "DROP VIEW IF EXISTS vw_unanswered_messages",
+            """
+            CREATE VIEW vw_unanswered_messages AS
+            SELECT
+                m.message_id,
+                m.thread_id,
+                t.contact_name,
+                t.phone,
+                t.phone_normalized,
+                t.school,
+                t.department,
+                m.message_at,
+                m.body,
+                CAST(julianday('now') - julianday(m.message_at) AS INTEGER) AS days_since_inbound,
+                COALESCE(m.source_url, t.source_url) AS source_url
+            FROM dialpad_sms_messages m
+            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            WHERE LOWER(COALESCE(m.direction, '')) = 'inbound'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_sms_messages later
+                  WHERE later.thread_id = m.thread_id
+                    AND LOWER(COALESCE(later.direction, '')) = 'outbound'
+                    AND later.message_at > m.message_at
+              )
+            """,
+            "DROP VIEW IF EXISTS vw_no_show_followup",
+            """
+            CREATE VIEW vw_no_show_followup AS
+            SELECT
+                v.visit_id,
+                v.person_id,
+                p.full_name,
+                COALESCE(v.school, p.school, d.school) AS school,
+                v.service,
+                v.starts_at,
+                v.status,
+                d.deal_id,
+                d.deal_name,
+                d.stage,
+                d.owner,
+                d.last_contacted,
+                d.follow_up_needed,
+                CAST(julianday('now') - julianday(v.starts_at) AS INTEGER) AS days_since_no_show,
+                COALESCE(v.source_url, p.source_url, d.source_url) AS source_url
+            FROM pike13_visits v
+            LEFT JOIN pike13_people p ON p.person_id = v.person_id
+            LEFT JOIN hubspot_deals d ON d.pike13_person_id = v.person_id
+            WHERE v.no_show_flag = 1 OR LOWER(COALESCE(v.status, '')) LIKE '%no%show%'
+            """,
+            "DROP VIEW IF EXISTS vw_lead_conversion_path",
+            """
+            CREATE VIEW vw_lead_conversion_path AS
+            SELECT
+                d.deal_id,
+                d.deal_name,
+                d.school,
+                d.owner,
+                d.create_date AS lead_created_at,
+                d.last_contacted,
+                d.stage,
+                d.trial_date,
+                d.trial_no_show,
+                d.pike13_person_id,
+                MIN(v.starts_at) AS first_visit_at,
+                GROUP_CONCAT(DISTINCT v.status) AS visit_statuses,
+                GROUP_CONCAT(DISTINCT pp.name) AS plans_or_passes,
+                GROUP_CONCAT(DISTINCT pp.status) AS plan_pass_statuses,
+                CASE
+                    WHEN MAX(CASE WHEN LOWER(COALESCE(pp.status, '')) IN ('active', 'upcoming') THEN 1 ELSE 0 END) = 1 THEN 'enrolled_or_active'
+                    WHEN MAX(CASE WHEN v.no_show_flag = 1 OR LOWER(COALESCE(v.status, '')) LIKE '%no%show%' THEN 1 ELSE 0 END) = 1 THEN 'trial_no_show'
+                    WHEN MIN(v.starts_at) IS NOT NULL THEN 'trial_attended_or_scheduled'
+                    WHEN d.trial_date IS NOT NULL THEN 'trial_booked'
+                    WHEN d.last_contacted IS NOT NULL THEN 'contacted'
+                    ELSE 'created'
+                END AS conversion_state,
+                d.source_url
+            FROM hubspot_deals d
+            LEFT JOIN pike13_visits v ON v.person_id = d.pike13_person_id
+            LEFT JOIN pike13_plans_passes pp ON pp.person_id = d.pike13_person_id
+            GROUP BY d.deal_id
+            """,
+        ],
+    )
+
+
+def start_import_run(conn, source, extractor, window_start=None, window_end=None, metadata=None):
+    started_at = utc_now_iso()
+    cursor = conn.execute(
+        """
+        INSERT INTO source_import_runs
+        (source, extractor, started_at, status, window_start, window_end, metadata_json)
+        VALUES (?, ?, ?, 'running', ?, ?, ?)
+        """,
+        (
+            source,
+            extractor,
+            started_at,
+            window_start,
+            window_end,
+            json.dumps(metadata or {}, sort_keys=True),
+        ),
+    )
+    return cursor.lastrowid
+
+
+def finish_import_run(
+    conn,
+    run_id,
+    status,
+    rows_seen=0,
+    rows_inserted=0,
+    rows_updated=0,
+    error=None,
+    metadata=None,
+):
+    conn.execute(
+        """
+        UPDATE source_import_runs
+        SET finished_at = ?,
+            status = ?,
+            rows_seen = ?,
+            rows_inserted = ?,
+            rows_updated = ?,
+            error = ?,
+            metadata_json = COALESCE(?, metadata_json)
+        WHERE id = ?
+        """,
+        (
+            utc_now_iso(),
+            status,
+            rows_seen,
+            rows_inserted,
+            rows_updated,
+            error,
+            json.dumps(metadata, sort_keys=True) if metadata is not None else None,
+            run_id,
+        ),
+    )
+
+
+def upsert_identity_match(
+    conn,
+    source_system,
+    source_table,
+    source_id,
+    target_system,
+    target_table,
+    target_id,
+    match_type,
+    confidence,
+    evidence=None,
+):
+    conn.execute(
+        """
+        INSERT INTO identity_matches
+        (source_system, source_table, source_id, target_system, target_table, target_id,
+         match_type, confidence, evidence, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source_system, source_table, source_id, target_system, target_table, target_id, match_type)
+        DO UPDATE SET confidence = excluded.confidence, evidence = excluded.evidence
+        """,
+        (
+            source_system,
+            source_table,
+            str(source_id),
+            target_system,
+            target_table,
+            str(target_id),
+            match_type,
+            confidence,
+            evidence,
+            utc_now_iso(),
+        ),
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Create V1 lead follow-up schema.")
+    parser.add_argument("--db", default="reminders.db", help="Path to SQLite database")
+    args = parser.parse_args()
+
+    db_path = Path(args.db)
+    conn = sqlite3.connect(db_path)
+    try:
+        ensure_lead_followup_schema(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    print(f"Lead follow-up schema is ready in {db_path}")
+
+
+if __name__ == "__main__":
+    main()

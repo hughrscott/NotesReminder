@@ -4,6 +4,7 @@ asyncio>=3.4.3
 python-dateutil>=2.8.2
 boto3>=1.34.0
 python-dotenv>=1.0.0
+mcp>=1.0.0
 matplotlib>=3.8.0
 certifi>=2024.2.2
 openai>=1.40.0

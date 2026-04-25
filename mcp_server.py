@@ -8,6 +8,7 @@ import boto3
 from mcp.server.fastmcp import FastMCP
 
 from import_call_data import run_import
+from lead_followup_schema import ensure_lead_followup_schema
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
 DB_PATH = os.getenv("REMINDERS_DB_PATH", DEFAULT_DB_PATH)
@@ -29,6 +30,33 @@ def _connect():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _rows_as_json(columns, rows, max_rows):
+    data = [list(row) for row in rows]
+    return json.dumps(
+        {
+            "columns": columns,
+            "rows": data,
+            "row_count": len(data),
+            "truncated": len(data) >= max_rows,
+        },
+        indent=2,
+        default=str,
+    )
+
+
+def _query_rows(sql, params=None, max_rows=MAX_ROWS_DEFAULT):
+    conn = _connect()
+    try:
+        ensure_lead_followup_schema(conn)
+        conn.commit()
+        cursor = conn.execute(sql, params or {})
+        rows = cursor.fetchmany(max_rows)
+        columns = [col[0] for col in cursor.description] if cursor.description else []
+    finally:
+        conn.close()
+    return _rows_as_json(columns, rows, max_rows)
 
 
 @mcp.tool()
@@ -107,16 +135,7 @@ def query_sql(sql: str, max_rows: int = MAX_ROWS_DEFAULT) -> str:
     finally:
         conn.close()
     data = [list(row) for row in rows]
-    return json.dumps(
-        {
-            "columns": columns,
-            "rows": data,
-            "row_count": len(data),
-            "truncated": len(data) >= max_rows,
-        },
-        indent=2,
-        default=str,
-    )
+    return _rows_as_json(columns, rows, max_rows)
 
 
 @mcp.tool()
@@ -124,6 +143,132 @@ def import_call_data(clients_csv: str, dialpad_dir: str = "Call Log", db_path: s
     """Import Dialpad + Pike13 client CSVs into the SQLite DB and build matches."""
     run_import(clients_path=clients_csv, dialpad_dir=dialpad_dir, db_path=db_path, enable_fuzzy=False)
     return "Imported Dialpad + Pike13 data and rebuilt call_client_matches."
+
+
+@mcp.tool()
+def initialize_lead_followup_schema() -> str:
+    """Create the additive V1 lead follow-up tables and curated views."""
+    conn = _connect()
+    try:
+        ensure_lead_followup_schema(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return "Lead follow-up schema and views are ready."
+
+
+@mcp.tool()
+def stale_leads(school: str = "", days: int = 7, limit: int = 50) -> str:
+    """Return active leads with stale touches, follow-up-needed flags, or overdue tasks."""
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_stale_leads
+        WHERE (:school = '' OR LOWER(COALESCE(school, '')) LIKE '%' || LOWER(:school) || '%')
+          AND (
+              days_since_last_touch IS NULL
+              OR days_since_last_touch >= :days
+              OR risk_reason IN ('follow_up_needed', 'overdue_task', 'missing_touch_date')
+          )
+        ORDER BY
+          CASE risk_reason
+              WHEN 'overdue_task' THEN 1
+              WHEN 'follow_up_needed' THEN 2
+              WHEN 'missing_touch_date' THEN 3
+              ELSE 4
+          END,
+          days_since_last_touch DESC
+        LIMIT :limit
+        """,
+        {"school": school or "", "days": days, "limit": limit},
+        limit,
+    )
+
+
+@mcp.tool()
+def lead_timeline(search: str, limit: int = 100) -> str:
+    """Return a cross-system timeline for a lead name, phone, deal ID, or Pike13 person ID."""
+    if not search or not search.strip():
+        raise ValueError("search is required.")
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    needle = f"%{search.strip().lower()}%"
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_lead_timeline
+        WHERE LOWER(COALESCE(deal_id, '')) LIKE :needle
+           OR LOWER(COALESCE(contact_id, '')) LIKE :needle
+           OR LOWER(COALESCE(pike13_person_id, '')) LIKE :needle
+           OR LOWER(COALESCE(person_or_lead, '')) LIKE :needle
+           OR LOWER(COALESCE(detail, '')) LIKE :needle
+           OR LOWER(COALESCE(title, '')) LIKE :needle
+        ORDER BY event_at
+        LIMIT :limit
+        """,
+        {"needle": needle, "limit": limit},
+        limit,
+    )
+
+
+@mcp.tool()
+def unanswered_messages(school: str = "", days: int = 7, limit: int = 50) -> str:
+    """Return inbound SMS messages with no later outbound follow-up in the same thread."""
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_unanswered_messages
+        WHERE (:school = '' OR LOWER(COALESCE(school, '')) LIKE '%' || LOWER(:school) || '%')
+          AND (days_since_inbound IS NULL OR days_since_inbound <= :days)
+        ORDER BY message_at DESC
+        LIMIT :limit
+        """,
+        {"school": school or "", "days": days, "limit": limit},
+        limit,
+    )
+
+
+@mcp.tool()
+def no_show_followup(school: str = "", days: int = 30, limit: int = 50) -> str:
+    """Return Pike13 no-shows with HubSpot follow-up context where available."""
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_no_show_followup
+        WHERE (:school = '' OR LOWER(COALESCE(school, '')) LIKE '%' || LOWER(:school) || '%')
+          AND (days_since_no_show IS NULL OR days_since_no_show <= :days)
+        ORDER BY starts_at DESC
+        LIMIT :limit
+        """,
+        {"school": school or "", "days": days, "limit": limit},
+        limit,
+    )
+
+
+@mcp.tool()
+def lead_conversion_path(search: str, limit: int = 50) -> str:
+    """Show the lead-created to trial/enrollment path for a person, deal, school, or Pike13 ID."""
+    if not search or not search.strip():
+        raise ValueError("search is required.")
+    limit = max(1, min(limit, MAX_ROWS_DEFAULT))
+    needle = f"%{search.strip().lower()}%"
+    return _query_rows(
+        """
+        SELECT *
+        FROM vw_lead_conversion_path
+        WHERE LOWER(COALESCE(deal_id, '')) LIKE :needle
+           OR LOWER(COALESCE(deal_name, '')) LIKE :needle
+           OR LOWER(COALESCE(school, '')) LIKE :needle
+           OR LOWER(COALESCE(owner, '')) LIKE :needle
+           OR LOWER(COALESCE(pike13_person_id, '')) LIKE :needle
+        ORDER BY lead_created_at DESC
+        LIMIT :limit
+        """,
+        {"needle": needle, "limit": limit},
+        limit,
+    )
 
 
 if __name__ == "__main__":

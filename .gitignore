@@ -10,13 +10,17 @@ reminders.db
 reminders_mcp.db
 reminders.dbBAK
 reminders.db.BAK2
+*.db
 *.sqlite3
 *.log
 *.csv
 screenshots/
+application_views/
 .DS_Store
 debug_theheights.py
 node_modules/
 dialpad_profile/
+browser_profiles/
+docs/discovery/evidence/
 logs/
 recordings/
