@@ -121,6 +121,62 @@ def value_coverage(conn, table, field, values, where_sql="1=1", params=None):
     return {"filled": filled, "total": total, "fill_rate": percent(filled, total)}
 
 
+def trusted_contact_condition():
+    return """
+        LOWER(COALESCE(email_normalized, '')) NOT LIKE '%@schoolofrock.com'
+        AND COALESCE(json_extract(raw_json, '$.trusted'), 0) = 1
+    """
+
+
+def contact_quality_summary(conn):
+    total = count(conn, "SELECT COUNT(*) FROM hubspot_contacts")
+    trusted = count(conn, f"SELECT COUNT(*) FROM hubspot_contacts WHERE {trusted_contact_condition()}")
+    customer_email = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM hubspot_contacts
+        WHERE {trusted_contact_condition()}
+          AND email_normalized IS NOT NULL
+          AND email_normalized != ''
+        """,
+    )
+    phone = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM hubspot_contacts
+        WHERE {trusted_contact_condition()}
+          AND phone_normalized IS NOT NULL
+          AND phone_normalized != ''
+        """,
+    )
+    internal_email = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM hubspot_contacts
+        WHERE LOWER(COALESCE(email_normalized, '')) LIKE '%@schoolofrock.com'
+        """,
+    )
+    rejected_internal = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM hubspot_contacts
+        WHERE COALESCE(json_array_length(json_extract(raw_json, '$.rejected_emails')), 0) > 0
+        """,
+    )
+    return {
+        "rows": total,
+        "trusted_rows": trusted,
+        "trusted_customer_email_rows": customer_email,
+        "trusted_phone_rows": phone,
+        "stored_internal_email_rows": internal_email,
+        "rows_with_rejected_internal_emails": rejected_internal,
+    }
+
+
 def refresh_identity_matches(conn):
     """Populate deterministic identity matches from the current source tables."""
     inserted = 0
@@ -148,10 +204,11 @@ def refresh_identity_matches(conn):
         inserted += conn.total_changes - before
 
     for contact_id, email in conn.execute(
-        """
+        f"""
         SELECT contact_id, email_normalized
         FROM hubspot_contacts
         WHERE email_normalized IS NOT NULL AND email_normalized != ''
+          AND {trusted_contact_condition()}
         """
     ).fetchall():
         for person_id, in conn.execute(
@@ -178,10 +235,11 @@ def refresh_identity_matches(conn):
             inserted += conn.total_changes - before
 
     for contact_id, phone in conn.execute(
-        """
+        f"""
         SELECT contact_id, phone_normalized
         FROM hubspot_contacts
         WHERE phone_normalized IS NOT NULL AND phone_normalized != ''
+          AND {trusted_contact_condition()}
         """
     ).fetchall():
         for table, source_id_col, source_system in (
@@ -332,6 +390,7 @@ def hubspot_section(conn, window_start):
             """,
         ),
         "field_coverage": coverage,
+        "contact_quality": contact_quality_summary(conn),
         "latest_import_run": import_run_summary(conn, "hubspot"),
         "blockers": blockers,
     }

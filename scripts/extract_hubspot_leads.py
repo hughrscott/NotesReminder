@@ -28,7 +28,9 @@ DEFAULT_URL = "https://app.hubspot.com/contacts"
 DEAL_RE = re.compile(r"/record/0-3/(\d+)")
 CONTACT_RE = re.compile(r"/record/0-1/(\d+)")
 PIKE13_PERSON_RE = re.compile(r"/people/(\d+)")
-NO_VALUE_MARKERS = {"", "--", "details", "actions"}
+EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
+PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
+NO_VALUE_MARKERS = {"", "--", "details", "actions", "- deal", "- display deal"}
 FIELD_LABELS = {
     "actions",
     "area of interest",
@@ -58,6 +60,11 @@ FIELD_LABELS = {
     "trial no show",
     "trial time - display deal",
 }
+LABEL_NOISE_MARKERS = {
+    "ga utm term - deal",
+    "marketing source category",
+    "student for deal",
+}
 SCHOOL_FROM_OWNER = {
     "westu": "West University Place",
     "west u": "West University Place",
@@ -76,7 +83,7 @@ def text_after(label, text):
     value = value_after_label(lines, label)
     if value:
         return value
-    pattern = re.compile(rf"(?:^|\n)\s*{re.escape(label)}:?\s+([^\n]+)", re.IGNORECASE)
+    pattern = re.compile(rf"(?:^|\n)\s*{re.escape(label)}\s*:\s*([^\n]+)", re.IGNORECASE)
     match = pattern.search(text)
     if not match:
         return None
@@ -90,6 +97,49 @@ def clean_value(value):
     value = str(value).replace("\xa0", " ").strip()
     value = re.sub(r"\s+", " ", value)
     return value or None
+
+
+def is_internal_email(email):
+    normalized = normalize_email(email)
+    return bool(normalized and normalized.endswith("@schoolofrock.com"))
+
+
+def is_label_or_placeholder(value):
+    value = clean_value(value)
+    if not value:
+        return True
+    value_l = value.lower()
+    return (
+        value_l in NO_VALUE_MARKERS
+        or value_l in FIELD_LABELS
+        or value_l in LABEL_NOISE_MARKERS
+        or value_l.endswith(" - deal")
+        or value_l.endswith(" - display deal")
+    )
+
+
+def sanitized_value(value):
+    value = clean_value(value)
+    if is_label_or_placeholder(value):
+        return None
+    return value
+
+
+def sanitized_date(value):
+    value = sanitized_value(value)
+    return value if looks_like_date(value) else None
+
+
+def sanitized_yes_no(value):
+    value = sanitized_value(value)
+    if not value:
+        return None
+    value_l = value.lower()
+    if value_l in {"yes", "y", "true"}:
+        return "Yes"
+    if value_l in {"no", "n", "false"}:
+        return "No"
+    return None
 
 
 def visible_lines(text):
@@ -115,8 +165,8 @@ def value_after_label(lines, label):
 
 def first_valid(values):
     for value in values:
-        value = clean_value(value)
-        if value and value.lower() not in NO_VALUE_MARKERS:
+        value = sanitized_value(value)
+        if value:
             return value
     return None
 
@@ -190,20 +240,16 @@ def parse_deal_text(deal_id, url, text):
     if not deal_name:
         deal_name = next((line for line in lines if " | " in line), None)
     stage = normalize_stage(text_after("Deal Stage", text) or text_after("Stage", text))
-    create_date = first_valid(
+    create_date = sanitized_date(first_valid(
         [
             text_after("Create Date", text),
             text_after("Create date", text),
             date_from_created_activity(lines),
         ]
-    )
-    if create_date and not looks_like_date(create_date):
-        create_date = None
+    ))
     if not create_date:
         create_date = date_from_created_activity(lines)
-    last_activity_date = text_after("Last Activity Date", text)
-    if last_activity_date and not looks_like_date(last_activity_date):
-        last_activity_date = None
+    last_activity_date = sanitized_date(text_after("Last Activity Date", text))
     if not last_activity_date:
         last_activity_date = date_from_activity_header(lines)
     school = text_after("School Name - Deal", text)
@@ -220,21 +266,21 @@ def parse_deal_text(deal_id, url, text):
         "school": school,
         "create_date": create_date,
         "last_activity_date": last_activity_date,
-        "last_contacted": first_valid([text_after("Last Contacted", text)]),
-        "follow_up_needed": text_after("Follow Up Needed", text),
-        "trial_date": first_valid(
+        "last_contacted": sanitized_date(text_after("Last Contacted", text)),
+        "follow_up_needed": sanitized_yes_no(text_after("Follow Up Needed", text)),
+        "trial_date": sanitized_date(first_valid(
             [
                 text_after("Trial Date", text),
                 text_after("Trial Date (Deal)", text),
                 text_after("Trial Date - Display Deal", text),
             ]
-        ),
-        "trial_no_show": text_after("Trial No Show", text),
-        "date_entered_scheduled_trial_stage": text_after("Date Entered Scheduled Trial Stage", text),
-        "area_of_interest": text_after("Area of Interest", text),
-        "instrument_type": text_after("Instrument Type", text),
-        "lead_source": text_after("Lead Source - Deal", text) or text_after("Lead Source", text),
-        "marketing_source": text_after("Marketing Source - Deal", text) or text_after("Marketing Source", text),
+        )),
+        "trial_no_show": sanitized_yes_no(text_after("Trial No Show", text)),
+        "date_entered_scheduled_trial_stage": sanitized_date(text_after("Date Entered Scheduled Trial Stage", text)),
+        "area_of_interest": sanitized_value(text_after("Area of Interest", text)),
+        "instrument_type": sanitized_value(text_after("Instrument Type", text)),
+        "lead_source": sanitized_value(text_after("Lead Source - Deal", text) or text_after("Lead Source", text)),
+        "marketing_source": sanitized_value(text_after("Marketing Source - Deal", text) or text_after("Marketing Source", text)),
         "pike13_person_id": pike13_match.group(1) if pike13_match else None,
         "source_url": url,
         "raw_text": text,
@@ -336,11 +382,11 @@ def parse_hubspot_board_cards(text):
             if item.startswith("Create date:"):
                 row["create_date"] = clean_value(item.split(":", 1)[1])
             elif item.startswith("Last contacted:"):
-                row["last_contacted"] = clean_value(item.split(":", 1)[1])
+                row["last_contacted"] = sanitized_date(item.split(":", 1)[1])
             elif item.startswith("Trial Date (Deal):"):
-                row["trial_date"] = clean_value(item.split(":", 1)[1])
+                row["trial_date"] = sanitized_date(item.split(":", 1)[1])
             elif item.startswith("Follow Up Needed:"):
-                row["follow_up_needed"] = chunk[offset + 1] if offset + 1 < len(chunk) else None
+                row["follow_up_needed"] = sanitized_yes_no(chunk[offset + 1] if offset + 1 < len(chunk) else None)
         rows.append(row)
         index += 1
     return rows
@@ -442,14 +488,14 @@ def upsert_deal(conn, row):
             create_date = COALESCE(excluded.create_date, hubspot_deals.create_date),
             last_activity_date = COALESCE(excluded.last_activity_date, hubspot_deals.last_activity_date),
             last_contacted = COALESCE(excluded.last_contacted, hubspot_deals.last_contacted),
-            follow_up_needed = COALESCE(excluded.follow_up_needed, hubspot_deals.follow_up_needed),
-            trial_date = COALESCE(excluded.trial_date, hubspot_deals.trial_date),
-            trial_no_show = COALESCE(excluded.trial_no_show, hubspot_deals.trial_no_show),
-            date_entered_scheduled_trial_stage = COALESCE(excluded.date_entered_scheduled_trial_stage, hubspot_deals.date_entered_scheduled_trial_stage),
-            area_of_interest = COALESCE(excluded.area_of_interest, hubspot_deals.area_of_interest),
-            instrument_type = COALESCE(excluded.instrument_type, hubspot_deals.instrument_type),
-            lead_source = COALESCE(excluded.lead_source, hubspot_deals.lead_source),
-            marketing_source = COALESCE(excluded.marketing_source, hubspot_deals.marketing_source),
+            follow_up_needed = excluded.follow_up_needed,
+            trial_date = excluded.trial_date,
+            trial_no_show = excluded.trial_no_show,
+            date_entered_scheduled_trial_stage = excluded.date_entered_scheduled_trial_stage,
+            area_of_interest = excluded.area_of_interest,
+            instrument_type = excluded.instrument_type,
+            lead_source = excluded.lead_source,
+            marketing_source = excluded.marketing_source,
             pike13_person_id = COALESCE(excluded.pike13_person_id, hubspot_deals.pike13_person_id),
             source_url = COALESCE(excluded.source_url, hubspot_deals.source_url),
             raw_text = excluded.raw_text,
@@ -460,30 +506,78 @@ def upsert_deal(conn, row):
     )
 
 
-def upsert_contact_from_text(conn, deal_id, url, text):
-    contact_match = CONTACT_RE.search(url + "\n" + text)
-    email_match = re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", text)
-    phone_match = re.search(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}", text)
-    if not contact_match and not email_match and not phone_match:
-        return 0
-    contact_id = contact_match.group(1) if contact_match else stable_id("hubspot_contact", email_match.group(0) if email_match else phone_match.group(0))
-    row = {
+def parse_contact_from_text(deal_id, url, text):
+    lines = visible_lines(text)
+    contact_ids = CONTACT_RE.findall(url + "\n" + text)
+    emails = EMAIL_RE.findall(text)
+    accepted_email = None
+    rejected_emails = []
+    for email in emails:
+        normalized = normalize_email(email)
+        if not normalized:
+            continue
+        if is_internal_email(normalized):
+            rejected_emails.append({"email": normalized, "reason": "internal_schoolofrock_email"})
+            continue
+        if not accepted_email:
+            accepted_email = normalized
+
+    accepted_phone = None
+    accepted_phone_raw = None
+    full_name = None
+    if accepted_email:
+        email_index = next((idx for idx, line in enumerate(lines) if accepted_email in line.lower()), None)
+        if email_index is not None:
+            for candidate in reversed(lines[max(0, email_index - 4) : email_index]):
+                if not is_label_or_placeholder(candidate) and "school of rock" not in candidate.lower():
+                    full_name = candidate
+                    break
+            phone_window = "\n".join(lines[email_index : email_index + 8])
+            phone_match = PHONE_RE.search(phone_window)
+            if phone_match:
+                accepted_phone_raw = phone_match.group(0)
+                accepted_phone = normalize_phone(accepted_phone_raw)
+    if not full_name:
+        deal_name = next((line for line in lines if " | " in line), None)
+        full_name = clean_value(deal_name.split("|", 1)[0]) if deal_name else None
+
+    trusted = bool(accepted_email or accepted_phone or contact_ids)
+    diagnostics = {
+        "extraction": "deal_contact_context",
+        "trusted": trusted,
+        "confidence": 0.9 if accepted_email and accepted_phone else 0.75 if accepted_email or accepted_phone else 0.55 if contact_ids else 0.0,
+        "accepted_email": accepted_email,
+        "accepted_phone": accepted_phone,
+        "rejected_emails": rejected_emails,
+        "contact_ids": contact_ids,
+        "evidence": "customer email/phone found in HubSpot detail text near contact context" if trusted else "no trusted contact context found",
+    }
+    if not trusted:
+        return None
+    contact_id = contact_ids[0] if contact_ids else stable_id("hubspot_contact", accepted_email or accepted_phone or deal_id)
+    return {
         "contact_id": contact_id,
-        "full_name": text_after("Contact", text) or text_after("Name", text),
-        "email": email_match.group(0) if email_match else None,
-        "email_normalized": normalize_email(email_match.group(0)) if email_match else None,
-        "phone": phone_match.group(0) if phone_match else None,
-        "phone_normalized": normalize_phone(phone_match.group(0)) if phone_match else None,
-        "sms_opt_in": text_after("SMS Opt In", text) or text_after("SMS opt-in", text),
-        "owner": text_after("Contact owner", text),
-        "school": text_after("School Lead Status", text) or text_after("School", text),
-        "school_lead_status": text_after("School Lead Status", text),
+        "full_name": sanitized_value(full_name),
+        "email": accepted_email,
+        "email_normalized": accepted_email,
+        "phone": accepted_phone_raw,
+        "phone_normalized": accepted_phone,
+        "sms_opt_in": sanitized_yes_no(text_after("SMS Opt In", text) or text_after("SMS opt-in", text)),
+        "owner": sanitized_value(text_after("Contact owner", text)),
+        "school": sanitized_value(text_after("School Lead Status", text) or text_after("School", text)),
+        "school_lead_status": sanitized_value(text_after("School Lead Status", text)),
         "associated_deal_ids": deal_id,
         "source_url": url,
         "raw_text": text,
-        "raw_json": json.dumps({"extraction": "deal_contact_text"}, sort_keys=True),
+        "raw_json": json.dumps(diagnostics, sort_keys=True),
         "updated_at": utc_now_iso(),
     }
+
+
+def upsert_contact_from_text(conn, deal_id, url, text):
+    row = parse_contact_from_text(deal_id, url, text)
+    if not row:
+        return 0
     conn.execute(
         """
         INSERT INTO hubspot_contacts (
@@ -499,9 +593,9 @@ def upsert_contact_from_text(conn, deal_id, url, text):
         ON CONFLICT(contact_id) DO UPDATE SET
             full_name = COALESCE(excluded.full_name, hubspot_contacts.full_name),
             email = COALESCE(excluded.email, hubspot_contacts.email),
-            email_normalized = COALESCE(excluded.email_normalized, hubspot_contacts.email_normalized),
-            phone = COALESCE(excluded.phone, hubspot_contacts.phone),
-            phone_normalized = COALESCE(excluded.phone_normalized, hubspot_contacts.phone_normalized),
+            email_normalized = excluded.email_normalized,
+            phone = excluded.phone,
+            phone_normalized = excluded.phone_normalized,
             associated_deal_ids = excluded.associated_deal_ids,
             raw_text = excluded.raw_text,
             raw_json = excluded.raw_json,

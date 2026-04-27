@@ -28,11 +28,13 @@ The report returns:
 - Per-source row counts, recent-window counts, latest timestamps, field fill rates, import-run status, and blockers.
 - Identity-match counts by match type.
 
-Latest 7-day proof results after HubSpot lead-spine hardening:
+Latest 7-day proof results after HubSpot lead-spine and enrichment hardening:
 
 - HubSpot status: `ready`.
-- Visible HubSpot proof rows: 22 deals from the current list view, including 13 West University Place rows and 9 The Heights rows.
-- HubSpot readiness coverage: stage 100%, school 100%, source URL 100%, raw text 100%, create date 95.5%.
+- Visible HubSpot proof rows: 25 deals from the current list view.
+- HubSpot readiness coverage: stage 100%, school 100%, source URL 100%, raw text 100%, create date 84.0%.
+- HubSpot enrichment coverage: 24 trusted customer-contact rows, 24 trusted customer emails, 24 trusted phone rows, and 13 rows with rejected internal School of Rock emails recorded in `raw_json`.
+- HubSpot enrichment validation: no curated HubSpot deal field contains known placeholder values such as `Details`, `- Deal`, `- Display Deal`, or `GA UTM Term - Deal`.
 - HubSpot extraction note: the list view provides stage, owner, and school reliably; create date currently requires visiting deal detail pages unless a HubSpot view exposes it directly.
 - HubSpot extractor note: use `--school "West University Place"` when running a school-specific proof from a mixed-school view.
 
@@ -41,7 +43,7 @@ Known remaining blockers are expected until the non-HubSpot extractors are harde
 - Dialpad SMS direction and valid message timestamp coverage.
 - Pike13 visit/outcome coverage.
 
-After HubSpot enrichment parsing is hardened, the next planned phase is Dialpad communications hardening: SMS direction, message timestamps, calls, missed calls, voicemails, voicemail transcripts, recordings, call transcripts, and follow-up evidence.
+The next planned phase is Dialpad communications hardening: SMS direction, message timestamps, calls, missed calls, voicemails, voicemail transcripts, recordings, call transcripts, and follow-up evidence.
 
 ## Matching Priority
 

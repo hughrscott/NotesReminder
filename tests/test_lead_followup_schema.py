@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -242,12 +243,12 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             """
             INSERT INTO hubspot_contacts (
                 contact_id, full_name, email_normalized, phone_normalized,
-                associated_deal_ids, source_url, raw_text, updated_at
+                associated_deal_ids, source_url, raw_text, raw_json, updated_at
             )
             VALUES ('contact-1', 'M Sample', 'parent@example.com', '7135551212',
-                    'deal-1', 'https://hubspot/contact-1', 'raw contact', ?)
+                    'deal-1', 'https://hubspot/contact-1', 'raw contact', ?, ?)
             """,
-            (now,),
+            (json.dumps({"trusted": True, "rejected_emails": []}), now),
         )
         conn.execute(
             """
@@ -285,6 +286,8 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(report["window"]["days"], 7)
         self.assertEqual(report["sources"]["hubspot"]["rows"], 1)
         self.assertEqual(report["sources"]["hubspot"]["field_coverage"]["create_date"]["fill_rate"], 100.0)
+        self.assertEqual(report["sources"]["hubspot"]["contact_quality"]["trusted_rows"], 1)
+        self.assertEqual(report["sources"]["hubspot"]["contact_quality"]["trusted_customer_email_rows"], 1)
         self.assertEqual(report["sources"]["dialpad"]["sms_rows"], 1)
         self.assertEqual(report["sources"]["pike13"]["people_rows"], 1)
         self.assertIn(report["overall_status"], {"partial", "blocked"})

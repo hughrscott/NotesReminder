@@ -4,6 +4,7 @@ import unittest
 from scripts.extract_hubspot_leads import (
     filter_deal_rows_by_school,
     merge_deal_rows,
+    parse_contact_from_text,
     parse_deal_text,
     parse_hubspot_board_cards,
     parse_hubspot_table_rows,
@@ -69,6 +70,122 @@ class HubSpotExtractorTests(unittest.TestCase):
         self.assertEqual(row["create_date"], "Apr 25, 2026 at 8:47 AM CDT")
         self.assertNotEqual(row["create_date"], "Details")
         self.assertIsNone(row["follow_up_needed"])
+
+    def test_parse_deal_text_rejects_placeholder_enrichment_fields(self):
+        row = parse_deal_text(
+            "456",
+            "https://app.hubspot.com/contacts/1/record/0-3/456",
+            "\n".join(
+                [
+                    "Sofia Shanley | West University Place",
+                    "Follow Up Needed",
+                    "Details",
+                    "Trial Date - Display Deal",
+                    "Details",
+                    "- Display Deal",
+                    "Trial No Show",
+                    "Details",
+                    "Maybe",
+                    "Area of Interest",
+                    "Details",
+                    "Details",
+                    "Instrument Type",
+                    "Details",
+                    "- Deal",
+                    "Lead Source - Deal",
+                    "Details",
+                    "- Deal",
+                    "Marketing Source - Deal",
+                    "Details",
+                    "GA UTM Term - Deal",
+                ]
+            ),
+        )
+
+        for field in (
+            "follow_up_needed",
+            "trial_date",
+            "trial_no_show",
+            "area_of_interest",
+            "instrument_type",
+            "lead_source",
+            "marketing_source",
+        ):
+            self.assertIsNone(row[field], field)
+
+    def test_parse_deal_text_accepts_valid_enrichment_fields(self):
+        row = parse_deal_text(
+            "456",
+            "https://app.hubspot.com/contacts/1/record/0-3/456",
+            "\n".join(
+                [
+                    "Sofia Shanley | West University Place",
+                    "Follow Up Needed",
+                    "Yes",
+                    "Trial Date (Deal)",
+                    "Apr 28, 2026",
+                    "Trial No Show",
+                    "No",
+                    "Area of Interest",
+                    "Rock 101",
+                    "Instrument Type",
+                    "Guitar",
+                    "Lead Source - Deal",
+                    "Online",
+                    "Marketing Source - Deal",
+                    "Paid Search",
+                    "Last Contacted",
+                    "Apr 25, 2026 at 8:47 AM CDT",
+                ]
+            ),
+        )
+
+        self.assertEqual(row["follow_up_needed"], "Yes")
+        self.assertEqual(row["trial_date"], "Apr 28, 2026")
+        self.assertEqual(row["trial_no_show"], "No")
+        self.assertEqual(row["area_of_interest"], "Rock 101")
+        self.assertEqual(row["instrument_type"], "Guitar")
+        self.assertEqual(row["lead_source"], "Online")
+        self.assertEqual(row["marketing_source"], "Paid Search")
+        self.assertEqual(row["last_contacted"], "Apr 25, 2026 at 8:47 AM CDT")
+
+    def test_parse_contact_from_text_rejects_internal_email_and_records_diagnostics(self):
+        row = parse_contact_from_text(
+            "deal-1",
+            "https://app.hubspot.com/contacts/1/record/0-3/deal-1",
+            "\n".join(
+                [
+                    "Maira Pirzada",
+                    "School of Rock West University Place",
+                    "maira@example.com",
+                    "(713) 555-1212",
+                    "Email - Thank You from Calvin Barnhill",
+                    "to Maira Pirzada",
+                    "calvin@schoolofrock.com",
+                ]
+            ),
+        )
+
+        metadata = json.loads(row["raw_json"])
+        self.assertTrue(metadata["trusted"])
+        self.assertEqual(row["email_normalized"], "maira@example.com")
+        self.assertEqual(row["phone_normalized"], "7135551212")
+        self.assertEqual(row["full_name"], "Maira Pirzada")
+        self.assertEqual(metadata["rejected_emails"][0]["email"], "calvin@schoolofrock.com")
+
+    def test_parse_contact_from_text_does_not_accept_internal_email_only(self):
+        row = parse_contact_from_text(
+            "deal-1",
+            "https://app.hubspot.com/contacts/1/record/0-3/deal-1",
+            "\n".join(
+                [
+                    "Email - Thank You from Calvin Barnhill",
+                    "calvin@schoolofrock.com",
+                ]
+            ),
+        )
+
+        self.assertIsNone(row)
 
     def test_parse_hubspot_table_rows_extracts_spine_fields(self):
         rows = parse_hubspot_table_rows(
