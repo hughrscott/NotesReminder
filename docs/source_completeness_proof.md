@@ -28,6 +28,13 @@ The report returns:
 - Per-source row counts, recent-window counts, latest timestamps, field fill rates, import-run status, and blockers.
 - Identity-match counts by match type.
 
+Timestamp rule:
+
+- Source event timestamps are business evidence and should be captured separately from import/update timestamps.
+- Use source-specific event fields for when something happened in the source system, such as HubSpot `create_date`, Dialpad SMS `message_at`, Dialpad voice `event_at`, Pike13 visit `starts_at`, and lesson-note timestamps.
+- Use `updated_at` only for when the local database row was imported or refreshed.
+- If a source omits the year, normalize to the most recent non-future date unless the source explicitly represents a future appointment.
+
 Latest 7-day proof results after HubSpot lead-spine and enrichment hardening:
 
 - HubSpot status: `ready`.
@@ -40,10 +47,17 @@ Latest 7-day proof results after HubSpot lead-spine and enrichment hardening:
 
 Known remaining blockers are expected until the non-HubSpot extractors are hardened:
 
-- Dialpad SMS direction and valid message timestamp coverage.
 - Pike13 visit/outcome coverage.
 
-The next planned phase is Dialpad communications hardening: SMS direction, message timestamps, calls, missed calls, voicemails, voicemail transcripts, recordings, call transcripts, and follow-up evidence.
+Latest Dialpad communications hardening proof:
+
+- Dialpad status: `ready`.
+- SMS rows: 17; direction coverage 100%; message timestamp coverage 94.1%; no future SMS timestamps.
+- Voice rows: 33,974 including existing historical calls/transcripts plus the current browser proof; direction coverage 100%; event timestamp coverage 100%; phone coverage 98.5%.
+- The browser proof captured calls, missed calls, voicemails, voicemail transcript text where visible, and recording-route availability.
+- Remaining Dialpad work before broad backfill: prove richer SMS thread direction/order from true thread detail pages and locate call/recording transcript download paths where Dialpad exposes them.
+
+The next planned phase is Pike13 outcome hardening after Dialpad communications remains stable: visits, trials, no-shows, memberships/plans, and source event timestamps.
 
 ## Matching Priority
 

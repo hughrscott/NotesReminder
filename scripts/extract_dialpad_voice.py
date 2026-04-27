@@ -5,6 +5,7 @@ import json
 import re
 import sqlite3
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -31,6 +32,46 @@ HISTORY_URLS = {
     "recordings": "https://dialpad.com/app/history/recordings",
 }
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
+DURATION_RE = re.compile(r"^\d+\s*(?:s|m|h)(?:\s+\d+\s*s)?$|^\d+:\d{2}$", re.IGNORECASE)
+MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+NAV_LABELS = {
+    "download",
+    "search dialpad",
+    "inbox",
+    "contacts",
+    "contact centers",
+    "all channels",
+    "threads",
+    "scheduled",
+    "coaching teams",
+    "departments",
+    "recents",
+    "all",
+    "calls",
+    "missed",
+    "meetings",
+    "voicemails",
+    "voicemail",
+    "recordings",
+    "recording",
+    "messages",
+    "starred",
+    "spam",
+    "unread",
+}
 
 
 def stable_id(prefix, *parts):
@@ -59,49 +100,112 @@ def classify_event(source_view, text):
 
 def infer_direction(text):
     lowered = text.lower()
-    if "outbound" in lowered or "placed call" in lowered:
+    if "outbound" in lowered or "placed call" in lowered or "outgoing" in lowered:
         return "outbound"
-    if "inbound" in lowered or "missed call" in lowered or "voicemail" in lowered:
+    if "inbound" in lowered or "incoming" in lowered or "missed call" in lowered or "voicemail" in lowered:
         return "inbound"
     return "unknown"
 
 
-def rows_from_visible_text(source_view, url, text, limit):
+def normalize_dialpad_date(value, now=None):
+    value = (value or "").strip().strip(",")
+    if not value:
+        return None
+    now = now or datetime.now()
+    lowered = value.lower()
+    if lowered == "today":
+        return now.date().isoformat()
+    if lowered == "yesterday":
+        return (now.date() - timedelta(days=1)).isoformat()
+    slash_match = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{2,4})", value)
+    if slash_match:
+        month, day, year = slash_match.groups()
+        year = int(year)
+        if year < 100:
+            year += 2000
+        return f"{year:04d}-{int(month):02d}-{int(day):02d}"
+    month_match = re.search(
+        r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,\s*(\d{4}))?",
+        value,
+        re.IGNORECASE,
+    )
+    if month_match:
+        month_name, day, year = month_match.groups()
+        year = int(year) if year else now.year
+        parsed = datetime(year, MONTHS[month_name[:3].lower()], int(day)).date()
+        if not month_match.group(3) and parsed > now.date():
+            parsed = datetime(year - 1, MONTHS[month_name[:3].lower()], int(day)).date()
+        return parsed.isoformat()
+    return value if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) else None
+
+
+def is_noise_line(line):
+    lowered = line.lower().strip()
+    return (
+        not lowered
+        or lowered in NAV_LABELS
+        or lowered.startswith("call ")
+        or lowered in {"the power of dialpad. on your desktop.", "dnd on"}
+        or re.fullmatch(r"[A-Z]{1,3}", line.strip()) is not None
+    )
+
+
+def is_outcome_line(line):
+    lowered = line.lower()
+    return any(
+        token in lowered
+        for token in (
+            "voicemail",
+            "missed call",
+            "caller hung up",
+            "recording",
+            "answered",
+            "declined",
+            "incoming",
+            "inbound",
+            "outgoing",
+            "outbound",
+        )
+    )
+
+
+def parse_outcome_line(source_view, line):
+    lowered = line.lower()
+    if source_view == "missed" or "missed call" in lowered:
+        event_type = "voicemail" if "voicemail" in lowered else "missed_call"
+    elif source_view == "voicemails" or "voicemail" in lowered:
+        event_type = "voicemail"
+    elif source_view == "recordings" or "recording" in lowered:
+        event_type = "recording"
+    else:
+        event_type = "call"
+    return event_type, infer_direction(line)
+
+
+def rows_from_visible_text(source_view, url, text, limit, now=None):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
+    lines = [line for line in lines if not is_noise_line(line)]
     rows = []
-    ignored = {
-        "download",
-        "search dialpad",
-        "inbox",
-        "contacts",
-        "contact centers",
-        "all channels",
-        "threads",
-        "scheduled",
-        "coaching teams",
-        "departments",
-        "recents",
-        "all",
-        "calls",
-        "missed",
-        "meetings",
-        "voicemails",
-        "voicemail",
-        "recordings",
-        "recording",
-        "messages",
-        "starred",
-        "spam",
-    }
     for index, line in enumerate(lines):
-        lowered = line.lower()
-        if lowered in ignored or lowered.startswith("call "):
+        if not is_outcome_line(line):
             continue
-        if not any(token in lowered for token in ("voicemail", "missed call", "caller hung up", "recording", "answered", "declined")):
-            continue
-        event_type = classify_event(source_view, line)
-        phone_match = PHONE_RE.search(line)
-        transcript = line if event_type == "voicemail" and len(line) > 40 else None
+        event_type, direction = parse_outcome_line(source_view, line)
+        context = lines[max(0, index - 4) : index + 5]
+        phone_match = next((PHONE_RE.search(item) for item in context if PHONE_RE.search(item)), None)
+        event_at = next((normalize_dialpad_date(item, now=now) for item in context if normalize_dialpad_date(item, now=now)), None)
+        contact_name = None
+        for candidate in reversed(lines[max(0, index - 4) : index]):
+            if DURATION_RE.match(candidate) or normalize_dialpad_date(candidate, now=now):
+                continue
+            if is_outcome_line(candidate):
+                continue
+            contact_name = candidate
+            break
+        transcript = None
+        if event_type == "voicemail":
+            transcript = next((item.strip('"') for item in lines[index + 1 : index + 5] if len(item) > 30 and not is_outcome_line(item)), None)
+            if not transcript and len(line) > 40:
+                transcript = line
         rows.append(
             {
                 "event_id": stable_id("dialpad_voice", source_view, url, index, line),
@@ -110,9 +214,9 @@ def rows_from_visible_text(source_view, url, text, limit):
                 "call_id": None,
                 "phone": phone_match.group(0) if phone_match else None,
                 "phone_normalized": normalize_phone(phone_match.group(0)) if phone_match else None,
-                "contact_name": None,
-                "direction": infer_direction(line),
-                "event_at": None,
+                "contact_name": contact_name,
+                "direction": direction,
+                "event_at": event_at,
                 "school": None,
                 "department": None,
                 "outcome": line[:240],
@@ -121,7 +225,7 @@ def rows_from_visible_text(source_view, url, text, limit):
                 "transcript_summary": None,
                 "source_url": url,
                 "raw_text": line,
-                "raw_json": json.dumps({"source_view": source_view, "line_index": index}, sort_keys=True),
+                "raw_json": json.dumps({"source_view": source_view, "line_index": index, "context": context}, sort_keys=True),
                 "updated_at": utc_now_iso(),
             }
         )

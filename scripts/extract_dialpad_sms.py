@@ -5,6 +5,7 @@ import json
 import re
 import sqlite3
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -26,6 +27,52 @@ from lead_followup_schema import (  # noqa: E402
 DEFAULT_URL = "https://dialpad.com/app/history/messages"
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
 FEED_RE = re.compile(r"(?:feed|conversation|thread|contact)[=/](\d+)")
+MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+NAV_LABELS = {
+    "all channels",
+    "all",
+    "calls",
+    "coaching teams",
+    "contact centers",
+    "contacts",
+    "departments",
+    "dnd on",
+    "download",
+    "inbox",
+    "meetings",
+    "messages",
+    "missed",
+    "monitor all coaching teams",
+    "recordings",
+    "recents",
+    "search",
+    "search dialpad",
+    "scheduled",
+    "spam",
+    "starred",
+    "the power of dialpad. on your desktop.",
+    "threads",
+    "unread",
+    "unread messages",
+    "voicemails",
+}
+NOISE_PREFIXES = (
+    "dialpad supports only one active app tab",
+    "multiple tabs detected",
+)
 
 
 def stable_id(prefix, *parts):
@@ -44,35 +91,104 @@ def message_id(thread_id, message_at, body, direction):
     return stable_id("dialpad_sms", thread_id, message_at, direction, body)
 
 
-def extract_message_lines(text):
+def normalize_dialpad_date(value, now=None):
+    value = (value or "").strip().strip(",")
+    if not value:
+        return None
+    now = now or datetime.now()
+    lowered = value.lower()
+    if lowered == "today":
+        return now.date().isoformat()
+    if lowered == "yesterday":
+        return (now.date() - timedelta(days=1)).isoformat()
+    slash_match = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{2,4})", value)
+    if slash_match:
+        month, day, year = slash_match.groups()
+        year = int(year)
+        if year < 100:
+            year += 2000
+        return f"{year:04d}-{int(month):02d}-{int(day):02d}"
+    month_match = re.search(
+        r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,\s*(\d{4}))?",
+        value,
+        re.IGNORECASE,
+    )
+    if month_match:
+        month_name, day, year = month_match.groups()
+        year = int(year) if year else now.year
+        parsed = datetime(year, MONTHS[month_name[:3].lower()], int(day)).date()
+        if not month_match.group(3) and parsed > now.date():
+            parsed = datetime(year - 1, MONTHS[month_name[:3].lower()], int(day)).date()
+        return parsed.isoformat()
+    return value if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) else None
+
+
+def looks_like_dialpad_date(line):
+    return normalize_dialpad_date(line) is not None
+
+
+def clean_message_body(line):
+    return re.sub(r"^(you|me|sent|outbound|from|inbound|received)\s*:\s*", "", line, flags=re.IGNORECASE).strip()
+
+
+def infer_sms_direction(line):
+    lowered = line.lower().strip()
+    if lowered.startswith(("you:", "me:", "sent:", "outbound:")):
+        return "outbound"
+    if lowered.startswith(("from:", "inbound:", "received:")):
+        return "inbound"
+    if "sorry, i can" in lowered and "talk right now" in lowered:
+        return "inbound"
+    return "unknown"
+
+
+def is_noise_message_line(line):
+    lowered = line.lower().strip()
+    return (
+        lowered in NAV_LABELS
+        or any(lowered.startswith(prefix) for prefix in NOISE_PREFIXES)
+        or re.fullmatch(r"\d+", line) is not None
+        or re.fullmatch(r"[A-Z]{1,3}", line) is not None
+    )
+
+
+def looks_like_message_body(line, default_direction):
+    stripped = line.strip()
+    if infer_sms_direction(line) != "unknown":
+        return True
+    cleaned = stripped.strip('"')
+    if len(cleaned) >= 20:
+        return True
+    if default_direction != "unknown" and stripped.startswith('"') and stripped.endswith('"'):
+        return True
+    if default_direction != "unknown" and re.search(r"[.!?]", cleaned) and len(cleaned) >= 20:
+        return True
+    return False
+
+
+def extract_message_lines(text, now=None, default_direction="unknown"):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     messages = []
     current_date = None
     for line in lines:
-        if re.search(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{1,2}/\d{1,2}/\d{2,4}|Today|Yesterday)\b", line):
-            current_date = line
+        normalized_date = normalize_dialpad_date(line, now=now)
+        if normalized_date:
+            if messages and not messages[-1]["message_at"]:
+                messages[-1]["message_at"] = normalized_date
+                current_date = None
+            else:
+                current_date = normalized_date
             continue
-        if len(line) < 2 or line.lower() in {
-            "all",
-            "calls",
-            "contacts",
-            "meetings",
-            "messages",
-            "missed",
-            "recordings",
-            "search",
-            "spam",
-            "starred",
-            "voicemails",
-        }:
+        if len(line) < 2 or is_noise_message_line(line) or PHONE_RE.fullmatch(line):
             continue
-        direction = "unknown"
-        lowered = line.lower()
-        if lowered.startswith(("you:", "me:", "sent:", "outbound:")):
-            direction = "outbound"
-        elif lowered.startswith(("from:", "inbound:", "received:")):
-            direction = "inbound"
-        messages.append({"message_at": current_date, "body": line, "direction": direction})
+        if not looks_like_message_body(line, default_direction):
+            continue
+        direction = infer_sms_direction(line)
+        if direction == "unknown":
+            direction = default_direction
+        body = clean_message_body(line)
+        body = body.strip('"').strip()
+        messages.append({"message_at": current_date, "body": body, "direction": direction})
     return messages
 
 
@@ -146,7 +262,8 @@ def parse_thread(page):
     text = page.locator("body").inner_text(timeout=30000)
     phone_match = PHONE_RE.search(text)
     thread_id = thread_id_from_url(page.url, text)
-    messages = extract_message_lines(text)
+    default_direction = "inbound" if "/history/messages" in page.url else "unknown"
+    messages = extract_message_lines(text, default_direction=default_direction)
     return {
         "thread": {
             "thread_id": thread_id,
@@ -165,6 +282,68 @@ def parse_thread(page):
         },
         "messages": messages,
     }
+
+
+def delete_known_sms_noise(conn):
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE LOWER(body) IN (
+            'the power of dialpad. on your desktop.',
+            'download',
+            'multiple tabs detected.',
+            'dnd on',
+            'inbox',
+            'contact centers',
+            'all channels',
+            'threads',
+            'scheduled',
+            'coaching teams',
+            'monitor all coaching teams',
+            'unread messages',
+            'unread',
+            'all',
+            'calls',
+            'missed',
+            'meetings',
+            'voicemails',
+            'recordings',
+            'messages',
+            'starred',
+            'spam'
+        )
+           OR LOWER(body) LIKE 'dialpad supports only one active app tab%'
+        """
+    )
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE date(message_at) > date('now')
+          AND json_extract(raw_json, '$.extraction') = 'message_line'
+        """
+    )
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE direction = 'unknown'
+          AND EXISTS (
+              SELECT 1
+              FROM dialpad_sms_messages better
+              WHERE better.thread_id = dialpad_sms_messages.thread_id
+                AND better.body = dialpad_sms_messages.body
+                AND COALESCE(better.message_at, '') = COALESCE(dialpad_sms_messages.message_at, '')
+                AND better.direction IN ('inbound', 'outbound')
+          )
+        """
+    )
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE direction = 'unknown'
+          AND source_url LIKE '%/history/messages%'
+          AND json_extract(raw_json, '$.extraction') = 'message_line'
+        """
+    )
 
 
 def wait_until_ready(page, timeout=30000):
@@ -187,6 +366,7 @@ def main():
 
     conn = sqlite3.connect(args.db)
     ensure_lead_followup_schema(conn)
+    delete_known_sms_noise(conn)
     run_id = start_import_run(conn, "dialpad_sms", Path(__file__).name, args.start_date, None, {"url": args.url})
     conn.commit()
     rows_seen = rows_written = 0
