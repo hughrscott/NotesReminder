@@ -50,10 +50,26 @@ Dialpad visible SMS thread/message extraction:
 python3 scripts/extract_dialpad_sms.py --db reminders.db --profile-dir browser_profiles/dialpad --thread-limit 20
 ```
 
+SMS rows preserve `message_at` as the source-system text timestamp. `raw_json` records whether the row came from thread detail, the message list, or fallback visible text, and whether direction was observed or inferred.
+
+If the saved Dialpad profile has expired, run the headed login flow:
+
+```bash
+python3 scripts/extract_dialpad_sms.py --db reminders.db --profile-dir browser_profiles/dialpad --interactive-login --thread-limit 20
+```
+
 Dialpad visible voice history extraction:
 
 ```bash
 python3 scripts/extract_dialpad_voice.py --db reminders.db --profile-dir browser_profiles/dialpad --views calls,missed,voicemails,recordings --limit-per-view 25
+```
+
+Voice rows preserve `event_at` as the source-system call/voicemail/recording timestamp. `raw_json` records source ID visibility, transcript visibility, recording/transcript URL visibility, and school/department detection.
+
+If the saved Dialpad profile has expired, run the headed login flow:
+
+```bash
+python3 scripts/extract_dialpad_voice.py --db reminders.db --profile-dir browser_profiles/dialpad --interactive-login --views all,calls,missed,voicemails,recordings --limit-per-view 25
 ```
 
 Pike13 linked person/outcome extraction from HubSpot-linked person IDs:

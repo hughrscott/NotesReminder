@@ -24,11 +24,12 @@ Ultimate goal: use the captured communications, lead, and outcome data with an L
 
 ## Refresh Path Assessment
 
-- SMS: browser extraction from `/messages` and feed detail pages is viable; direction/order needs DOM hardening.
-- Calls and missed calls: browser extraction from `/calls`, `/missed`, and `/all` is viable for recent visible rows, but row IDs and timestamps need DOM hardening.
-- Voicemails: browser extraction from `/voicemails` is viable and should preserve the full visible transcript text.
+- SMS: browser extraction from `/messages` and feed detail pages is viable. Rows now record whether they came from true thread detail, the message list, or fallback visible text, and whether direction was observed or inferred.
+- Calls and missed calls: browser extraction from `/calls`, `/missed`, and `/all` is viable for recent visible rows. Rows preserve source event timestamps in `event_at` and record whether a source call ID was visible or a generated hash was used.
+- Voicemails: browser extraction from `/voicemails` is viable and preserves the full visible transcript text when present.
 - Recordings: the UI route exists; the current captured West U sample did not show recordings. Existing recording download/transcription pipeline should remain the fallback until a fresh visible recording path is proven.
 - Daily refresh: use a recent rolling-window browser scan first. Do not assume January 1, 2025 backfill is available through the UI until export behavior is proven.
+- Authentication: extractors support `--interactive-login` for headed Okta/Dialpad login when the persistent profile expires. Headless runs remain strict and fail if they land on the login page.
 
 ## Data Preservation Rule
 
@@ -43,6 +44,13 @@ Capture the most complete raw artifact available for later LLM analysis:
 MCP tools may return summaries by default, but the database should retain full text for later sentiment, intent, urgency, action-item, and outcome analysis.
 
 LLM-derived insights should be stored separately from source data so prompts/models can be rerun without overwriting the original evidence.
+
+Source timestamp rule:
+
+- SMS uses `message_at` for when the customer/staff text was sent or received.
+- Voice uses `event_at` for when the call, missed call, voicemail, or recording happened.
+- `updated_at` is only the local import time and should not be used to measure response speed or follow-up behavior.
+- When Dialpad omits the year, the extractor normalizes to the most recent non-future date.
 
 ## Open Items
 

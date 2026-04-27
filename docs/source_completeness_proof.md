@@ -26,6 +26,7 @@ The report returns:
 
 - `overall_status`: `ready`, `partial`, or `blocked`.
 - Per-source row counts, recent-window counts, latest timestamps, field fill rates, import-run status, and blockers.
+- Dialpad diagnostics for SMS extraction source, inferred direction count, future timestamp count, transcript coverage, source ID visibility, and school/department coverage.
 - Identity-match counts by match type.
 
 Timestamp rule:
@@ -55,7 +56,17 @@ Latest Dialpad communications hardening proof:
 - SMS rows: 17; direction coverage 100%; message timestamp coverage 94.1%; no future SMS timestamps.
 - Voice rows: 33,974 including existing historical calls/transcripts plus the current browser proof; direction coverage 100%; event timestamp coverage 100%; phone coverage 98.5%.
 - The browser proof captured calls, missed calls, voicemails, voicemail transcript text where visible, and recording-route availability.
-- Remaining Dialpad work before broad backfill: prove richer SMS thread direction/order from true thread detail pages and locate call/recording transcript download paths where Dialpad exposes them.
+- Dialpad rows now preserve extraction diagnostics in `raw_json`, including thread-detail versus list fallback, observed versus inferred direction, source ID visibility, transcript visibility, source timestamp field, and import timestamp field.
+- Latest import-run errors now count as Dialpad blockers because the refresh path must be proven, not just the stored historical data quality.
+- Interactive login mode is available for both SMS and voice extractors when the Dialpad profile expires.
+
+Latest live proof after interactive-login support:
+
+- SMS interactive proof succeeded after login: 7 source pages processed, 119 rows written.
+- SMS stored rows after cleanup: 32; direction coverage 100%; message timestamp coverage 100%; no future SMS timestamps.
+- SMS extraction diagnostics: 32 rows from `message_list`, 26 inferred directions, 6 observed directions.
+- Voice interactive proof timed out waiting for Dialpad authentication, so the latest Dialpad voice import run is intentionally a blocker.
+- Remaining Dialpad work before broad backfill: complete the voice interactive proof, confirm how many SMS rows can come from true thread detail pages, and locate call/recording transcript download paths where Dialpad exposes them.
 
 The next planned phase is Pike13 outcome hardening after Dialpad communications remains stable: visits, trials, no-shows, memberships/plans, and source event timestamps.
 

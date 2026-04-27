@@ -1,8 +1,19 @@
 import unittest
 from datetime import datetime
 
-from scripts.extract_dialpad_sms import extract_message_lines, normalize_dialpad_date as normalize_sms_date
-from scripts.extract_dialpad_voice import rows_from_visible_text
+from scripts.extract_dialpad_sms import (
+    detect_department as detect_sms_department,
+    extract_message_lines,
+    is_dialpad_app_page as is_sms_app_page,
+    is_login_page as is_sms_login_page,
+    normalize_dialpad_date as normalize_sms_date,
+    sms_extraction_source,
+)
+from scripts.extract_dialpad_voice import (
+    is_dialpad_app_page as is_voice_app_page,
+    is_login_page as is_voice_login_page,
+    rows_from_visible_text,
+)
 
 
 class DialpadExtractorTests(unittest.TestCase):
@@ -67,7 +78,23 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(messages[0]["body"], "Hahaha")
         self.assertEqual(messages[0]["message_at"], "2026-04-10")
         self.assertEqual(messages[0]["direction"], "inbound")
+        self.assertEqual(messages[0]["direction_source"], "inferred")
+        self.assertEqual(messages[0]["timestamp_source"], "visible_date")
         self.assertEqual(messages[1]["message_at"], "2026-03-13")
+
+    def test_sms_marks_thread_detail_and_department_context(self):
+        self.assertEqual(sms_extraction_source("https://dialpad.com/app/feed/123456"), "thread_detail")
+        self.assertEqual(sms_extraction_source("https://dialpad.com/app/history/messages"), "message_list")
+        self.assertEqual(detect_sms_department("Departments\nWESTU\nMessages"), ("West U", "WESTU"))
+
+    def test_extractors_detect_dialpad_login_pages(self):
+        login_text = "Log in to Dialpad\nWORK EMAIL\nPASSWORD"
+        self.assertTrue(is_sms_login_page("https://dialpad.com/login", login_text))
+        self.assertTrue(is_voice_login_page("https://dialpad.com/login", login_text))
+        app_text = "Search Dialpad\nDepartments\nMessages\nCalls"
+        self.assertTrue(is_sms_app_page("https://dialpad.com/app/history/messages", app_text))
+        self.assertTrue(is_voice_app_page("https://dialpad.com/app/history/calls", app_text))
+        self.assertFalse(is_sms_app_page("https://dialpad.okta.com", app_text))
 
     def test_sms_date_normalizer_handles_relative_and_short_dates(self):
         now = datetime(2026, 4, 27)
@@ -145,6 +172,32 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(rows[0]["direction"], "inbound")
         self.assertEqual(rows[0]["event_at"], "2025-08-29")
         self.assertEqual(rows[1]["event_type"], "missed_call")
+
+    def test_voice_parser_records_diagnostics_and_recording_links(self):
+        rows = rows_from_visible_text(
+            "recordings",
+            "https://dialpad.com/app/history/recordings",
+            "\n".join(
+                [
+                    "Departments",
+                    "WESTU",
+                    "Recording",
+                    "Mon Apr 20",
+                    "(713) 555-1212",
+                    "This transcript says the parent wants to reschedule the trial lesson.",
+                ]
+            ),
+            limit=10,
+            now=datetime(2026, 4, 27),
+            links=[{"href": "https://dialpad.com/app/recordings/rec_123456", "text": "Recording"}],
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["event_type"], "recording")
+        self.assertEqual(rows[0]["event_at"], "2026-04-20")
+        self.assertEqual(rows[0]["phone_normalized"], "7135551212")
+        self.assertEqual(rows[0]["department"], "WESTU")
+        self.assertIn("recordings/rec_123456", rows[0]["recording_url"])
+        self.assertIn("reschedule", rows[0]["transcript_summary"])
 
 
 if __name__ == "__main__":

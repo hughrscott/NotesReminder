@@ -5,6 +5,7 @@ import json
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -72,6 +73,24 @@ NAV_LABELS = {
     "spam",
     "unread",
 }
+LOGIN_LABELS = {
+    "log in",
+    "log in with google",
+    "log in with microsoft",
+    "work email",
+    "password",
+    "not a customer? sign up here",
+}
+DEPARTMENT_LABELS = {
+    "WESTU": ("West U", "WESTU"),
+    "WEST U": ("West U", "WESTU"),
+    "WEST UNIVERSITY": ("West University Place", "WESTU"),
+    "HEIGHTS": ("Heights", "HEIGHTS"),
+}
+SOURCE_ID_RE = re.compile(
+    r"(?:call|calls|recording|recordings|voicemail|voicemails|event)[=/]([A-Za-z0-9_-]{6,})",
+    re.IGNORECASE,
+)
 
 
 def stable_id(prefix, *parts):
@@ -105,6 +124,39 @@ def infer_direction(text):
     if "inbound" in lowered or "incoming" in lowered or "missed call" in lowered or "voicemail" in lowered:
         return "inbound"
     return "unknown"
+
+
+def detect_department(text):
+    upper = (text or "").upper()
+    for label, value in DEPARTMENT_LABELS.items():
+        if re.search(rf"\b{re.escape(label)}\b", upper):
+            return value
+    return (None, None)
+
+
+def extract_source_id(*values):
+    for value in values:
+        match = SOURCE_ID_RE.search(value or "")
+        if match:
+            return match.group(1)
+    return None
+
+
+def extract_links(page):
+    return page.locator("a").evaluate_all(
+        """
+        links => links.map(a => ({href: a.href, text: a.innerText || a.textContent || ''}))
+                      .filter(a => a.href && /dialpad\\.com/.test(a.href))
+        """
+    )
+
+
+def first_recording_or_transcript_url(links):
+    for link in links or []:
+        value = f"{link.get('href', '')} {link.get('text', '')}".lower()
+        if "recording" in value or "transcript" in value or "download" in value:
+            return link.get("href")
+    return None
 
 
 def normalize_dialpad_date(value, now=None):
@@ -144,10 +196,59 @@ def is_noise_line(line):
     return (
         not lowered
         or lowered in NAV_LABELS
+        or lowered in LOGIN_LABELS
         or lowered.startswith("call ")
         or lowered in {"the power of dialpad. on your desktop.", "dnd on"}
         or re.fullmatch(r"[A-Z]{1,3}", line.strip()) is not None
     )
+
+
+def is_login_page(url, text):
+    lowered = (text or "").lower()
+    return "/login" in (url or "") or (
+        "log in to dialpad" in lowered and "work email" in lowered and "password" in lowered
+    )
+
+
+def is_dialpad_app_page(url, text):
+    lowered = (text or "").lower()
+    return "dialpad.com/app/" in (url or "") and any(
+        token in lowered for token in ("search dialpad", "departments", "messages", "calls", "voicemails")
+    )
+
+
+def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
+    text = page.locator("body").inner_text(timeout=30000)
+    if is_dialpad_app_page(page.url, text):
+        return
+    if not interactive_login:
+        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
+    print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        time.sleep(2)
+        try:
+            text = page.locator("body").inner_text(timeout=5000)
+        except PlaywrightTimeoutError:
+            continue
+        if is_dialpad_app_page(page.url, text):
+            page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+            wait_until_ready(page)
+            text = page.locator("body").inner_text(timeout=30000)
+            if is_dialpad_app_page(page.url, text):
+                return
+        elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
+            continue
+        else:
+            try:
+                page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                wait_until_ready(page)
+            except PlaywrightTimeoutError:
+                pass
+            text = page.locator("body").inner_text(timeout=30000)
+            if is_dialpad_app_page(page.url, text):
+                return
+    raise RuntimeError("Timed out waiting for Dialpad interactive login.")
 
 
 def is_outcome_line(line):
@@ -182,10 +283,18 @@ def parse_outcome_line(source_view, line):
     return event_type, infer_direction(line)
 
 
-def rows_from_visible_text(source_view, url, text, limit, now=None):
+def rows_from_visible_text(source_view, url, text, limit, now=None, links=None):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    lines = [line for line in lines if not is_noise_line(line)]
+    lines = [
+        line
+        for line in lines
+        if not is_noise_line(line)
+        or (source_view == "recordings" and line.strip().lower() == "recording")
+    ]
     rows = []
+    school, department = detect_department(text)
+    source_id_from_url = extract_source_id(url)
+    recording_or_transcript_url = first_recording_or_transcript_url(links)
     for index, line in enumerate(lines):
         if not is_outcome_line(line):
             continue
@@ -201,31 +310,49 @@ def rows_from_visible_text(source_view, url, text, limit, now=None):
                 continue
             contact_name = candidate
             break
-        transcript = None
-        if event_type == "voicemail":
-            transcript = next((item.strip('"') for item in lines[index + 1 : index + 5] if len(item) > 30 and not is_outcome_line(item)), None)
-            if not transcript and len(line) > 40:
-                transcript = line
+        transcript = next((item.strip('"') for item in lines[index + 1 : index + 6] if len(item) > 30 and not is_outcome_line(item)), None)
+        if event_type == "voicemail" and not transcript and len(line) > 40:
+            transcript = line
+        call_id = extract_source_id(url, line) or source_id_from_url
+        source_id_status = "visible" if call_id else "generated_hash"
+        transcript_field = "voicemail_transcript" if event_type == "voicemail" else "transcript_summary"
+        transcript_status = "visible" if transcript else "not_visible"
+        recording_url = recording_or_transcript_url if event_type == "recording" or recording_or_transcript_url else None
         rows.append(
             {
-                "event_id": stable_id("dialpad_voice", source_view, url, index, line),
+                "event_id": call_id or stable_id("dialpad_voice", source_view, url, index, line),
                 "source_view": source_view,
                 "event_type": event_type,
-                "call_id": None,
+                "call_id": call_id,
                 "phone": phone_match.group(0) if phone_match else None,
                 "phone_normalized": normalize_phone(phone_match.group(0)) if phone_match else None,
                 "contact_name": contact_name,
                 "direction": direction,
                 "event_at": event_at,
-                "school": None,
-                "department": None,
+                "school": school,
+                "department": department,
                 "outcome": line[:240],
-                "voicemail_transcript": transcript,
-                "recording_url": None,
-                "transcript_summary": None,
+                "voicemail_transcript": transcript if transcript_field == "voicemail_transcript" else None,
+                "recording_url": recording_url,
+                "transcript_summary": transcript if transcript_field == "transcript_summary" else None,
                 "source_url": url,
                 "raw_text": line,
-                "raw_json": json.dumps({"source_view": source_view, "line_index": index, "context": context}, sort_keys=True),
+                "raw_json": json.dumps(
+                    {
+                        "extraction": "visible_history_text",
+                        "source_view": source_view,
+                        "line_index": index,
+                        "context": context,
+                        "source_id_status": source_id_status,
+                        "transcript_status": transcript_status,
+                        "transcript_field": transcript_field if transcript else None,
+                        "recording_or_transcript_url_status": "visible" if recording_or_transcript_url else "not_visible",
+                        "department_detected": department,
+                        "source_timestamp_field": "event_at",
+                        "import_timestamp_field": "updated_at",
+                    },
+                    sort_keys=True,
+                ),
                 "updated_at": utc_now_iso(),
             }
         )
@@ -277,6 +404,8 @@ def main():
     parser.add_argument("--db", default="reminders.db")
     parser.add_argument("--profile-dir", default="browser_profiles/dialpad")
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--interactive-login", action="store_true", help="Open a headed browser and wait for Dialpad login if the profile is expired.")
+    parser.add_argument("--login-timeout", type=int, default=300, help="Seconds to wait for interactive Dialpad login.")
     parser.add_argument("--views", default="calls,missed,voicemails,recordings")
     parser.add_argument("--limit-per-view", type=int, default=25)
     parser.add_argument("--start-date", default=DEFAULT_INITIAL_LOAD_START)
@@ -303,7 +432,7 @@ def main():
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
                 args.profile_dir,
-                headless=args.headless,
+                headless=args.headless and not args.interactive_login,
                 viewport={"width": 1440, "height": 1000},
             )
             page = context.pages[0] if context.pages else context.new_page()
@@ -311,8 +440,10 @@ def main():
                 url = HISTORY_URLS[source_view]
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 wait_until_ready(page)
+                wait_for_authenticated_page(page, url, args.interactive_login, args.login_timeout)
                 text = page.locator("body").inner_text(timeout=30000)
-                rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view)
+                links = extract_links(page)
+                rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
                 rows_seen += len(rows)
                 for row in rows:
                     upsert_voice_event(conn, row)

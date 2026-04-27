@@ -5,6 +5,7 @@ import json
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -73,6 +74,20 @@ NOISE_PREFIXES = (
     "dialpad supports only one active app tab",
     "multiple tabs detected",
 )
+LOGIN_LABELS = {
+    "log in",
+    "log in with google",
+    "log in with microsoft",
+    "work email",
+    "password",
+    "not a customer? sign up here",
+}
+DEPARTMENT_LABELS = {
+    "WESTU": ("West U", "WESTU"),
+    "WEST U": ("West U", "WESTU"),
+    "WEST UNIVERSITY": ("West University Place", "WESTU"),
+    "HEIGHTS": ("Heights", "HEIGHTS"),
+}
 
 
 def stable_id(prefix, *parts):
@@ -142,10 +157,27 @@ def infer_sms_direction(line):
     return "unknown"
 
 
+def detect_department(text):
+    upper = (text or "").upper()
+    for label, value in DEPARTMENT_LABELS.items():
+        if re.search(rf"\b{re.escape(label)}\b", upper):
+            return value
+    return (None, None)
+
+
+def sms_extraction_source(url):
+    if "/history/messages" in url:
+        return "message_list"
+    if re.search(r"/(?:feed|conversation|thread|contact|profile|messages?)[=/]", url):
+        return "thread_detail"
+    return "fallback_visible_text"
+
+
 def is_noise_message_line(line):
     lowered = line.lower().strip()
     return (
         lowered in NAV_LABELS
+        or lowered in LOGIN_LABELS
         or any(lowered.startswith(prefix) for prefix in NOISE_PREFIXES)
         or re.fullmatch(r"\d+", line) is not None
         or re.fullmatch(r"[A-Z]{1,3}", line) is not None
@@ -166,6 +198,20 @@ def looks_like_message_body(line, default_direction):
     return False
 
 
+def is_login_page(url, text):
+    lowered = (text or "").lower()
+    return "/login" in (url or "") or (
+        "log in to dialpad" in lowered and "work email" in lowered and "password" in lowered
+    )
+
+
+def is_dialpad_app_page(url, text):
+    lowered = (text or "").lower()
+    return "dialpad.com/app/" in (url or "") and any(
+        token in lowered for token in ("search dialpad", "departments", "messages", "calls", "voicemails")
+    )
+
+
 def extract_message_lines(text, now=None, default_direction="unknown"):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     messages = []
@@ -175,6 +221,7 @@ def extract_message_lines(text, now=None, default_direction="unknown"):
         if normalized_date:
             if messages and not messages[-1]["message_at"]:
                 messages[-1]["message_at"] = normalized_date
+                messages[-1]["timestamp_source"] = "visible_date"
                 current_date = None
             else:
                 current_date = normalized_date
@@ -184,11 +231,21 @@ def extract_message_lines(text, now=None, default_direction="unknown"):
         if not looks_like_message_body(line, default_direction):
             continue
         direction = infer_sms_direction(line)
+        direction_source = "observed"
         if direction == "unknown":
             direction = default_direction
+            direction_source = "inferred" if default_direction != "unknown" else "unknown"
         body = clean_message_body(line)
         body = body.strip('"').strip()
-        messages.append({"message_at": current_date, "body": body, "direction": direction})
+        messages.append(
+            {
+                "message_at": current_date,
+                "body": body,
+                "direction": direction,
+                "direction_source": direction_source,
+                "timestamp_source": "visible_date" if current_date else "missing",
+            }
+        )
     return messages
 
 
@@ -260,10 +317,14 @@ def capture_thread_links(page, limit):
 
 def parse_thread(page):
     text = page.locator("body").inner_text(timeout=30000)
+    if is_login_page(page.url, text):
+        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
     phone_match = PHONE_RE.search(text)
     thread_id = thread_id_from_url(page.url, text)
-    default_direction = "inbound" if "/history/messages" in page.url else "unknown"
+    extraction_source = sms_extraction_source(page.url)
+    default_direction = "inbound" if extraction_source == "message_list" else "unknown"
     messages = extract_message_lines(text, default_direction=default_direction)
+    school, department = detect_department(text)
     return {
         "thread": {
             "thread_id": thread_id,
@@ -273,14 +334,24 @@ def parse_thread(page):
             "contact_name": None,
             "last_message_at": messages[-1]["message_at"] if messages else None,
             "unread_count": 1 if re.search(r"\bunread\b", text, re.IGNORECASE) else 0,
-            "school": None,
-            "department": None,
+            "school": school,
+            "department": department,
             "source_url": page.url,
             "raw_text": text,
-            "raw_json": json.dumps({"extraction": "thread_text"}, sort_keys=True),
+            "raw_json": json.dumps(
+                {
+                    "extraction": "thread_text",
+                    "extraction_source": extraction_source,
+                    "default_direction": default_direction,
+                    "department_detected": department,
+                    "timestamp_policy": "source visible dates normalized to most recent non-future date",
+                },
+                sort_keys=True,
+            ),
             "updated_at": utc_now_iso(),
         },
         "messages": messages,
+        "extraction_source": extraction_source,
     }
 
 
@@ -344,6 +415,32 @@ def delete_known_sms_noise(conn):
           AND json_extract(raw_json, '$.extraction') = 'message_line'
         """
     )
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE source_url LIKE '%dialpad.com/login%'
+           OR LOWER(body) IN (
+                'talk, message & meet',
+                'log in with google',
+                'log in with microsoft',
+                'log in with another provider',
+                'or use your email address',
+                'work email',
+                'password',
+                'log in to dialpad',
+                'forgot password?',
+                'not a customer? sign up here'
+           )
+        """
+    )
+    conn.execute(
+        """
+        DELETE FROM dialpad_sms_messages
+        WHERE source_url LIKE '%/history/messages%'
+          AND (message_at IS NULL OR message_at = '')
+          AND json_extract(raw_json, '$.extraction') = 'message_line'
+        """
+    )
 
 
 def wait_until_ready(page, timeout=30000):
@@ -354,12 +451,48 @@ def wait_until_ready(page, timeout=30000):
         pass
 
 
+def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
+    text = page.locator("body").inner_text(timeout=30000)
+    if is_dialpad_app_page(page.url, text):
+        return
+    if not interactive_login:
+        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
+    print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        time.sleep(2)
+        try:
+            text = page.locator("body").inner_text(timeout=5000)
+        except PlaywrightTimeoutError:
+            continue
+        if is_dialpad_app_page(page.url, text):
+            page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+            wait_until_ready(page)
+            text = page.locator("body").inner_text(timeout=30000)
+            if is_dialpad_app_page(page.url, text):
+                return
+        elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
+            continue
+        else:
+            try:
+                page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                wait_until_ready(page)
+            except PlaywrightTimeoutError:
+                pass
+            text = page.locator("body").inner_text(timeout=30000)
+            if is_dialpad_app_page(page.url, text):
+                return
+    raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract visible Dialpad SMS threads into SQLite.")
     parser.add_argument("--db", default="reminders.db")
     parser.add_argument("--profile-dir", default="browser_profiles/dialpad")
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--interactive-login", action="store_true", help="Open a headed browser and wait for Dialpad login if the profile is expired.")
+    parser.add_argument("--login-timeout", type=int, default=300, help="Seconds to wait for interactive Dialpad login.")
     parser.add_argument("--thread-limit", type=int, default=20)
     parser.add_argument("--start-date", default=DEFAULT_INITIAL_LOAD_START)
     args = parser.parse_args()
@@ -374,12 +507,13 @@ def main():
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
                 args.profile_dir,
-                headless=args.headless,
+                headless=args.headless and not args.interactive_login,
                 viewport={"width": 1440, "height": 1000},
             )
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)
+            wait_for_authenticated_page(page, args.url, args.interactive_login, args.login_timeout)
             thread_links = capture_thread_links(page, args.thread_limit)
             urls = [link["href"] for _, link in thread_links] or [page.url]
             for url in urls[: args.thread_limit]:
@@ -391,6 +525,8 @@ def main():
                 upsert_thread(conn, parsed["thread"])
                 rows_written += 1
                 for message in parsed["messages"]:
+                    if not message["message_at"] or message["direction"] == "unknown":
+                        continue
                     row = {
                         "message_id": message_id(parsed["thread"]["thread_id"], message["message_at"], message["body"], message["direction"]),
                         "thread_id": parsed["thread"]["thread_id"],
@@ -401,7 +537,17 @@ def main():
                         "body": message["body"],
                         "source_url": thread_page.url,
                         "raw_text": message["body"],
-                        "raw_json": json.dumps({"extraction": "message_line"}, sort_keys=True),
+                        "raw_json": json.dumps(
+                            {
+                                "extraction": "message_line",
+                                "extraction_source": parsed["extraction_source"],
+                                "direction_source": message["direction_source"],
+                                "timestamp_source": message["timestamp_source"],
+                                "source_timestamp_field": "message_at",
+                                "import_timestamp_field": "updated_at",
+                            },
+                            sort_keys=True,
+                        ),
                         "updated_at": utc_now_iso(),
                     }
                     upsert_message(conn, row)

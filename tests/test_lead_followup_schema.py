@@ -263,12 +263,21 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         conn.execute(
             """
             INSERT INTO dialpad_sms_messages (
-                message_id, thread_id, message_at, direction, body, source_url, raw_text, updated_at
+                message_id, thread_id, message_at, direction, body, source_url, raw_text, raw_json, updated_at
             )
             VALUES ('msg-1', 'thread-1', '2026-04-21', 'inbound',
-                    'I want lessons', 'https://dialpad/msg-1', 'raw sms', ?)
+                    'I want lessons', 'https://dialpad/msg-1', 'raw sms', ?, ?)
             """,
-            (now,),
+            (
+                json.dumps(
+                    {
+                        "extraction_source": "thread_detail",
+                        "direction_source": "observed",
+                        "source_timestamp_field": "message_at",
+                    }
+                ),
+                now,
+            ),
         )
         conn.execute(
             """
@@ -289,9 +298,42 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(report["sources"]["hubspot"]["contact_quality"]["trusted_rows"], 1)
         self.assertEqual(report["sources"]["hubspot"]["contact_quality"]["trusted_customer_email_rows"], 1)
         self.assertEqual(report["sources"]["dialpad"]["sms_rows"], 1)
+        self.assertEqual(report["sources"]["dialpad"]["sms_extraction_sources"]["thread_detail"], 1)
+        self.assertEqual(report["sources"]["dialpad"]["sms_direction_sources"]["observed"], 1)
+        self.assertEqual(report["sources"]["dialpad"]["future_sms_timestamp_rows"], 0)
         self.assertEqual(report["sources"]["pike13"]["people_rows"], 1)
         self.assertIn(report["overall_status"], {"partial", "blocked"})
         self.assertGreaterEqual(report["matching"]["rows"], 1)
+
+    def test_source_completeness_blocks_future_dialpad_timestamps(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, source_url, raw_text, updated_at
+            )
+            VALUES ('future-thread', '(713) 555-1212', '7135551212',
+                    'https://dialpad/thread', 'raw thread', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('future-msg', 'future-thread', '2099-01-01', 'inbound',
+                    'Future dated message', 'https://dialpad/msg', 'raw sms', ?, ?)
+            """,
+            (json.dumps({"extraction_source": "thread_detail", "direction_source": "observed"}), now),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertEqual(dialpad["future_sms_timestamp_rows"], 1)
+        self.assertEqual(dialpad["status"], "blocked")
+        self.assertTrue(any("future source timestamps" in blocker for blocker in dialpad["blockers"]))
 
 
 if __name__ == "__main__":

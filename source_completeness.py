@@ -121,6 +121,20 @@ def value_coverage(conn, table, field, values, where_sql="1=1", params=None):
     return {"filled": filled, "total": total, "fill_rate": percent(filled, total)}
 
 
+def json_value_counts(conn, table, json_field, json_path, where_sql="1=1", params=None):
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(json_extract({json_field}, :json_path), 'missing') AS value, COUNT(*) AS rows
+        FROM {table}
+        WHERE {where_sql}
+        GROUP BY value
+        ORDER BY rows DESC, value
+        """,
+        dict(params or {}, json_path=json_path),
+    ).fetchall()
+    return {str(row[0]): row[1] for row in rows}
+
+
 def trusted_contact_condition():
     return """
         LOWER(COALESCE(email_normalized, '')) NOT LIKE '%@schoolofrock.com'
@@ -433,6 +447,63 @@ def dialpad_section(conn, window_start):
         "SELECT COUNT(*) FROM vw_dialpad_communications WHERE channel = 'call' AND date(event_at) >= date(:window_start)",
         {"window_start": window_start},
     )
+    future_sms = count(
+        conn,
+        "SELECT COUNT(*) FROM dialpad_sms_messages WHERE date(message_at) > date('now')",
+    )
+    future_voice = count(
+        conn,
+        "SELECT COUNT(*) FROM vw_dialpad_communications WHERE channel = 'call' AND date(event_at) > date('now')",
+    )
+    sms_extraction_sources = json_value_counts(
+        conn,
+        "dialpad_sms_messages",
+        "raw_json",
+        "$.extraction_source",
+    )
+    sms_direction_sources = json_value_counts(
+        conn,
+        "dialpad_sms_messages",
+        "raw_json",
+        "$.direction_source",
+    )
+    sms_inferred_direction_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_sms_messages
+        WHERE COALESCE(json_extract(raw_json, '$.direction_source'), '') = 'inferred'
+        """,
+    )
+    voice_source_id_status = json_value_counts(
+        conn,
+        "dialpad_voice_events",
+        "raw_json",
+        "$.source_id_status",
+    )
+    voice_transcript_status = json_value_counts(
+        conn,
+        "dialpad_voice_events",
+        "raw_json",
+        "$.transcript_status",
+    )
+    sms_department_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_sms_threads
+        WHERE COALESCE(department, '') != '' OR COALESCE(school, '') != ''
+        """,
+    )
+    voice_department_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM vw_dialpad_communications
+        WHERE channel = 'call'
+          AND (COALESCE(department, '') != '' OR COALESCE(school, '') != '')
+        """,
+    )
     transcript_rows = count(
         conn,
         """
@@ -441,33 +512,71 @@ def dialpad_section(conn, window_start):
         WHERE has_transcript = 1
         """
     )
+    transcript_by_event_type = {
+        row[0]: row[1]
+        for row in conn.execute(
+            """
+            SELECT event_type, COUNT(*)
+            FROM vw_dialpad_communications
+            WHERE has_transcript = 1
+            GROUP BY event_type
+            ORDER BY event_type
+            """
+        ).fetchall()
+    }
+    latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
+    latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     required_rates = [
         sms_coverage["message_id"]["fill_rate"],
         sms_coverage["body"]["fill_rate"],
+        sms_coverage["message_at"]["fill_rate"] if sms_total else 100.0,
+        sms_coverage["direction"]["fill_rate"] if sms_total else 100.0,
         voice_coverage["communication_id"]["fill_rate"],
+        voice_coverage["event_at"]["fill_rate"] if voice_total else 100.0,
+        voice_coverage["direction"]["fill_rate"] if voice_total else 100.0,
     ]
     blockers = []
     if sms_total == 0 and voice_total == 0:
         blockers.append("No Dialpad communications loaded.")
     if sms_total and sms_coverage["direction"]["fill_rate"] < 80:
         blockers.append("Dialpad SMS direction coverage is below readiness threshold.")
+    if sms_total and sms_coverage["message_at"]["fill_rate"] < 95:
+        blockers.append("Dialpad SMS source timestamp coverage is below 95% readiness threshold.")
     if voice_total and voice_coverage["event_at"]["fill_rate"] < 80:
         blockers.append("Dialpad voice event timestamp coverage is below readiness threshold.")
+    if future_sms:
+        blockers.append("Dialpad SMS has future source timestamps that need review.")
+    if future_voice:
+        blockers.append("Dialpad voice has future source timestamps that need review.")
+    if latest_sms_import_run and latest_sms_import_run.get("status") == "error":
+        blockers.append("Latest Dialpad SMS import run failed.")
+    if latest_voice_import_run and latest_voice_import_run.get("status") == "error":
+        blockers.append("Latest Dialpad voice import run failed.")
     return {
         "status": status_for(required_rates, blockers),
         "sms_rows": sms_total,
         "voice_rows": voice_total,
         "recent_window_sms_rows": recent_sms,
         "recent_window_voice_rows": recent_voice,
+        "future_sms_timestamp_rows": future_sms,
+        "future_voice_timestamp_rows": future_voice,
         "transcript_or_summary_rows": transcript_rows,
+        "transcript_or_summary_rows_by_event_type": transcript_by_event_type,
+        "sms_extraction_sources": sms_extraction_sources,
+        "sms_direction_sources": sms_direction_sources,
+        "sms_inferred_direction_rows": sms_inferred_direction_rows,
+        "voice_source_id_status": voice_source_id_status,
+        "voice_transcript_status": voice_transcript_status,
+        "sms_department_or_school_rows": sms_department_rows,
+        "voice_department_or_school_rows": voice_department_rows,
         "latest_timestamp": latest(
             conn,
             "SELECT MAX(event_at) FROM vw_dialpad_communications WHERE date(event_at) IS NOT NULL",
         ),
         "sms_field_coverage": sms_coverage,
         "voice_field_coverage": voice_coverage,
-        "latest_sms_import_run": import_run_summary(conn, "dialpad_sms"),
-        "latest_voice_import_run": import_run_summary(conn, "dialpad_voice"),
+        "latest_sms_import_run": latest_sms_import_run,
+        "latest_voice_import_run": latest_voice_import_run,
         "blockers": blockers,
     }
 
