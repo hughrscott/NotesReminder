@@ -3,6 +3,15 @@
 ## Overview
 This project maintains a single SQLite database (`reminders.db`) that is synced to S3. The daily scrape updates lesson notes; call logs + client imports add Dialpad/Pike13 data for reporting.
 
+## Two-pipeline operating model
+
+`reminders.db` is the single version of truth, but the current notes emails and the new lead intelligence work are separate operational pipelines.
+
+- Production notes pipeline: GitHub Actions runs `run_daily.py`, downloads the S3 DB, scrapes Pike13 lesson notes, scores notes, sends the daily/weekly lesson-note emails, and uploads the DB back to S3.
+- Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into the same DB, then validates them with the source completeness report.
+- Lead refresh work must not change the current daily/weekly email content until there is a separate plan and acceptance gate for adding lead insights to those summaries.
+- Lead tables are additive. They must not change the meaning of the existing `reminders` table or note-score columns used by `run_daily.py`.
+
 ## Folder layout (default)
 - `Call Log/` : Dialpad CSV exports (`Call_Logs*.csv`, `Voicemails*.csv`, etc.)
 - `ClientList/` : Pike13 client CSV export
@@ -43,6 +52,19 @@ Optional for transcription:
 ```bash
 ./scripts/generate_reports.sh --db reminders.db
 ```
+
+## Lead refresh safety checklist
+
+Use this checklist before uploading a DB that has been touched by local authenticated lead refresh work:
+
+1. Pull the latest Git state and confirm no unexpected tracked files are dirty.
+2. Verify or download the latest S3 `reminders.db`.
+3. Create a local backup of `reminders.db`.
+4. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the backup-backed working DB.
+5. Run `python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
+6. Validate that existing `reminders` row counts and note-score columns are still intact.
+7. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
+8. Upload/sync the DB only after the source completeness report and notes-pipeline checks look correct.
 
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.
