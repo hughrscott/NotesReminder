@@ -62,9 +62,28 @@ Use this checklist before uploading a DB that has been touched by local authenti
 3. Create a local backup of `reminders.db`.
 4. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the backup-backed working DB.
 5. Run `python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
-6. Validate that existing `reminders` row counts and note-score columns are still intact.
-7. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
-8. Upload/sync the DB only after the source completeness report and notes-pipeline checks look correct.
+6. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db reminders.db --window-days 7 --pike13-lookahead-days 30`.
+7. Validate that existing `reminders` row counts and note-score columns are still intact.
+8. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
+9. Upload/sync the DB only after the source completeness report, progress dashboard, and notes-pipeline checks look correct.
+
+## Lead intelligence progress dashboard
+
+Generate a sanitized Markdown dashboard after each local lead refresh:
+
+```bash
+python3 scripts/progress_dashboard.py \
+  --db reminders.db \
+  --window-days 7 \
+  --pike13-lookahead-days 30
+```
+
+The default output is `outputs/progress/lead_intelligence_status.md`. The dashboard is count/status oriented and intentionally excludes customer names, phone numbers, SMS bodies, transcripts, raw lesson notes, and call summaries.
+
+Pike13 is split into two readiness tracks:
+
+- Existing lesson visits/notes from `reminders`, used for note-quality and current-student operations.
+- Rich lead outcomes from authenticated Pike13 extraction, used for trial attendance, no-shows, memberships/plans, and conversion attribution.
 
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.

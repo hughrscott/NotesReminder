@@ -320,6 +320,32 @@ def _create_views(conn):
             "DROP VIEW IF EXISTS vw_unanswered_messages",
             "DROP VIEW IF EXISTS vw_unanswered_communications",
             "DROP VIEW IF EXISTS vw_dialpad_communications",
+            "DROP VIEW IF EXISTS vw_pike13_lesson_visits",
+            """
+            CREATE VIEW vw_pike13_lesson_visits AS
+            SELECT
+                lesson_id AS visit_id,
+                pike13_lesson_id,
+                school,
+                lesson_date,
+                lesson_time,
+                lesson_type,
+                students,
+                location,
+                COALESCE(note_completed, 0) AS note_completed,
+                CASE WHEN COALESCE(note_completed, 0) = 1 THEN 0 ELSE 1 END AS note_missing,
+                attendance_status,
+                CASE WHEN LOWER(COALESCE(attendance_status, '')) LIKE '%no show%' THEN 1 ELSE 0 END AS no_show_flag,
+                CASE WHEN LOWER(COALESCE(attendance_status, '')) LIKE '%cancel%' THEN 1 ELSE 0 END AS canceled_flag,
+                CASE WHEN LOWER(COALESCE(lesson_type, '')) LIKE '%trial%' THEN 1 ELSE 0 END AS trial_lesson_flag,
+                CASE WHEN COALESCE(notes_text, '') != '' THEN 1 ELSE 0 END AS has_note_text,
+                note_timestamp,
+                CASE WHEN note_score IS NOT NULL THEN 1 ELSE 0 END AS has_note_score,
+                last_checked AS updated_at
+            FROM reminders
+            WHERE lesson_id IS NOT NULL
+              AND lesson_id != ''
+            """,
             """
             CREATE VIEW vw_dialpad_communications AS
             SELECT

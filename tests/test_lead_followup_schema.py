@@ -335,6 +335,178 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(dialpad["status"], "blocked")
         self.assertTrue(any("future source timestamps" in blocker for blocker in dialpad["blockers"]))
 
+    def test_source_completeness_reports_conversation_history_access_proof(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        run_id = start_import_run(
+            conn,
+            "dialpad_voice",
+            "extract_dialpad_voice.py",
+            "2026-04-21",
+        )
+        finish_import_run(
+            conn,
+            run_id,
+            "success",
+            rows_seen=1,
+            rows_inserted=1,
+            metadata={
+                "views": ["conversation_history"],
+                "view_summaries": {
+                    "conversation_history": {
+                        "rows": 1,
+                        "ai_action_rows": 1,
+                        "recording_action_rows": 1,
+                        "recording_or_transcript_url_rows": 0,
+                    }
+                },
+            },
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, direction, contact_name, event_at,
+                school, department, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('conv-1', 'conversation_history', 'call', 'inbound',
+                    'M Sample', '2026-04-27T20:22:05', 'West U', 'WESTU',
+                    'https://dialpad.com/conversationhistory', 'raw row', ?, ?)
+            """,
+            (
+                json.dumps(
+                    {
+                        "extraction": "conversation_history_table",
+                        "source_timestamp_field": "event_at",
+                        "recording_action_visible": True,
+                        "transcript_status": "ai_icon_visible",
+                    }
+                ),
+                now,
+            ),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertEqual(dialpad["conversation_history_rows"], 1)
+        self.assertEqual(dialpad["conversation_history_ai_action_rows"], 1)
+        self.assertEqual(dialpad["conversation_history_recording_action_rows"], 1)
+        self.assertFalse(any("Conversation History proof" in blocker for blocker in dialpad["blockers"]))
+
+    def test_source_completeness_blocks_conversation_history_without_transcript_or_recording_access(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        run_id = start_import_run(
+            conn,
+            "dialpad_voice",
+            "extract_dialpad_voice.py",
+            "2026-04-21",
+        )
+        finish_import_run(
+            conn,
+            run_id,
+            "success",
+            rows_seen=1,
+            rows_inserted=1,
+            metadata={
+                "views": ["conversation_history"],
+                "view_summaries": {
+                    "conversation_history": {
+                        "rows": 1,
+                        "ai_action_rows": 0,
+                        "recording_action_rows": 0,
+                        "recording_or_transcript_url_rows": 0,
+                    }
+                },
+            },
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, direction, contact_name, event_at,
+                school, department, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('conv-1', 'conversation_history', 'call', 'inbound',
+                    'M Sample', '2026-04-27T20:22:05', 'West U', 'WESTU',
+                    'https://dialpad.com/conversationhistory', 'raw row', ?, ?)
+            """,
+            (
+                json.dumps(
+                    {
+                        "extraction": "conversation_history_table",
+                        "source_timestamp_field": "event_at",
+                        "recording_action_visible": False,
+                        "transcript_status": "not_visible",
+                    }
+                ),
+                now,
+            ),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertEqual(dialpad["conversation_history_rows"], 1)
+        self.assertEqual(dialpad["conversation_history_ai_action_rows"], 0)
+        self.assertEqual(dialpad["conversation_history_recording_action_rows"], 0)
+        self.assertEqual(dialpad["status"], "blocked")
+        self.assertTrue(any("AI transcript actions" in blocker for blocker in dialpad["blockers"]))
+        self.assertTrue(any("recording/play access" in blocker for blocker in dialpad["blockers"]))
+
+    def test_source_completeness_uses_existing_reminders_as_pike13_lesson_visits(self):
+        conn = self.open_db()
+        conn.execute(
+            """
+            CREATE TABLE reminders (
+                lesson_id TEXT PRIMARY KEY,
+                school TEXT,
+                instructor_name TEXT,
+                lesson_date TEXT,
+                lesson_time TEXT,
+                lesson_type TEXT,
+                students TEXT,
+                location TEXT,
+                note_completed INTEGER,
+                attendance_status TEXT,
+                notes_text TEXT,
+                note_timestamp TEXT,
+                pike13_lesson_id TEXT,
+                note_score REAL,
+                last_checked TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO reminders (
+                lesson_id, school, instructor_name, lesson_date, lesson_time,
+                lesson_type, students, location, note_completed, attendance_status,
+                notes_text, note_timestamp, pike13_lesson_id, note_score, last_checked
+            )
+            VALUES
+                ('lesson-1', 'westu-sor', 'Instructor A', '2026-04-21', '4:00 PM',
+                 'Trial - Guitar', 'Student One', 'Room 1', 1, 'complete',
+                 'Raw note text', '2026-04-21T22:00:00', 'pike-1', 8.0, '2026-04-21'),
+                ('lesson-2', 'westu-sor', 'Instructor B', '2026-04-22', '5:00 PM',
+                 'Drum Lessons - 45 minutes', 'Student Two', 'Room 2', 0, 'no show',
+                 '', NULL, 'pike-2', NULL, '2026-04-22'),
+                ('lesson-3', 'westu-sor', 'Instructor C', '2026-04-23', '6:00 PM',
+                 'Guitar Lessons - 45 minutes', 'Student Three', 'Room 3', 0, 'canceled',
+                 '', NULL, 'pike-3', NULL, '2026-04-23')
+            """
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        pike13 = report["sources"]["pike13"]
+
+        self.assertEqual(pike13["status"], "partial")
+        self.assertEqual(pike13["lesson_visit_rows"], 3)
+        self.assertEqual(pike13["completed_note_rows"], 1)
+        self.assertEqual(pike13["missing_note_rows"], 2)
+        self.assertEqual(pike13["no_show_rows"], 1)
+        self.assertEqual(pike13["canceled_rows"], 1)
+        self.assertEqual(pike13["trial_lesson_rows"], 1)
+        self.assertEqual(pike13["note_score_coverage"]["filled"], 1)
+        self.assertTrue(any("Rich Pike13 lead/outcome visits" in blocker for blocker in pike13["blockers"]))
+
 
 if __name__ == "__main__":
     unittest.main()

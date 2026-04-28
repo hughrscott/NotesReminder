@@ -9,6 +9,7 @@ Ultimate goal: use the captured communications, lead, and outcome data with an L
 ## Current Findings
 
 - Main authenticated history routes are available under `https://dialpad.com/app/history/...`.
+- Conversation History is available at `https://dialpad.com/conversationhistory` and is the preferred call-transcript discovery route because it exposes date filters, recording/play actions, and Dialpad AI actions per call row.
 - Confirmed routes:
   - `/messages`
   - `/all`
@@ -31,6 +32,8 @@ Ultimate goal: use the captured communications, lead, and outcome data with an L
 - Daily refresh: use a recent rolling-window browser scan first. Do not assume January 1, 2025 backfill is available through the UI until export behavior is proven.
 - Authentication: extractors support `--interactive-login` for headed Okta/Dialpad login when the persistent profile expires. Headless runs remain strict and fail if they land on the login page.
 - Voice proof update: the 2026-04-28 interactive proof captured calls, missed calls, voicemails, visible voicemail transcripts, and a recording link. It did not expose a visible call/recording transcript link, so recording transcript refresh remains blocked pending export/API/deeper detail-page discovery.
+- Call transcript strategy: prefer Dialpad AI transcripts from Conversation History when available; always preserve recording/play URL or access evidence so recordings can be downloaded and self-transcribed later for missing, important, or quality-audit calls.
+- Conversation History proof update: the DOM extractor captured 25 dated call rows from `https://dialpad.com/conversationhistory`; 19 rows exposed stable `dialpad.com/callhistory/callreview/<id>` links and recording/play access. The call review page exposes the audio player, recap/action items, and transcript panel. The next extractor step is to visit those call-review URLs and store the transcript/recap/action-item text without downloading audio by default.
 
 ## Data Preservation Rule
 
@@ -39,6 +42,7 @@ Capture the most complete raw artifact available for later LLM analysis:
 - full SMS body
 - full voicemail transcript when visible
 - full recording transcript when available
+- recording URL/access evidence for every call where visible, even when we do not download audio immediately
 - source URL and raw visible row/page text
 - direction, timestamp, school/department, phone, contact, and call outcome when visible
 
@@ -57,5 +61,6 @@ Source timestamp rule:
 
 - Prove what the Dialpad `Download` button exports for each history route.
 - Find a visible recording detail page with download/transcript controls.
+- Follow Conversation History call-review URLs, capture full transcript text plus recap/action items, and preserve the call-review URL as the recording/play access pointer for each call where Dialpad exposes one.
 - Determine whether call detail pages expose stable call IDs in URLs or DOM attributes.
 - Confirm whether department filters can be represented in URLs or must be selected through UI state.

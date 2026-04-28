@@ -29,6 +29,15 @@ def count(conn, sql, params=None):
     return conn.execute(sql, params or {}).fetchone()[0]
 
 
+def table_exists(conn, name):
+    return bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (name,),
+        ).fetchone()
+    )
+
+
 def latest(conn, sql, params=None):
     value = conn.execute(sql, params or {}).fetchone()[0]
     return value
@@ -552,6 +561,21 @@ def dialpad_section(conn, window_start):
     )
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
+    latest_voice_view_summaries = {}
+    conversation_history_proof = {}
+    conversation_history_rows = 0
+    conversation_history_ai_action_rows = 0
+    conversation_history_recording_action_rows = 0
+    conversation_history_recording_or_transcript_url_rows = 0
+    if latest_voice_import_run:
+        latest_voice_view_summaries = latest_voice_import_run.get("metadata", {}).get("view_summaries", {})
+        conversation_history_proof = latest_voice_view_summaries.get("conversation_history", {})
+        conversation_history_rows = conversation_history_proof.get("rows", 0) or 0
+        conversation_history_ai_action_rows = conversation_history_proof.get("ai_action_rows", 0) or 0
+        conversation_history_recording_action_rows = conversation_history_proof.get("recording_action_rows", 0) or 0
+        conversation_history_recording_or_transcript_url_rows = (
+            conversation_history_proof.get("recording_or_transcript_url_rows", 0) or 0
+        )
     required_rates = [
         sms_coverage["message_id"]["fill_rate"],
         sms_coverage["body"]["fill_rate"],
@@ -579,11 +603,17 @@ def dialpad_section(conn, window_start):
     if latest_voice_import_run and latest_voice_import_run.get("status") == "error":
         blockers.append("Latest Dialpad voice import run failed.")
     if latest_voice_import_run and latest_voice_import_run.get("status") == "success":
-        view_summaries = latest_voice_import_run.get("metadata", {}).get("view_summaries", {})
-        if "voicemails" in view_summaries and view_summaries["voicemails"].get("transcript_rows", 0) == 0:
+        if "voicemails" in latest_voice_view_summaries and latest_voice_view_summaries["voicemails"].get("transcript_rows", 0) == 0:
             blockers.append("Latest Dialpad voice proof did not capture visible voicemail transcript rows.")
-        if "recordings" in view_summaries and not view_summaries["recordings"].get("availability", {}).get("transcript_link_visible"):
+        if "recordings" in latest_voice_view_summaries and not latest_voice_view_summaries["recordings"].get("availability", {}).get("transcript_link_visible"):
             blockers.append("Latest Dialpad recording proof did not find visible call/recording transcript links.")
+        if conversation_history_rows and conversation_history_ai_action_rows == 0:
+            blockers.append("Latest Dialpad Conversation History proof did not capture visible AI transcript actions.")
+        if conversation_history_rows and (
+            conversation_history_recording_action_rows == 0
+            and conversation_history_recording_or_transcript_url_rows == 0
+        ):
+            blockers.append("Latest Dialpad Conversation History proof did not capture recording/play access.")
     return {
         "status": status_for(required_rates, blockers),
         "sms_rows": sms_total,
@@ -596,6 +626,10 @@ def dialpad_section(conn, window_start):
         "transcript_or_summary_rows_by_event_type": transcript_by_event_type,
         "browser_voice_transcript_rows": browser_voice_transcript_rows,
         "browser_voice_recording_url_rows": browser_voice_recording_url_rows,
+        "conversation_history_rows": conversation_history_rows,
+        "conversation_history_ai_action_rows": conversation_history_ai_action_rows,
+        "conversation_history_recording_action_rows": conversation_history_recording_action_rows,
+        "conversation_history_recording_or_transcript_url_rows": conversation_history_recording_or_transcript_url_rows,
         "sms_extraction_sources": sms_extraction_sources,
         "sms_direction_sources": sms_direction_sources,
         "sms_inferred_direction_rows": sms_inferred_direction_rows,
@@ -616,6 +650,54 @@ def dialpad_section(conn, window_start):
 
 
 def pike13_section(conn, window_start, lookahead_end):
+    lesson_visit_metrics = {
+        "lesson_visit_rows": 0,
+        "completed_note_rows": 0,
+        "missing_note_rows": 0,
+        "no_show_rows": 0,
+        "canceled_rows": 0,
+        "trial_lesson_rows": 0,
+        "note_text_rows": 0,
+        "note_timestamp_rows": 0,
+        "note_score_rows": 0,
+        "latest_lesson_date": None,
+        "lesson_visit_window_rows": 0,
+        "note_score_coverage": {"filled": 0, "total": 0, "fill_rate": 0.0},
+    }
+    if table_exists(conn, "reminders"):
+        lesson_row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS lesson_visit_rows,
+                SUM(CASE WHEN COALESCE(note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_note_rows,
+                SUM(CASE WHEN COALESCE(note_completed, 0) = 1 THEN 0 ELSE 1 END) AS missing_note_rows,
+                SUM(CASE WHEN LOWER(COALESCE(attendance_status, '')) LIKE '%no show%' THEN 1 ELSE 0 END) AS no_show_rows,
+                SUM(CASE WHEN LOWER(COALESCE(attendance_status, '')) LIKE '%cancel%' THEN 1 ELSE 0 END) AS canceled_rows,
+                SUM(CASE WHEN LOWER(COALESCE(lesson_type, '')) LIKE '%trial%' THEN 1 ELSE 0 END) AS trial_lesson_rows,
+                SUM(CASE WHEN COALESCE(notes_text, '') != '' THEN 1 ELSE 0 END) AS note_text_rows,
+                SUM(CASE WHEN COALESCE(note_timestamp, '') != '' THEN 1 ELSE 0 END) AS note_timestamp_rows,
+                SUM(CASE WHEN note_score IS NOT NULL THEN 1 ELSE 0 END) AS note_score_rows,
+                MAX(lesson_date) AS latest_lesson_date,
+                SUM(CASE WHEN date(lesson_date) >= date(:window_start) THEN 1 ELSE 0 END) AS lesson_visit_window_rows
+            FROM reminders
+            WHERE lesson_id IS NOT NULL
+              AND lesson_id != ''
+            """,
+            {"window_start": window_start},
+        ).fetchone()
+        for key in lesson_visit_metrics:
+            if key in {"latest_lesson_date", "note_score_coverage"}:
+                continue
+            lesson_visit_metrics[key] = lesson_row[key] or 0
+        lesson_visit_metrics["latest_lesson_date"] = lesson_row["latest_lesson_date"]
+        lesson_visit_metrics["note_score_coverage"] = {
+            "filled": lesson_visit_metrics["note_score_rows"],
+            "total": lesson_visit_metrics["lesson_visit_rows"],
+            "fill_rate": percent(
+                lesson_visit_metrics["note_score_rows"],
+                lesson_visit_metrics["lesson_visit_rows"],
+            ),
+        }
     people_total, people_coverage = field_coverage(
         conn,
         "pike13_people",
@@ -654,15 +736,25 @@ def pike13_section(conn, window_start, lookahead_end):
     if people_total == 0:
         blockers.append("No Pike13 people loaded.")
     if visits_total == 0:
-        blockers.append("No Pike13 visits loaded.")
+        blockers.append("Rich Pike13 lead/outcome visits are not loaded.")
     if visits_total and visits_coverage["starts_at"]["fill_rate"] < 80:
         blockers.append("Pike13 visit date coverage is below readiness threshold.")
+    if lesson_visit_metrics["lesson_visit_rows"] == 0 and visits_total == 0:
+        blockers.append("No existing lesson visits or rich Pike13 visits are loaded.")
+    if visits_total:
+        status = status_for(required_rates, blockers)
+    elif lesson_visit_metrics["lesson_visit_rows"]:
+        status = "partial"
+    else:
+        status = "blocked"
     return {
-        "status": status_for(required_rates, blockers),
+        "status": status,
         "people_rows": people_total,
         "visit_rows": visits_total,
+        "rich_visit_rows": visits_total,
         "plan_pass_rows": plans_total,
         "window_plus_lookahead_visit_rows": recent_visits,
+        **lesson_visit_metrics,
         "latest_timestamp": latest(
             conn,
             """

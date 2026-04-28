@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import datetime
 
@@ -10,8 +11,10 @@ from scripts.extract_dialpad_sms import (
     sms_extraction_source,
 )
 from scripts.extract_dialpad_voice import (
+    conversation_history_row_from_dom,
     is_dialpad_app_page as is_voice_app_page,
     is_login_page as is_voice_login_page,
+    parse_conversation_history_rows,
     rows_from_visible_text,
     summarize_view,
 )
@@ -226,6 +229,83 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertGreaterEqual(summary["transcript_rows"], 1)
         self.assertGreaterEqual(summary["voicemail_transcript_rows"], 1)
         self.assertTrue(summary["availability"]["download_link_visible"])
+
+    def test_conversation_history_rows_preserve_ai_and_recording_access(self):
+        text = "\n".join(
+            [
+                "Conversation history",
+                "User & Contact Center",
+                "Channel",
+                "Participant",
+                "Date & Time",
+                "Duration",
+                "West U (Front Desk)",
+                "West U",
+                "Christina Alten",
+                "Apr 27, 2026",
+                "8:22:05 PM",
+                "1m 4s",
+                "56s",
+                "▶",
+                "✦",
+            ]
+        )
+        rows = parse_conversation_history_rows(
+            "https://dialpad.com/conversationhistory",
+            text,
+            limit=10,
+            now=datetime(2026, 4, 28),
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source_view"], "conversation_history")
+        self.assertEqual(rows[0]["event_at"], "2026-04-27T20:22:05")
+        self.assertEqual(rows[0]["contact_name"], "Christina Alten")
+        self.assertEqual(rows[0]["department"], "WESTU")
+        self.assertIn("Christina Alten", rows[0]["raw_text"])
+        summary = summarize_view("conversation_history", "https://dialpad.com/conversationhistory", rows, [])
+        self.assertEqual(summary["ai_action_rows"], 1)
+        self.assertEqual(summary["recording_action_rows"], 1)
+
+    def test_conversation_history_dom_rows_preserve_call_review_access(self):
+        row = conversation_history_row_from_dom(
+            "https://dialpad.com/conversationhistory",
+            {
+                "cells": [
+                    "West U (Front Desk)\nWest U",
+                    "",
+                    "Christina Alten",
+                    "Apr 27, 2026\n8:22:05 PM",
+                    "1m 4s",
+                    "56s",
+                    "-",
+                    "-",
+                    "",
+                    "",
+                ],
+                "button_labels": ["Outbound (Connected)"],
+                "links": [
+                    {
+                        "href": "https://dialpad.com/callhistory/callreview/5713343127035904?source=session-history%3A",
+                        "text": "",
+                        "label": "View call summary",
+                    }
+                ],
+                "action_button_count": 2,
+                "text": "West U (Front Desk) West U Outbound (Connected) Christina Alten Apr 27, 2026 8:22:05 PM",
+            },
+            index=0,
+            now=datetime(2026, 4, 28),
+        )
+        self.assertIsNotNone(row)
+        self.assertEqual(row["event_id"], "5713343127035904")
+        self.assertEqual(row["call_id"], "5713343127035904")
+        self.assertEqual(row["event_at"], "2026-04-27T20:22:05")
+        self.assertEqual(row["direction"], "outbound")
+        self.assertEqual(row["source_url"], "https://dialpad.com/callhistory/callreview/5713343127035904?source=session-history%3A")
+        raw = json.loads(row["raw_json"])
+        self.assertEqual(raw["transcript_status"], "call_review_visible")
+        self.assertTrue(raw["ai_action_visible"])
+        self.assertTrue(raw["recording_action_visible"])
 
 
 if __name__ == "__main__":

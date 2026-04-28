@@ -48,11 +48,11 @@ Latest 7-day proof results after HubSpot lead-spine and enrichment hardening:
 
 Known remaining blockers are expected until the non-HubSpot extractors are hardened:
 
-- Pike13 visit/outcome coverage.
+- Pike13 rich lead/outcome coverage. Existing `reminders` rows already count as Pike13 lesson-visit/note evidence, but they do not replace HubSpot-linked trial/outcome/plan extraction.
 
 Latest Dialpad communications hardening proof:
 
-- Dialpad status: `ready`.
+- Dialpad status: `ready` for the 7-day communications proof; full transcript ingestion from call-review pages remains the next hardening step before broad backfill.
 - SMS rows: 17; direction coverage 100%; message timestamp coverage 94.1%; no future SMS timestamps.
 - Voice rows: 33,974 including existing historical calls/transcripts plus the current browser proof; direction coverage 100%; event timestamp coverage 100%; phone coverage 98.5%.
 - The browser proof captured calls, missed calls, voicemails, voicemail transcript text where visible, and recording-route availability.
@@ -69,9 +69,17 @@ Latest live proof after interactive-login support:
 - Voicemail proof captured visible voicemail transcript text: 2 voicemail rows from `/history/voicemails` with transcript text.
 - Recording proof captured a recording route/link, but no visible call/recording transcript link. This remains the explicit Dialpad blocker and likely needs export/API or recording-detail discovery.
 - Browser voice rows now report per-route proof metadata in the latest `source_import_runs.metadata_json`.
-- Remaining Dialpad work before broad backfill: confirm whether call/recording transcripts are export-only, API-only, or available through a deeper recording detail page; confirm how many SMS rows can come from true thread detail pages.
+- User-provided route update: call transcripts should be proven through Dialpad Conversation History at `https://dialpad.com/conversationhistory`, using a date filter plus either the row recording/play control or the Dialpad AI icon on the far right.
+- Transcript strategy: use Dialpad AI transcripts as the primary source when available, preserve recording URL/access evidence for every call where visible, and download/self-transcribe selectively for missing, important, or QA calls.
+- Conversation History DOM proof on 2026-04-28 captured 25 dated call rows. 19 rows exposed stable `dialpad.com/callhistory/callreview/<id>` URLs and recording/play access. The call-review page exposes audio playback, recap/action items, and the transcript panel.
+- Remaining Dialpad work before broad backfill: visit call-review URLs, capture transcript text plus recap/action items, and retain the call-review URL as the access pointer for later audio processing or download.
 
-The next planned phase is Pike13 outcome hardening after Dialpad communications remains stable: visits, trials, no-shows, memberships/plans, and source event timestamps.
+Pike13 status now separates existing lesson visits from richer lead outcomes:
+
+- Existing lesson visits/notes come from `reminders` and can support note-quality and current-student operations.
+- Rich Pike13 lead outcomes still need hardening: HubSpot-linked visits, trials, no-shows, memberships/plans, enrollment outcome timestamps, and deterministic lead matching.
+
+The next planned phase after Dialpad call-review transcript ingestion is Pike13 rich outcome hardening.
 
 ## Matching Priority
 

@@ -1,0 +1,151 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.progress_dashboard import render_dashboard
+
+
+def fake_report():
+    return {
+        "overall_status": "blocked",
+        "window": {
+            "days": 7,
+            "start": "2026-04-21",
+            "end": "2026-04-28",
+            "pike13_lookahead_days": 30,
+            "pike13_lookahead_end": "2026-05-28",
+        },
+        "sources": {
+            "hubspot": {
+                "status": "ready",
+                "rows": 25,
+                "blockers": [],
+                "field_coverage": {
+                    "deal_id": {"fill_rate": 100.0, "filled": 25, "total": 25},
+                    "stage": {"fill_rate": 100.0, "filled": 25, "total": 25},
+                    "school": {"fill_rate": 100.0, "filled": 25, "total": 25},
+                    "create_date": {"fill_rate": 84.0, "filled": 21, "total": 25},
+                    "source_url": {"fill_rate": 100.0, "filled": 25, "total": 25},
+                },
+                "contact_quality": {"trusted_rows": 24},
+                "latest_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-27T17:53:00+00:00",
+                    "rows_seen": 25,
+                    "rows_inserted": 74,
+                    "rows_updated": 0,
+                },
+            },
+            "dialpad": {
+                "status": "ready",
+                "blockers": [],
+                "sms_rows": 32,
+                "voice_rows": 34054,
+                "conversation_history_rows": 25,
+                "conversation_history_recording_or_transcript_url_rows": 19,
+                "future_sms_timestamp_rows": 0,
+                "future_voice_timestamp_rows": 0,
+                "sms_field_coverage": {
+                    "message_at": {"fill_rate": 100.0, "filled": 32, "total": 32},
+                    "direction": {"fill_rate": 100.0, "filled": 32, "total": 32},
+                },
+                "voice_field_coverage": {
+                    "event_at": {"fill_rate": 100.0, "filled": 34045, "total": 34054},
+                },
+                "latest_sms_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-27T21:00:24+00:00",
+                    "rows_seen": 7,
+                    "rows_inserted": 119,
+                    "rows_updated": 0,
+                },
+                "latest_voice_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-28T17:59:50+00:00",
+                    "rows_seen": 25,
+                    "rows_inserted": 25,
+                    "rows_updated": 0,
+                },
+            },
+            "pike13": {
+                "status": "partial",
+                "blockers": ["Rich Pike13 lead/outcome visits are not loaded."],
+                "lesson_visit_rows": 15679,
+                "completed_note_rows": 8514,
+                "missing_note_rows": 7165,
+                "no_show_rows": 1768,
+                "canceled_rows": 720,
+                "trial_lesson_rows": 196,
+                "latest_lesson_date": "2026-04-18",
+                "note_score_coverage": {"fill_rate": 3.0, "filled": 472, "total": 15679},
+                "people_rows": 1,
+                "visit_rows": 0,
+                "rich_visit_rows": 0,
+                "plan_pass_rows": 1,
+                "window_plus_lookahead_visit_rows": 0,
+                "latest_import_run": {
+                    "status": "error",
+                    "finished_at": "2026-04-28T16:47:33+00:00",
+                    "rows_seen": 0,
+                    "rows_inserted": 0,
+                    "rows_updated": 0,
+                },
+            },
+        },
+        "matching": {
+            "status": "ready",
+            "rows": 2,
+            "matched_hubspot_deals": 0,
+            "matched_hubspot_contacts": 1,
+            "by_match_type": [
+                {"match_type": "email_exact", "rows": 1},
+                {"match_type": "phone_exact", "rows": 1},
+            ],
+        },
+    }
+
+
+class ProgressDashboardTests(unittest.TestCase):
+    def test_dashboard_renders_operational_status_without_customer_content(self):
+        markdown = render_dashboard(fake_report())
+
+        self.assertIn("Overall status: **BLOCKED**", markdown)
+        self.assertIn("### HubSpot - READY", markdown)
+        self.assertIn("Rows: 25", markdown)
+        self.assertIn("Call-review transcript/audio access URLs: 19", markdown)
+        self.assertIn("Lesson visit rows: 15679", markdown)
+        self.assertIn("Completed notes: 8514", markdown)
+        self.assertIn("Missing notes: 7165", markdown)
+        self.assertIn("No-shows: 1768", markdown)
+        self.assertIn("Canceled lessons: 720", markdown)
+        self.assertIn("Trial lesson rows: 196", markdown)
+        self.assertIn("Pike13: Rich Pike13 lead/outcome visits are not loaded.", markdown)
+        self.assertIn("Identity matches: 2", markdown)
+        self.assertIn("## Future AI Readiness", markdown)
+        self.assertIn("Lesson-note quality/current-student operations: ready for existing notes data", markdown)
+        self.assertIn("AI lead-management automation: not ready", markdown)
+
+        forbidden = [
+            "Christina Alten",
+            "(713) 555-1212",
+            "Hello, this is a transcript",
+            "Can we reschedule?",
+            "Student One",
+            "Raw note text",
+        ]
+        for value in forbidden:
+            self.assertNotIn(value, markdown)
+
+    def test_dashboard_can_be_written_to_markdown_file(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        output = Path(tmp.name) / "lead_intelligence_status.md"
+
+        output.write_text(render_dashboard(fake_report()), encoding="utf-8")
+
+        self.assertTrue(output.exists())
+        self.assertIn("Lead Intelligence Progress Dashboard", output.read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    unittest.main()

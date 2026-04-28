@@ -31,6 +31,7 @@ HISTORY_URLS = {
     "missed": "https://dialpad.com/app/history/missed",
     "voicemails": "https://dialpad.com/app/history/voicemails",
     "recordings": "https://dialpad.com/app/history/recordings",
+    "conversation_history": "https://dialpad.com/conversationhistory",
 }
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
 DURATION_RE = re.compile(r"^\d+\s*(?:s|m|h)(?:\s+\d+\s*s)?$|^\d+:\d{2}$", re.IGNORECASE)
@@ -88,7 +89,7 @@ DEPARTMENT_LABELS = {
     "HEIGHTS": ("Heights", "HEIGHTS"),
 }
 SOURCE_ID_RE = re.compile(
-    r"(?:call|calls|recording|recordings|voicemail|voicemails|event)[=/]([A-Za-z0-9_-]{6,})",
+    r"(?:call|calls|callreview|recording|recordings|voicemail|voicemails|event)[=/]([A-Za-z0-9_-]{6,})",
     re.IGNORECASE,
 )
 
@@ -154,7 +155,7 @@ def extract_links(page):
 def first_recording_or_transcript_url(links):
     for link in links or []:
         value = f"{link.get('href', '')} {link.get('text', '')}".lower()
-        if "recording" in value or "transcript" in value or "download" in value:
+        if "recording" in value or "transcript" in value or "download" in value or "callhistory/callreview" in value:
             return link.get("href")
     return None
 
@@ -165,12 +166,18 @@ def link_availability(links):
     return {
         "download_link_visible": any("download" in value for value in values),
         "recording_link_visible": any("recording" in value for value in values),
-        "transcript_link_visible": any("transcript" in value for value in values),
+        "transcript_link_visible": any("transcript" in value or "callhistory/callreview" in value for value in values),
+        "call_review_link_visible": any("callhistory/callreview" in value for value in values),
     }
 
 
 def summarize_view(source_view, url, rows, links):
     transcript_rows = sum(1 for row in rows if row.get("voicemail_transcript") or row.get("transcript_summary"))
+    access_url_rows = sum(
+        1
+        for row in rows
+        if row.get("recording_url") or json.loads(row.get("raw_json") or "{}").get("call_review_url")
+    )
     event_types = {}
     for row in rows:
         event_types[row["event_type"]] = event_types.get(row["event_type"], 0) + 1
@@ -180,7 +187,7 @@ def summarize_view(source_view, url, rows, links):
         "event_types": event_types,
         "transcript_rows": transcript_rows,
         "voicemail_transcript_rows": sum(1 for row in rows if row.get("voicemail_transcript")),
-        "recording_or_transcript_url_rows": sum(1 for row in rows if row.get("recording_url")),
+        "recording_or_transcript_url_rows": access_url_rows,
         "availability": link_availability(links),
     }
     if source_view == "voicemails" and transcript_rows == 0:
@@ -189,6 +196,13 @@ def summarize_view(source_view, url, rows, links):
         summary["blocker"] = "No visible recording links captured from this view."
     if source_view == "recordings" and not summary["availability"]["transcript_link_visible"]:
         summary["transcript_blocker"] = "No visible call/recording transcript links captured from this view."
+    if source_view == "conversation_history":
+        ai_rows = sum(1 for row in rows if json.loads(row.get("raw_json") or "{}").get("ai_action_visible"))
+        recording_rows = sum(1 for row in rows if json.loads(row.get("raw_json") or "{}").get("recording_action_visible"))
+        summary["ai_action_rows"] = ai_rows
+        summary["recording_action_rows"] = recording_rows
+        if ai_rows == 0:
+            summary["transcript_blocker"] = "No visible Dialpad AI transcript actions captured from Conversation History."
     return summary
 
 
@@ -210,7 +224,7 @@ def normalize_dialpad_date(value, now=None):
             year += 2000
         return f"{year:04d}-{int(month):02d}-{int(day):02d}"
     month_match = re.search(
-        r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,\s*(\d{4}))?",
+        r"(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*)?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,\s*(\d{4}))?",
         value,
         re.IGNORECASE,
     )
@@ -222,6 +236,17 @@ def normalize_dialpad_date(value, now=None):
             parsed = datetime(year - 1, MONTHS[month_name[:3].lower()], int(day)).date()
         return parsed.isoformat()
     return value if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) else None
+
+
+def normalize_dialpad_datetime(date_value, time_value, now=None):
+    date_part = normalize_dialpad_date(date_value, now=now)
+    if not date_part:
+        return None
+    try:
+        parsed_time = datetime.strptime((time_value or "").strip(), "%I:%M:%S %p").time()
+    except ValueError:
+        return date_part
+    return f"{date_part}T{parsed_time.isoformat()}"
 
 
 def is_noise_line(line):
@@ -245,8 +270,17 @@ def is_login_page(url, text):
 
 def is_dialpad_app_page(url, text):
     lowered = (text or "").lower()
-    return "dialpad.com/app/" in (url or "") and any(
-        token in lowered for token in ("search dialpad", "departments", "messages", "calls", "voicemails")
+    return "dialpad.com" in (url or "") and any(
+        token in lowered
+        for token in (
+            "search dialpad",
+            "departments",
+            "messages",
+            "calls",
+            "voicemails",
+            "conversation history",
+            "user & contact center",
+        )
     )
 
 
@@ -316,7 +350,221 @@ def parse_outcome_line(source_view, line):
     return event_type, infer_direction(line)
 
 
+def is_conversation_history_header(line):
+    return line.strip().lower() in {
+        "conversation history",
+        "user & contact center",
+        "channel",
+        "participant",
+        "date & time",
+        "duration",
+        "duration connected",
+        "csat",
+        "grade",
+        "integrations",
+        "edit",
+    }
+
+
+def parse_conversation_history_rows(url, text, limit, now=None):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    rows = []
+    for index, line in enumerate(lines):
+        if not re.fullmatch(r"[A-Z][a-z]{2} \d{1,2}, \d{4}", line):
+            continue
+        if index + 1 >= len(lines) or not re.fullmatch(r"\d{1,2}:\d{2}:\d{2} [AP]M", lines[index + 1]):
+            continue
+        event_at = normalize_dialpad_datetime(line, lines[index + 1], now=now)
+        context_before = lines[max(0, index - 8) : index]
+        context_after = lines[index + 2 : min(len(lines), index + 10)]
+        school = None
+        participant = None
+        for candidate in context_before:
+            if candidate in {"West U", "The Heights", "Reception", "West U (Front Desk)"}:
+                school = candidate
+        for candidate in reversed(context_before):
+            if is_conversation_history_header(candidate) or DURATION_RE.match(candidate) or candidate in {"-", "0s"}:
+                continue
+            if candidate in {"West U", "The Heights", "Reception", "West U (Front Desk)"}:
+                continue
+            if candidate.lower() in {"west u", "the heights"}:
+                continue
+            participant = candidate
+            break
+        duration = next((item for item in context_after if DURATION_RE.match(item)), None)
+        raw_text = "\n".join(lines[max(0, index - 8) : min(len(lines), index + 10)])
+        lowered_raw = raw_text.lower()
+        has_ai_action = any(token in lowered_raw for token in ("dialpad ai", " ai ", "transcript", "summary")) or "✦" in raw_text or "✨" in raw_text
+        has_recording_action = "▶" in raw_text or "play" in lowered_raw
+        rows.append(
+            {
+                "event_id": stable_id("dialpad_voice", "conversation_history", url, participant, event_at, duration, index),
+                "source_view": "conversation_history",
+                "event_type": "call",
+                "call_id": None,
+                "phone": None,
+                "phone_normalized": None,
+                "contact_name": participant,
+                "direction": "unknown",
+                "event_at": event_at,
+                "school": school,
+                "department": "WESTU" if school and "west" in school.lower() else None,
+                "outcome": "Conversation History row",
+                "voicemail_transcript": None,
+                "recording_url": None,
+                "transcript_summary": None,
+                "source_url": url,
+                "raw_text": raw_text,
+                "raw_json": json.dumps(
+                    {
+                        "extraction": "conversation_history_table",
+                        "source_view": "conversation_history",
+                        "line_index": index,
+                        "duration": duration,
+                        "ai_action_visible": has_ai_action,
+                        "recording_action_visible": has_recording_action,
+                        "source_id_status": "not_visible",
+                        "transcript_status": "ai_icon_visible" if has_ai_action else "not_visible",
+                        "source_timestamp_field": "event_at",
+                        "import_timestamp_field": "updated_at",
+                    },
+                    sort_keys=True,
+                ),
+                "updated_at": utc_now_iso(),
+            }
+        )
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def conversation_history_row_from_dom(url, row, index, now=None):
+    cells = row.get("cells") or []
+    if len(cells) < 6:
+        return None
+    date_lines = [line.strip() for line in cells[3].splitlines() if line.strip()]
+    if len(date_lines) < 2:
+        return None
+    event_at = normalize_dialpad_datetime(date_lines[0], date_lines[1], now=now)
+    if not event_at:
+        return None
+    school_lines = [line.strip() for line in cells[0].splitlines() if line.strip()]
+    school = school_lines[0] if school_lines else None
+    button_labels = row.get("button_labels") or []
+    channel = cells[1].strip()
+    if not channel:
+        channel = next(
+            (
+                label
+                for label in button_labels
+                if any(token in label.lower() for token in ("inbound", "outbound", "missed", "voicemail", "abandoned"))
+            ),
+            "",
+        )
+    participant = cells[2].strip() or None
+    duration = cells[4].strip() or None
+    connected_duration = cells[5].strip() or None
+    links = row.get("links") or []
+    call_review_url = next(
+        (
+            link.get("href")
+            for link in links
+            if "dialpad.com/callhistory/callreview/" in (link.get("href") or "")
+        ),
+        None,
+    )
+    action_button_count = row.get("action_button_count") or 0
+    raw_text = row.get("text") or "\n".join(cells)
+    direction = infer_direction(channel)
+    school_text = " ".join(school_lines)
+    _, department = detect_department(school_text)
+    if not department and school and "west" in school.lower():
+        department = "WESTU"
+    source_url = call_review_url or url
+    return {
+        "event_id": extract_source_id(call_review_url) or stable_id(
+            "dialpad_voice",
+            "conversation_history",
+            url,
+            participant,
+            event_at,
+            duration,
+            index,
+        ),
+        "source_view": "conversation_history",
+        "event_type": "call",
+        "call_id": extract_source_id(call_review_url),
+        "phone": participant if participant and PHONE_RE.fullmatch(participant) else None,
+        "phone_normalized": normalize_phone(participant) if participant and PHONE_RE.fullmatch(participant) else None,
+        "contact_name": None if participant and PHONE_RE.fullmatch(participant) else participant,
+        "direction": direction,
+        "event_at": event_at,
+        "school": school,
+        "department": department,
+        "outcome": channel or "Conversation History row",
+        "voicemail_transcript": None,
+        "recording_url": None,
+        "transcript_summary": None,
+        "source_url": source_url,
+        "raw_text": raw_text,
+        "raw_json": json.dumps(
+            {
+                "extraction": "conversation_history_dom",
+                "source_view": "conversation_history",
+                "row_index": index,
+                "duration": duration,
+                "connected_duration": connected_duration,
+                "channel": channel,
+                "action_button_count": action_button_count,
+                "ai_action_visible": bool(call_review_url),
+                "recording_action_visible": action_button_count > 1,
+                "call_review_url": call_review_url,
+                "source_id_status": "visible" if call_review_url else "generated_hash",
+                "transcript_status": "call_review_visible" if call_review_url else "not_visible",
+                "source_timestamp_field": "event_at",
+                "import_timestamp_field": "updated_at",
+            },
+            sort_keys=True,
+        ),
+        "updated_at": utc_now_iso(),
+    }
+
+
+def extract_conversation_history_rows_from_dom(page, limit, now=None):
+    dom_rows = page.locator("table tr").evaluate_all(
+        """
+        rows => rows.slice(1).map(row => {
+          const cells = Array.from(row.querySelectorAll('td, [role="cell"]'));
+          const actionCell = cells[cells.length - 1];
+          return {
+            text: row.innerText || row.textContent || '',
+            cells: cells.map(cell => cell.innerText || cell.textContent || ''),
+            links: Array.from(row.querySelectorAll('a')).map(a => ({
+              href: a.href || '',
+              text: a.innerText || a.textContent || '',
+              label: a.getAttribute('aria-label') || a.getAttribute('title') || ''
+            })),
+            button_labels: Array.from(row.querySelectorAll('button')).map(b =>
+              b.innerText || b.textContent || b.getAttribute('aria-label') || b.getAttribute('title') || ''
+            ).filter(Boolean),
+            action_button_count: actionCell ? actionCell.querySelectorAll('button').length : 0
+          };
+        })
+        """
+    )
+    rows = []
+    for index, dom_row in enumerate(dom_rows):
+        parsed = conversation_history_row_from_dom(page.url, dom_row, index, now=now)
+        if parsed:
+            rows.append(parsed)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
 def rows_from_visible_text(source_view, url, text, limit, now=None, links=None):
+    if source_view == "conversation_history":
+        return parse_conversation_history_rows(url, text, limit, now=now)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     lines = [
         line
@@ -477,7 +725,12 @@ def main():
                 wait_for_authenticated_page(page, url, args.interactive_login, args.login_timeout)
                 text = page.locator("body").inner_text(timeout=30000)
                 links = extract_links(page)
-                rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
+                if source_view == "conversation_history":
+                    rows = extract_conversation_history_rows_from_dom(page, args.limit_per_view)
+                    if not rows:
+                        rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
+                else:
+                    rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
                 view_summaries[source_view] = summarize_view(source_view, page.url, rows, links)
                 rows_seen += len(rows)
                 for row in rows:
