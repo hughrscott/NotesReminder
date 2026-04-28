@@ -63,9 +63,10 @@ Use this checklist before uploading a DB that has been touched by local authenti
 4. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the backup-backed working DB.
 5. Run `python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
 6. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db reminders.db --window-days 7 --pike13-lookahead-days 30`.
-7. Validate that existing `reminders` row counts and note-score columns are still intact.
-8. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
-9. Upload/sync the DB only after the source completeness report, progress dashboard, and notes-pipeline checks look correct.
+7. Generate the lead-attention report with `python3 scripts/lead_attention_report.py --db reminders.db --school "West U" --window-days 7`.
+8. Validate that existing `reminders` row counts and note-score columns are still intact.
+9. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
+10. Upload/sync the DB only after the source completeness report, progress dashboard, lead-attention report, and notes-pipeline checks look correct.
 
 ## Lead intelligence progress dashboard
 
@@ -85,6 +86,31 @@ Pike13 is split into two readiness tracks:
 - Existing lesson visits/notes from `reminders`, used for note-quality and current-student operations.
 - Rich lead outcomes from authenticated Pike13 extraction, used for trial attendance, no-shows, memberships/plans, and conversion attribution.
 
+## Dialpad call reviews and lead attention
+
+After Dialpad Conversation History has loaded call-review URLs, ingest the transcript/recap/action-item evidence without downloading audio by default:
+
+```bash
+python3 scripts/extract_dialpad_call_reviews.py \
+  --db reminders.db \
+  --profile-dir browser_profiles/dialpad \
+  --limit 25 \
+  --interactive-login
+```
+
+The call-review URL remains the durable pointer for transcript and audio access. The extractor stores transcript/recap/action-item text in `dialpad_call_reviews`, but sanitized reports do not print that content.
+
+Generate the first value report:
+
+```bash
+python3 scripts/lead_attention_report.py \
+  --db reminders.db \
+  --school "West U" \
+  --window-days 7
+```
+
+The default output is `outputs/progress/lead_attention_report.md`. It shows deal IDs, stages, owners, risk reasons, matched communication counts, call-review transcript/recap availability, and source URLs. It intentionally excludes customer names, phone numbers, SMS bodies, transcripts, transcript summaries, raw lesson notes, and call summaries.
+
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.
 - `backfill.py` : Multi-school historical scrape (no email by default).
@@ -98,6 +124,9 @@ Pike13 is split into two readiness tracks:
 - `scripts/daily_scrape.sh` : Shell wrapper for `run_daily.py`.
 - `scripts/import_call_logs.sh` : Shell wrapper for `import_call_data.py`.
 - `scripts/generate_reports.sh` : Shell wrapper for `generate_call_reports.py`.
+- `scripts/progress_dashboard.py` : Generate the sanitized lead-intelligence readiness dashboard.
+- `scripts/extract_dialpad_call_reviews.py` : Ingest Dialpad call-review transcripts, recaps, action items, and access diagnostics.
+- `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 

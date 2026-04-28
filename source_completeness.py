@@ -559,8 +559,56 @@ def dialpad_section(conn, window_start):
         WHERE COALESCE(recording_url, '') != ''
         """,
     )
+    call_review_rows = count(conn, "SELECT COUNT(*) FROM dialpad_call_reviews")
+    call_review_transcript_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_call_reviews
+        WHERE transcript_available = 1
+           OR COALESCE(transcript_text, '') != ''
+        """,
+    )
+    call_review_recap_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_call_reviews
+        WHERE recap_available = 1
+           OR COALESCE(recap_text, '') != ''
+        """,
+    )
+    call_review_action_item_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_call_reviews
+        WHERE action_items_available = 1
+           OR COALESCE(action_items_json, '[]') NOT IN ('', '[]')
+        """,
+    )
+    call_review_audio_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_call_reviews
+        WHERE audio_available = 1
+        """,
+    )
+    call_review_status_counts = {
+        row[0]: row[1]
+        for row in conn.execute(
+            """
+            SELECT extraction_status, COUNT(*)
+            FROM dialpad_call_reviews
+            GROUP BY extraction_status
+            ORDER BY extraction_status
+            """
+        ).fetchall()
+    }
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
+    latest_call_review_import_run = import_run_summary(conn, "dialpad_call_reviews")
     latest_voice_view_summaries = {}
     conversation_history_proof = {}
     conversation_history_rows = 0
@@ -630,6 +678,12 @@ def dialpad_section(conn, window_start):
         "conversation_history_ai_action_rows": conversation_history_ai_action_rows,
         "conversation_history_recording_action_rows": conversation_history_recording_action_rows,
         "conversation_history_recording_or_transcript_url_rows": conversation_history_recording_or_transcript_url_rows,
+        "call_review_rows": call_review_rows,
+        "call_review_transcript_rows": call_review_transcript_rows,
+        "call_review_recap_rows": call_review_recap_rows,
+        "call_review_action_item_rows": call_review_action_item_rows,
+        "call_review_audio_rows": call_review_audio_rows,
+        "call_review_status_counts": call_review_status_counts,
         "sms_extraction_sources": sms_extraction_sources,
         "sms_direction_sources": sms_direction_sources,
         "sms_inferred_direction_rows": sms_inferred_direction_rows,
@@ -645,6 +699,7 @@ def dialpad_section(conn, window_start):
         "voice_field_coverage": voice_coverage,
         "latest_sms_import_run": latest_sms_import_run,
         "latest_voice_import_run": latest_voice_import_run,
+        "latest_call_review_import_run": latest_call_review_import_run,
         "blockers": blockers,
     }
 
@@ -813,6 +868,98 @@ def matching_section(conn):
     }
 
 
+def first_value_candidate_counts(conn, window_start):
+    trusted_contact = """
+        COALESCE(
+            json_extract(
+                CASE WHEN json_valid(COALESCE(c.raw_json, '{}')) THEN c.raw_json ELSE '{}' END,
+                '$.trusted'
+            ),
+            0
+        ) = 1
+        AND LOWER(COALESCE(c.email_normalized, '')) NOT LIKE '%@schoolofrock.com'
+    """
+    row = conn.execute(
+        f"""
+        WITH candidates AS (
+            SELECT s.deal_id
+            FROM vw_stale_leads s
+            JOIN hubspot_deals d ON d.deal_id = s.deal_id
+            WHERE LOWER(COALESCE(s.stage, '')) NOT LIKE '%not a lead%'
+              AND (
+                  date(d.create_date) >= date(:window_start)
+               OR date(d.last_contacted) >= date(:window_start)
+               OR date(d.last_activity_date) >= date(:window_start)
+               OR date(d.updated_at) >= date(:window_start)
+               OR LOWER(COALESCE(d.follow_up_needed, '')) IN ('yes', 'true', '1', 'follow up needed')
+              )
+        ),
+        candidate_contacts AS (
+            SELECT DISTINCT candidates.deal_id, c.phone_normalized
+            FROM candidates
+            JOIN hubspot_contacts c ON instr(COALESCE(c.associated_deal_ids, ''), candidates.deal_id) > 0
+            WHERE COALESCE(c.phone_normalized, '') != ''
+              AND {trusted_contact}
+        ),
+        candidate_comms AS (
+            SELECT DISTINCT candidate_contacts.deal_id
+            FROM candidate_contacts
+            JOIN vw_dialpad_communications comms
+              ON comms.phone_normalized = candidate_contacts.phone_normalized
+            WHERE date(comms.event_at) >= date(:window_start)
+              AND date(comms.event_at) <= date('now')
+        )
+        SELECT
+            (SELECT COUNT(*) FROM candidates) AS candidate_leads,
+            (SELECT COUNT(DISTINCT deal_id) FROM candidate_contacts) AS candidate_leads_with_trusted_phone,
+            (SELECT COUNT(*) FROM candidate_comms) AS candidate_leads_with_dialpad_comms
+        """,
+        {"window_start": window_start},
+    ).fetchone()
+    return {
+        "candidate_leads": row["candidate_leads"] or 0,
+        "candidate_leads_with_trusted_phone": row["candidate_leads_with_trusted_phone"] or 0,
+        "candidate_leads_with_dialpad_comms": row["candidate_leads_with_dialpad_comms"] or 0,
+    }
+
+
+def first_value_section(conn, sources, matching, window_start):
+    hubspot = sources.get("hubspot", {})
+    dialpad = sources.get("dialpad", {})
+    candidate_counts = first_value_candidate_counts(conn, window_start)
+    blockers = []
+    if hubspot.get("status") != "ready":
+        blockers.append("HubSpot lead spine is not ready.")
+    if dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) == 0:
+        blockers.append("Dialpad call-review URLs are not loaded.")
+    if dialpad.get("call_review_transcript_rows", 0) == 0 and dialpad.get("call_review_recap_rows", 0) == 0:
+        blockers.append("Dialpad call-review transcripts or recaps are not loaded.")
+    if (
+        matching.get("matched_hubspot_deals", 0) == 0
+        and matching.get("matched_hubspot_contacts", 0) == 0
+    ):
+        blockers.append("No deterministic HubSpot matches are available.")
+    if candidate_counts["candidate_leads_with_dialpad_comms"] == 0:
+        blockers.append("No lead-attention candidates have matched Dialpad communication evidence.")
+    if not blockers:
+        status = "ready"
+    elif dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) or matching.get("rows", 0):
+        status = "partial"
+    else:
+        status = "blocked"
+    return {
+        "status": status,
+        "report_ready": not blockers,
+        "blockers": blockers,
+        "call_review_url_rows": dialpad.get("conversation_history_recording_or_transcript_url_rows", 0),
+        "call_review_transcript_rows": dialpad.get("call_review_transcript_rows", 0),
+        "call_review_recap_rows": dialpad.get("call_review_recap_rows", 0),
+        "matched_hubspot_deals": matching.get("matched_hubspot_deals", 0),
+        "matched_hubspot_contacts": matching.get("matched_hubspot_contacts", 0),
+        **candidate_counts,
+    }
+
+
 def build_source_completeness_report(conn, window_days=DEFAULT_WINDOW_DAYS, pike13_lookahead_days=DEFAULT_PIKE13_LOOKAHEAD_DAYS):
     ensure_lead_followup_schema(conn)
     conn.row_factory = sqlite3.Row
@@ -835,6 +982,7 @@ def build_source_completeness_report(conn, window_days=DEFAULT_WINDOW_DAYS, pike
         },
         "matching": matching_section(conn),
     }
+    report["first_value"] = first_value_section(conn, report["sources"], report["matching"], window_start)
     statuses = [source["status"] for source in report["sources"].values()]
     if any(status == "blocked" for status in statuses):
         overall = "blocked"

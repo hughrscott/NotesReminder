@@ -72,6 +72,10 @@ def dialpad_summary(dialpad):
         f"Voice timestamp coverage: {coverage_text(voice_coverage, 'event_at')}",
         f"Conversation History rows: {dialpad.get('conversation_history_rows', 0)}",
         f"Call-review transcript/audio access URLs: {dialpad.get('conversation_history_recording_or_transcript_url_rows', 0)}",
+        f"Call-review rows: {dialpad.get('call_review_rows', 0)}",
+        f"Call-review transcripts: {dialpad.get('call_review_transcript_rows', 0)}",
+        f"Call-review recaps: {dialpad.get('call_review_recap_rows', 0)}",
+        f"Call-review action-item rows: {dialpad.get('call_review_action_item_rows', 0)}",
         f"Future source timestamps: SMS {dialpad.get('future_sms_timestamp_rows', 0)}, voice {dialpad.get('future_voice_timestamp_rows', 0)}",
     ]
 
@@ -116,9 +120,19 @@ def next_actions(report):
     dialpad = sources.get("dialpad", {})
     pike13 = sources.get("pike13", {})
     hubspot = sources.get("hubspot", {})
-    if dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) > 0:
+    first_value = report.get("first_value", {})
+    if first_value.get("candidate_leads", 0) and first_value.get("candidate_leads_with_dialpad_comms", 0) == 0:
+        actions.append("Improve deterministic HubSpot-to-Dialpad matching for lead-attention candidates.")
+    if (
+        dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) > 0
+        and dialpad.get("call_review_transcript_rows", 0) == 0
+        and dialpad.get("call_review_recap_rows", 0) == 0
+    ):
         actions.append("Capture transcript, recap, and action-item text from Dialpad call-review URLs.")
-    elif dialpad.get("conversation_history_rows", 0) > 0:
+    elif (
+        dialpad.get("conversation_history_rows", 0) > 0
+        and dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) == 0
+    ):
         actions.append("Fix Dialpad Conversation History call-review URL capture.")
     if pike13.get("lesson_visit_rows", 0) and pike13.get("rich_visit_rows", pike13.get("visit_rows", 0)) == 0:
         actions.append("Use existing Pike13 lesson visits for note-quality/current-student insight, while still extracting rich trial/outcome/plan data.")
@@ -139,9 +153,24 @@ def ai_readiness(report):
     lesson_visits = sources.get("pike13", {}).get("lesson_visit_rows", 0)
     matching_rows = report.get("matching", {}).get("rows", 0)
     call_review_urls = sources.get("dialpad", {}).get("conversation_history_recording_or_transcript_url_rows", 0)
+    call_review_text = (
+        sources.get("dialpad", {}).get("call_review_transcript_rows", 0)
+        + sources.get("dialpad", {}).get("call_review_recap_rows", 0)
+    )
+    first_value = report.get("first_value", {})
+    first_value_ready = first_value.get("report_ready", False)
+    candidate_comms = first_value.get("candidate_leads_with_dialpad_comms", 0)
+    if call_review_text and candidate_comms:
+        sentiment_status = "ready for limited proof"
+    elif call_review_text:
+        sentiment_status = "communication text ready; lead-candidate matching still not ready"
+    elif call_review_urls:
+        sentiment_status = "ready after call-review transcript ingestion"
+    else:
+        sentiment_status = "not ready"
     return [
-        f"Lead follow-up insights: {'ready for limited proof' if hubspot_ready and dialpad_ready and matching_rows else 'not ready'}",
-        f"Sentiment/coaching analysis: {'ready after call-review transcript ingestion' if call_review_urls else 'not ready'}",
+        f"Lead follow-up insights: {'ready for limited proof' if hubspot_ready and dialpad_ready and matching_rows and first_value_ready else 'not ready'}",
+        f"Sentiment/coaching analysis: {sentiment_status}",
         f"Lesson-note quality/current-student operations: {'ready for existing notes data' if lesson_visits else 'not ready'}",
         f"Outcome attribution: {'ready' if pike13_ready else 'blocked until Pike13 visits/outcomes load'}",
         "AI lead-management automation: not ready; needs reliable source completeness, outcome data, and human-reviewed recommendation quality first.",
@@ -155,6 +184,7 @@ def render_dashboard(report):
     dialpad = sources.get("dialpad", {})
     pike13 = sources.get("pike13", {})
     matching = report.get("matching", {})
+    first_value = report.get("first_value", {})
     blockers = []
     for name, source in (("HubSpot", hubspot), ("Dialpad", dialpad), ("Pike13", pike13)):
         for blocker in source.get("blockers") or []:
@@ -177,6 +207,7 @@ def render_dashboard(report):
         bullet_list(dialpad_summary(dialpad)),
         f"- Latest SMS import: {import_run_text(dialpad.get('latest_sms_import_run'))}",
         f"- Latest voice import: {import_run_text(dialpad.get('latest_voice_import_run'))}",
+        f"- Latest call-review import: {import_run_text(dialpad.get('latest_call_review_import_run'))}",
         "",
         f"### Pike13 - {status_label(pike13.get('status'))}",
         bullet_list(pike13_summary(pike13)),
@@ -185,9 +216,25 @@ def render_dashboard(report):
         f"### Matching - {status_label(matching.get('status'))}",
         bullet_list(matching_summary(matching)),
         "",
+        f"## First Value Report - {status_label(first_value.get('status'))}",
+        "",
+        bullet_list(
+            [
+                f"Report ready: {'yes' if first_value.get('report_ready') else 'no'}",
+                f"Call-review URL rows: {first_value.get('call_review_url_rows', 0)}",
+                f"Call-review transcript rows: {first_value.get('call_review_transcript_rows', 0)}",
+                f"Call-review recap rows: {first_value.get('call_review_recap_rows', 0)}",
+                f"Matched HubSpot deals: {first_value.get('matched_hubspot_deals', 0)}",
+                f"Matched HubSpot contacts: {first_value.get('matched_hubspot_contacts', 0)}",
+                f"Lead-attention candidates: {first_value.get('candidate_leads', 0)}",
+                f"Candidates with trusted phone: {first_value.get('candidate_leads_with_trusted_phone', 0)}",
+                f"Candidates with matched Dialpad communications: {first_value.get('candidate_leads_with_dialpad_comms', 0)}",
+            ]
+        ),
+        "",
         "## Blockers",
         "",
-        bullet_list(blockers),
+        bullet_list(blockers + [f"First value: {item}" for item in first_value.get("blockers", [])]),
         "",
         "## Next Actions",
         "",

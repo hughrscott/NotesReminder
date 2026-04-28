@@ -193,6 +193,27 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS dialpad_call_reviews (
+                call_review_id TEXT PRIMARY KEY,
+                call_id TEXT,
+                voice_event_id TEXT,
+                call_review_url TEXT NOT NULL,
+                event_at TEXT,
+                transcript_text TEXT,
+                recap_text TEXT,
+                action_items_json TEXT,
+                speaker_turns_json TEXT,
+                transcript_available INTEGER DEFAULT 0,
+                recap_available INTEGER DEFAULT 0,
+                action_items_available INTEGER DEFAULT 0,
+                audio_available INTEGER DEFAULT 0,
+                extraction_status TEXT NOT NULL,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(voice_event_id) REFERENCES dialpad_voice_events(event_id)
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS pike13_people (
                 person_id TEXT PRIMARY KEY,
                 full_name TEXT,
@@ -300,6 +321,10 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_sms_messages_thread_time ON dialpad_sms_messages(thread_id, message_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_phone_time ON dialpad_voice_events(phone_normalized, event_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_type ON dialpad_voice_events(event_type)",
+            "CREATE INDEX IF NOT EXISTS idx_call_reviews_event ON dialpad_call_reviews(voice_event_id, event_at)",
+            "CREATE INDEX IF NOT EXISTS idx_call_reviews_url ON dialpad_call_reviews(call_review_url)",
+            "CREATE INDEX IF NOT EXISTS idx_call_reviews_call_id ON dialpad_call_reviews(call_id)",
+            "CREATE INDEX IF NOT EXISTS idx_call_reviews_status ON dialpad_call_reviews(extraction_status)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",

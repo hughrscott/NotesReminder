@@ -43,6 +43,10 @@ def fake_report():
                 "voice_rows": 34054,
                 "conversation_history_rows": 25,
                 "conversation_history_recording_or_transcript_url_rows": 19,
+                "call_review_rows": 12,
+                "call_review_transcript_rows": 10,
+                "call_review_recap_rows": 8,
+                "call_review_action_item_rows": 4,
                 "future_sms_timestamp_rows": 0,
                 "future_voice_timestamp_rows": 0,
                 "sms_field_coverage": {
@@ -102,6 +106,19 @@ def fake_report():
                 {"match_type": "phone_exact", "rows": 1},
             ],
         },
+        "first_value": {
+            "status": "ready",
+            "report_ready": True,
+            "blockers": [],
+            "call_review_url_rows": 19,
+            "call_review_transcript_rows": 10,
+            "call_review_recap_rows": 8,
+            "matched_hubspot_deals": 0,
+            "matched_hubspot_contacts": 1,
+            "candidate_leads": 10,
+            "candidate_leads_with_trusted_phone": 6,
+            "candidate_leads_with_dialpad_comms": 2,
+        },
     }
 
 
@@ -113,6 +130,13 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("### HubSpot - READY", markdown)
         self.assertIn("Rows: 25", markdown)
         self.assertIn("Call-review transcript/audio access URLs: 19", markdown)
+        self.assertIn("Call-review rows: 12", markdown)
+        self.assertIn("Call-review transcripts: 10", markdown)
+        self.assertIn("Call-review recaps: 8", markdown)
+        self.assertIn("## First Value Report - READY", markdown)
+        self.assertIn("Report ready: yes", markdown)
+        self.assertIn("Lead-attention candidates: 10", markdown)
+        self.assertIn("Candidates with matched Dialpad communications: 2", markdown)
         self.assertIn("Lesson visit rows: 15679", markdown)
         self.assertIn("Completed notes: 8514", markdown)
         self.assertIn("Missing notes: 7165", markdown)
@@ -122,6 +146,7 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Pike13: Rich Pike13 lead/outcome visits are not loaded.", markdown)
         self.assertIn("Identity matches: 2", markdown)
         self.assertIn("## Future AI Readiness", markdown)
+        self.assertIn("Sentiment/coaching analysis: ready for limited proof", markdown)
         self.assertIn("Lesson-note quality/current-student operations: ready for existing notes data", markdown)
         self.assertIn("AI lead-management automation: not ready", markdown)
 

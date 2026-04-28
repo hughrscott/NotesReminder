@@ -76,6 +76,8 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "hubspot_activities",
             "dialpad_sms_threads",
             "dialpad_sms_messages",
+            "dialpad_voice_events",
+            "dialpad_call_reviews",
             "pike13_people",
             "pike13_visits",
             "pike13_plans_passes",
