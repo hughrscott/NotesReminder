@@ -159,6 +159,39 @@ def first_recording_or_transcript_url(links):
     return None
 
 
+def link_availability(links):
+    links = links or []
+    values = [f"{link.get('href', '')} {link.get('text', '')}".lower() for link in links]
+    return {
+        "download_link_visible": any("download" in value for value in values),
+        "recording_link_visible": any("recording" in value for value in values),
+        "transcript_link_visible": any("transcript" in value for value in values),
+    }
+
+
+def summarize_view(source_view, url, rows, links):
+    transcript_rows = sum(1 for row in rows if row.get("voicemail_transcript") or row.get("transcript_summary"))
+    event_types = {}
+    for row in rows:
+        event_types[row["event_type"]] = event_types.get(row["event_type"], 0) + 1
+    summary = {
+        "url": url,
+        "rows": len(rows),
+        "event_types": event_types,
+        "transcript_rows": transcript_rows,
+        "voicemail_transcript_rows": sum(1 for row in rows if row.get("voicemail_transcript")),
+        "recording_or_transcript_url_rows": sum(1 for row in rows if row.get("recording_url")),
+        "availability": link_availability(links),
+    }
+    if source_view == "voicemails" and transcript_rows == 0:
+        summary["blocker"] = "No visible voicemail transcripts captured from this view."
+    if source_view == "recordings" and not summary["availability"]["recording_link_visible"]:
+        summary["blocker"] = "No visible recording links captured from this view."
+    if source_view == "recordings" and not summary["availability"]["transcript_link_visible"]:
+        summary["transcript_blocker"] = "No visible call/recording transcript links captured from this view."
+    return summary
+
+
 def normalize_dialpad_date(value, now=None):
     value = (value or "").strip().strip(",")
     if not value:
@@ -428,6 +461,7 @@ def main():
     )
     conn.commit()
     rows_seen = rows_written = 0
+    view_summaries = {}
     try:
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
@@ -444,15 +478,18 @@ def main():
                 text = page.locator("body").inner_text(timeout=30000)
                 links = extract_links(page)
                 rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
+                view_summaries[source_view] = summarize_view(source_view, page.url, rows, links)
                 rows_seen += len(rows)
                 for row in rows:
                     upsert_voice_event(conn, row)
                     rows_written += 1
             context.close()
-        finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0)
+        metadata = {"views": requested_views, "limit_per_view": args.limit_per_view, "view_summaries": view_summaries}
+        finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0, metadata=metadata)
         conn.commit()
     except Exception as exc:
-        finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, str(exc))
+        metadata = {"views": requested_views, "limit_per_view": args.limit_per_view, "view_summaries": view_summaries}
+        finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, str(exc), metadata=metadata)
         conn.commit()
         raise
     finally:

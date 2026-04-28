@@ -326,7 +326,7 @@ def refresh_identity_matches(conn):
 def import_run_summary(conn, source):
     row = conn.execute(
         """
-        SELECT source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error
+        SELECT source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error, metadata_json
         FROM source_import_runs
         WHERE source = ?
         ORDER BY id DESC
@@ -334,7 +334,16 @@ def import_run_summary(conn, source):
         """,
         (source,),
     ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    summary = dict(row)
+    metadata = summary.pop("metadata_json", None)
+    if metadata:
+        try:
+            summary["metadata"] = json.loads(metadata)
+        except json.JSONDecodeError:
+            summary["metadata"] = metadata
+    return summary
 
 
 def hubspot_section(conn, window_start):
@@ -524,6 +533,23 @@ def dialpad_section(conn, window_start):
             """
         ).fetchall()
     }
+    browser_voice_transcript_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE COALESCE(voicemail_transcript, transcript_summary) IS NOT NULL
+          AND COALESCE(voicemail_transcript, transcript_summary) != ''
+        """,
+    )
+    browser_voice_recording_url_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE COALESCE(recording_url, '') != ''
+        """,
+    )
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     required_rates = [
@@ -552,6 +578,12 @@ def dialpad_section(conn, window_start):
         blockers.append("Latest Dialpad SMS import run failed.")
     if latest_voice_import_run and latest_voice_import_run.get("status") == "error":
         blockers.append("Latest Dialpad voice import run failed.")
+    if latest_voice_import_run and latest_voice_import_run.get("status") == "success":
+        view_summaries = latest_voice_import_run.get("metadata", {}).get("view_summaries", {})
+        if "voicemails" in view_summaries and view_summaries["voicemails"].get("transcript_rows", 0) == 0:
+            blockers.append("Latest Dialpad voice proof did not capture visible voicemail transcript rows.")
+        if "recordings" in view_summaries and not view_summaries["recordings"].get("availability", {}).get("transcript_link_visible"):
+            blockers.append("Latest Dialpad recording proof did not find visible call/recording transcript links.")
     return {
         "status": status_for(required_rates, blockers),
         "sms_rows": sms_total,
@@ -562,6 +594,8 @@ def dialpad_section(conn, window_start):
         "future_voice_timestamp_rows": future_voice,
         "transcript_or_summary_rows": transcript_rows,
         "transcript_or_summary_rows_by_event_type": transcript_by_event_type,
+        "browser_voice_transcript_rows": browser_voice_transcript_rows,
+        "browser_voice_recording_url_rows": browser_voice_recording_url_rows,
         "sms_extraction_sources": sms_extraction_sources,
         "sms_direction_sources": sms_direction_sources,
         "sms_inferred_direction_rows": sms_inferred_direction_rows,

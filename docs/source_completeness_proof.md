@@ -65,8 +65,11 @@ Latest live proof after interactive-login support:
 - SMS interactive proof succeeded after login: 7 source pages processed, 119 rows written.
 - SMS stored rows after cleanup: 32; direction coverage 100%; message timestamp coverage 100%; no future SMS timestamps.
 - SMS extraction diagnostics: 32 rows from `message_list`, 26 inferred directions, 6 observed directions.
-- Voice interactive proof timed out waiting for Dialpad authentication, so the latest Dialpad voice import run is intentionally a blocker.
-- Remaining Dialpad work before broad backfill: complete the voice interactive proof, confirm how many SMS rows can come from true thread detail pages, and locate call/recording transcript download paths where Dialpad exposes them.
+- Voice interactive proof succeeded on 2026-04-28: 44 visible voice rows written across `/history/all`, `/history/calls`, `/history/missed`, `/history/voicemails`, and `/history/recordings`.
+- Voicemail proof captured visible voicemail transcript text: 2 voicemail rows from `/history/voicemails` with transcript text.
+- Recording proof captured a recording route/link, but no visible call/recording transcript link. This remains the explicit Dialpad blocker and likely needs export/API or recording-detail discovery.
+- Browser voice rows now report per-route proof metadata in the latest `source_import_runs.metadata_json`.
+- Remaining Dialpad work before broad backfill: confirm whether call/recording transcripts are export-only, API-only, or available through a deeper recording detail page; confirm how many SMS rows can come from true thread detail pages.
 
 The next planned phase is Pike13 outcome hardening after Dialpad communications remains stable: visits, trials, no-shows, memberships/plans, and source event timestamps.
 

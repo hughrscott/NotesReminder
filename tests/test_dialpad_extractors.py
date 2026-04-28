@@ -13,6 +13,7 @@ from scripts.extract_dialpad_voice import (
     is_dialpad_app_page as is_voice_app_page,
     is_login_page as is_voice_login_page,
     rows_from_visible_text,
+    summarize_view,
 )
 
 
@@ -198,6 +199,33 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(rows[0]["department"], "WESTU")
         self.assertIn("recordings/rec_123456", rows[0]["recording_url"])
         self.assertIn("reschedule", rows[0]["transcript_summary"])
+
+    def test_voice_view_summary_reports_transcript_and_link_availability(self):
+        rows = rows_from_visible_text(
+            "voicemails",
+            "https://dialpad.com/app/history/voicemails",
+            "\n".join(
+                [
+                    "Tue Apr 21",
+                    "(713) 555-1212",
+                    "Missed call & voicemail",
+                    "This is a voicemail transcript with a clear callback request.",
+                ]
+            ),
+            limit=10,
+            now=datetime(2026, 4, 27),
+            links=[{"href": "https://dialpad.com/app/history/voicemails", "text": "Download"}],
+        )
+        summary = summarize_view(
+            "voicemails",
+            "https://dialpad.com/app/history/voicemails",
+            rows,
+            [{"href": "https://dialpad.com/app/history/voicemails", "text": "Download"}],
+        )
+        self.assertGreaterEqual(summary["rows"], 1)
+        self.assertGreaterEqual(summary["transcript_rows"], 1)
+        self.assertGreaterEqual(summary["voicemail_transcript_rows"], 1)
+        self.assertTrue(summary["availability"]["download_link_visible"])
 
 
 if __name__ == "__main__":

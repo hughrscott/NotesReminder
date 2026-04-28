@@ -30,6 +30,7 @@ Ultimate goal: use the captured communications, lead, and outcome data with an L
 - Recordings: the UI route exists; the current captured West U sample did not show recordings. Existing recording download/transcription pipeline should remain the fallback until a fresh visible recording path is proven.
 - Daily refresh: use a recent rolling-window browser scan first. Do not assume January 1, 2025 backfill is available through the UI until export behavior is proven.
 - Authentication: extractors support `--interactive-login` for headed Okta/Dialpad login when the persistent profile expires. Headless runs remain strict and fail if they land on the login page.
+- Voice proof update: the 2026-04-28 interactive proof captured calls, missed calls, voicemails, visible voicemail transcripts, and a recording link. It did not expose a visible call/recording transcript link, so recording transcript refresh remains blocked pending export/API/deeper detail-page discovery.
 
 ## Data Preservation Rule
 
