@@ -355,6 +355,74 @@ def import_run_summary(conn, source):
     return summary
 
 
+def dialpad_target_search_summary(conn):
+    latest_run = import_run_summary(conn, "dialpad_target_search")
+    if not latest_run:
+        return {
+            "latest_import_run": None,
+            "rows": 0,
+            "targets_found": 0,
+            "targets_with_sms": 0,
+            "targets_with_calls_or_call_reviews": 0,
+            "targets_not_found": 0,
+            "ui_blocked_rows": 0,
+            "auth_blocked_rows": 0,
+            "parse_error_rows": 0,
+            "outcomes": {},
+        }
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS rows,
+            SUM(CASE WHEN outcome IN ('found_sms', 'found_call', 'found_call_review') THEN 1 ELSE 0 END) AS targets_found,
+            SUM(CASE WHEN outcome = 'found_sms' THEN 1 ELSE 0 END) AS targets_with_sms,
+            SUM(CASE WHEN outcome IN ('found_call', 'found_call_review') THEN 1 ELSE 0 END) AS targets_with_calls_or_call_reviews,
+            SUM(CASE WHEN outcome = 'not_found' THEN 1 ELSE 0 END) AS targets_not_found,
+            SUM(CASE WHEN outcome = 'ui_blocked' THEN 1 ELSE 0 END) AS ui_blocked_rows,
+            SUM(CASE WHEN outcome = 'auth_blocked' THEN 1 ELSE 0 END) AS auth_blocked_rows,
+            SUM(CASE WHEN outcome = 'parse_error' THEN 1 ELSE 0 END) AS parse_error_rows
+        FROM dialpad_target_searches
+        WHERE run_id = (
+            SELECT id
+            FROM source_import_runs
+            WHERE source = 'dialpad_target_search'
+            ORDER BY id DESC
+            LIMIT 1
+        )
+        """
+    ).fetchone()
+    outcomes = {
+        item["outcome"]: item["rows"]
+        for item in conn.execute(
+            """
+            SELECT outcome, COUNT(*) AS rows
+            FROM dialpad_target_searches
+            WHERE run_id = (
+                SELECT id
+                FROM source_import_runs
+                WHERE source = 'dialpad_target_search'
+                ORDER BY id DESC
+                LIMIT 1
+            )
+            GROUP BY outcome
+            ORDER BY outcome
+            """
+        ).fetchall()
+    }
+    return {
+        "latest_import_run": latest_run,
+        "rows": row["rows"] or 0,
+        "targets_found": row["targets_found"] or 0,
+        "targets_with_sms": row["targets_with_sms"] or 0,
+        "targets_with_calls_or_call_reviews": row["targets_with_calls_or_call_reviews"] or 0,
+        "targets_not_found": row["targets_not_found"] or 0,
+        "ui_blocked_rows": row["ui_blocked_rows"] or 0,
+        "auth_blocked_rows": row["auth_blocked_rows"] or 0,
+        "parse_error_rows": row["parse_error_rows"] or 0,
+        "outcomes": outcomes,
+    }
+
+
 def hubspot_section(conn, window_start):
     total, coverage = field_coverage(
         conn,
@@ -609,6 +677,7 @@ def dialpad_section(conn, window_start):
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     latest_call_review_import_run = import_run_summary(conn, "dialpad_call_reviews")
+    target_search = dialpad_target_search_summary(conn)
     latest_voice_view_summaries = {}
     conversation_history_proof = {}
     conversation_history_rows = 0
@@ -700,6 +769,8 @@ def dialpad_section(conn, window_start):
         "latest_sms_import_run": latest_sms_import_run,
         "latest_voice_import_run": latest_voice_import_run,
         "latest_call_review_import_run": latest_call_review_import_run,
+        "target_search": target_search,
+        "latest_target_search_import_run": target_search["latest_import_run"],
         "blockers": blockers,
     }
 
@@ -940,7 +1011,13 @@ def first_value_section(conn, sources, matching, window_start):
     ):
         blockers.append("No deterministic HubSpot matches are available.")
     if candidate_counts["candidate_leads_with_dialpad_comms"] == 0:
-        blockers.append("No lead-attention candidates have matched Dialpad communication evidence.")
+        target_search = dialpad.get("target_search", {})
+        if not target_search.get("rows"):
+            blockers.append("No lead-attention candidates have matched Dialpad communication evidence; targeted Dialpad discovery is required.")
+        elif target_search.get("targets_found"):
+            blockers.append("Targeted Dialpad discovery found evidence, but it is not yet matched into lead-attention communications.")
+        else:
+            blockers.append("Targeted Dialpad discovery did not find matched communications for current lead-attention candidates.")
     if not blockers:
         status = "ready"
     elif dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) or matching.get("rows", 0):

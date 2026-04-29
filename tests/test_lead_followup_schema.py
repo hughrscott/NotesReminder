@@ -78,6 +78,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "dialpad_sms_messages",
             "dialpad_voice_events",
             "dialpad_call_reviews",
+            "dialpad_target_searches",
             "pike13_people",
             "pike13_visits",
             "pike13_plans_passes",

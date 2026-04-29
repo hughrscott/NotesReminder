@@ -214,6 +214,29 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS dialpad_target_searches (
+                search_id TEXT PRIMARY KEY,
+                run_id INTEGER,
+                deal_id TEXT,
+                contact_id TEXT,
+                target_hash TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                school TEXT,
+                searched_at TEXT NOT NULL,
+                search_paths_json TEXT,
+                outcome TEXT NOT NULL,
+                found_sms_count INTEGER DEFAULT 0,
+                found_voice_count INTEGER DEFAULT 0,
+                found_call_review_count INTEGER DEFAULT 0,
+                source_url_count INTEGER DEFAULT 0,
+                first_event_at TEXT,
+                latest_event_at TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(run_id) REFERENCES source_import_runs(id)
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS pike13_people (
                 person_id TEXT PRIMARY KEY,
                 full_name TEXT,
@@ -325,6 +348,10 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_url ON dialpad_call_reviews(call_review_url)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_call_id ON dialpad_call_reviews(call_id)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_status ON dialpad_call_reviews(extraction_status)",
+            "CREATE INDEX IF NOT EXISTS idx_target_searches_run ON dialpad_target_searches(run_id)",
+            "CREATE INDEX IF NOT EXISTS idx_target_searches_deal ON dialpad_target_searches(deal_id)",
+            "CREATE INDEX IF NOT EXISTS idx_target_searches_outcome ON dialpad_target_searches(outcome)",
+            "CREATE INDEX IF NOT EXISTS idx_target_searches_hash ON dialpad_target_searches(target_hash)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
@@ -346,6 +373,9 @@ def _create_views(conn):
             "DROP VIEW IF EXISTS vw_unanswered_communications",
             "DROP VIEW IF EXISTS vw_dialpad_communications",
             "DROP VIEW IF EXISTS vw_pike13_lesson_visits",
+            "DROP VIEW IF EXISTS vw_stale_leads",
+            "DROP VIEW IF EXISTS vw_no_show_followup",
+            "DROP VIEW IF EXISTS vw_lead_conversion_path",
             """
             CREATE VIEW vw_pike13_lesson_visits AS
             SELECT

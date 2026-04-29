@@ -47,6 +47,13 @@ def fake_report():
                 "call_review_transcript_rows": 10,
                 "call_review_recap_rows": 8,
                 "call_review_action_item_rows": 4,
+                "target_search": {
+                    "rows": 8,
+                    "targets_found": 0,
+                    "targets_not_found": 6,
+                    "ui_blocked_rows": 2,
+                    "auth_blocked_rows": 0,
+                },
                 "future_sms_timestamp_rows": 0,
                 "future_voice_timestamp_rows": 0,
                 "sms_field_coverage": {
@@ -68,6 +75,13 @@ def fake_report():
                     "finished_at": "2026-04-28T17:59:50+00:00",
                     "rows_seen": 25,
                     "rows_inserted": 25,
+                    "rows_updated": 0,
+                },
+                "latest_target_search_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-29T10:00:00+00:00",
+                    "rows_seen": 8,
+                    "rows_inserted": 0,
                     "rows_updated": 0,
                 },
             },
@@ -133,6 +147,9 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Call-review rows: 12", markdown)
         self.assertIn("Call-review transcripts: 10", markdown)
         self.assertIn("Call-review recaps: 8", markdown)
+        self.assertIn("Targeted lead-phone searches: 8", markdown)
+        self.assertIn("Targeted searches not found/blocked: 8", markdown)
+        self.assertIn("Latest target-search import: SUCCESS", markdown)
         self.assertIn("## First Value Report - READY", markdown)
         self.assertIn("Report ready: yes", markdown)
         self.assertIn("Lead-attention candidates: 10", markdown)

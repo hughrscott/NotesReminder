@@ -64,6 +64,7 @@ def hubspot_summary(hubspot):
 def dialpad_summary(dialpad):
     sms_coverage = dialpad.get("sms_field_coverage", {})
     voice_coverage = dialpad.get("voice_field_coverage", {})
+    target_search = dialpad.get("target_search", {})
     return [
         f"SMS rows: {dialpad.get('sms_rows', 0)}",
         f"SMS timestamp coverage: {coverage_text(sms_coverage, 'message_at')}",
@@ -76,6 +77,9 @@ def dialpad_summary(dialpad):
         f"Call-review transcripts: {dialpad.get('call_review_transcript_rows', 0)}",
         f"Call-review recaps: {dialpad.get('call_review_recap_rows', 0)}",
         f"Call-review action-item rows: {dialpad.get('call_review_action_item_rows', 0)}",
+        f"Targeted lead-phone searches: {target_search.get('rows', 0)}",
+        f"Targeted searches found: {target_search.get('targets_found', 0)}",
+        f"Targeted searches not found/blocked: {target_search.get('targets_not_found', 0) + target_search.get('ui_blocked_rows', 0) + target_search.get('auth_blocked_rows', 0)}",
         f"Future source timestamps: SMS {dialpad.get('future_sms_timestamp_rows', 0)}, voice {dialpad.get('future_voice_timestamp_rows', 0)}",
     ]
 
@@ -122,7 +126,13 @@ def next_actions(report):
     hubspot = sources.get("hubspot", {})
     first_value = report.get("first_value", {})
     if first_value.get("candidate_leads", 0) and first_value.get("candidate_leads_with_dialpad_comms", 0) == 0:
-        actions.append("Improve deterministic HubSpot-to-Dialpad matching for lead-attention candidates.")
+        target_search = dialpad.get("target_search", {})
+        if target_search.get("rows", 0) == 0:
+            actions.append("Run targeted Dialpad discovery for lead-attention candidates.")
+        elif target_search.get("targets_found", 0) == 0:
+            actions.append("Review targeted Dialpad discovery results; current candidate phone keys were not found or were blocked in Dialpad UI.")
+        else:
+            actions.append("Wire targeted Dialpad search results into lead-attention matching.")
     if (
         dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) > 0
         and dialpad.get("call_review_transcript_rows", 0) == 0
@@ -208,6 +218,7 @@ def render_dashboard(report):
         f"- Latest SMS import: {import_run_text(dialpad.get('latest_sms_import_run'))}",
         f"- Latest voice import: {import_run_text(dialpad.get('latest_voice_import_run'))}",
         f"- Latest call-review import: {import_run_text(dialpad.get('latest_call_review_import_run'))}",
+        f"- Latest target-search import: {import_run_text(dialpad.get('latest_target_search_import_run'))}",
         "",
         f"### Pike13 - {status_label(pike13.get('status'))}",
         bullet_list(pike13_summary(pike13)),
