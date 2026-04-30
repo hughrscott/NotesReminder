@@ -105,7 +105,7 @@ class LeadAttentionReportTests(unittest.TestCase):
                     '(713) 555-1212', '7135551212', 'Sensitive Customer Name',
                     'inbound', '2026-04-24T11:00:00', 'West U', 'WESTU',
                     'Conversation History row',
-                    'https://dialpad.com/callhistory/callreview/call-123',
+                    'https://dialpad.com/callhistory/callreview/call-123?source=session-history%3Adays%3D0-30%26external_endpoint%3D7135551212',
                     'raw voice text', ?, ?)
             """,
             (json.dumps({"extraction": "conversation_history_dom"}), now),
@@ -145,6 +145,7 @@ class LeadAttentionReportTests(unittest.TestCase):
             "Sensitive Customer Name",
             "(713) 555-1212",
             "7135551212",
+            "external_endpoint",
             "Sensitive SMS body",
             "Sensitive transcript text",
             "Sensitive recap text",

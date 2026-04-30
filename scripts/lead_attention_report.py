@@ -5,6 +5,7 @@ import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -244,12 +245,29 @@ def clean_timestamp(value):
     return value
 
 
+def sanitize_report_url(url):
+    url = str(url or "").strip()
+    if not url:
+        return url
+    parts = urlsplit(url)
+    if "dialpad.com" not in parts.netloc:
+        return url
+    if "/callhistory/callreview/" in parts.path:
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, "", parts.fragment))
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key.lower() not in {"external_endpoint", "phone", "q", "keyword"}
+    ]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
 def source_links(row, evidence):
     links = []
     if row["source_url"]:
         links.append(f"[HubSpot]({row['source_url']})")
     for index, url in enumerate(evidence.get("source_urls") or [], start=1):
-        links.append(f"[Dialpad {index}]({url})")
+        links.append(f"[Dialpad {index}]({sanitize_report_url(url)})")
     return ", ".join(links) if links else "none"
 
 

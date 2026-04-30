@@ -365,6 +365,7 @@ def dialpad_target_search_summary(conn):
             "targets_with_sms": 0,
             "targets_with_calls_or_call_reviews": 0,
             "targets_not_found": 0,
+            "filter_not_supported_rows": 0,
             "ui_blocked_rows": 0,
             "auth_blocked_rows": 0,
             "parse_error_rows": 0,
@@ -374,10 +375,11 @@ def dialpad_target_search_summary(conn):
         """
         SELECT
             COUNT(*) AS rows,
-            SUM(CASE WHEN outcome IN ('found_sms', 'found_call', 'found_call_review') THEN 1 ELSE 0 END) AS targets_found,
+            SUM(CASE WHEN outcome IN ('found_sms', 'found_call', 'found_voicemail', 'found_call_review') THEN 1 ELSE 0 END) AS targets_found,
             SUM(CASE WHEN outcome = 'found_sms' THEN 1 ELSE 0 END) AS targets_with_sms,
-            SUM(CASE WHEN outcome IN ('found_call', 'found_call_review') THEN 1 ELSE 0 END) AS targets_with_calls_or_call_reviews,
-            SUM(CASE WHEN outcome = 'not_found' THEN 1 ELSE 0 END) AS targets_not_found,
+            SUM(CASE WHEN outcome IN ('found_call', 'found_voicemail', 'found_call_review') THEN 1 ELSE 0 END) AS targets_with_calls_or_call_reviews,
+            SUM(CASE WHEN outcome IN ('not_found', 'not_found_after_route_search') THEN 1 ELSE 0 END) AS targets_not_found,
+            SUM(CASE WHEN outcome = 'filter_not_supported' THEN 1 ELSE 0 END) AS filter_not_supported_rows,
             SUM(CASE WHEN outcome = 'ui_blocked' THEN 1 ELSE 0 END) AS ui_blocked_rows,
             SUM(CASE WHEN outcome = 'auth_blocked' THEN 1 ELSE 0 END) AS auth_blocked_rows,
             SUM(CASE WHEN outcome = 'parse_error' THEN 1 ELSE 0 END) AS parse_error_rows
@@ -416,10 +418,88 @@ def dialpad_target_search_summary(conn):
         "targets_with_sms": row["targets_with_sms"] or 0,
         "targets_with_calls_or_call_reviews": row["targets_with_calls_or_call_reviews"] or 0,
         "targets_not_found": row["targets_not_found"] or 0,
+        "filter_not_supported_rows": row["filter_not_supported_rows"] or 0,
         "ui_blocked_rows": row["ui_blocked_rows"] or 0,
         "auth_blocked_rows": row["auth_blocked_rows"] or 0,
         "parse_error_rows": row["parse_error_rows"] or 0,
         "outcomes": outcomes,
+    }
+
+
+def dialpad_route_discovery_summary(conn):
+    latest_run = import_run_summary(conn, "dialpad_route_discovery")
+    if not latest_run:
+        return {
+            "latest_import_run": None,
+            "rows": 0,
+            "usable_routes": 0,
+            "partial_routes": 0,
+            "blocked_routes": 0,
+            "sms_routes": 0,
+            "voice_routes": 0,
+            "voicemail_routes": 0,
+            "call_review_routes": 0,
+            "date_filter_routes": 0,
+            "school_filter_routes": 0,
+            "keyword_filter_routes": 0,
+            "statuses": {},
+        }
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS rows,
+            SUM(CASE WHEN status = 'usable' THEN 1 ELSE 0 END) AS usable_routes,
+            SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) AS partial_routes,
+            SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked_routes,
+            SUM(CASE WHEN sms_signal_visible = 1 THEN 1 ELSE 0 END) AS sms_routes,
+            SUM(CASE WHEN voice_signal_visible = 1 THEN 1 ELSE 0 END) AS voice_routes,
+            SUM(CASE WHEN voicemail_signal_visible = 1 THEN 1 ELSE 0 END) AS voicemail_routes,
+            SUM(CASE WHEN call_review_url_count > 0 THEN 1 ELSE 0 END) AS call_review_routes,
+            SUM(CASE WHEN supports_date_filter = 1 THEN 1 ELSE 0 END) AS date_filter_routes,
+            SUM(CASE WHEN supports_school_filter = 1 THEN 1 ELSE 0 END) AS school_filter_routes,
+            SUM(CASE WHEN supports_keyword_filter = 1 THEN 1 ELSE 0 END) AS keyword_filter_routes
+        FROM dialpad_route_discoveries
+        WHERE run_id = (
+            SELECT id
+            FROM source_import_runs
+            WHERE source = 'dialpad_route_discovery'
+            ORDER BY id DESC
+            LIMIT 1
+        )
+        """
+    ).fetchone()
+    statuses = {
+        item["status"]: item["rows"]
+        for item in conn.execute(
+            """
+            SELECT status, COUNT(*) AS rows
+            FROM dialpad_route_discoveries
+            WHERE run_id = (
+                SELECT id
+                FROM source_import_runs
+                WHERE source = 'dialpad_route_discovery'
+                ORDER BY id DESC
+                LIMIT 1
+            )
+            GROUP BY status
+            ORDER BY status
+            """
+        ).fetchall()
+    }
+    return {
+        "latest_import_run": latest_run,
+        "rows": row["rows"] or 0,
+        "usable_routes": row["usable_routes"] or 0,
+        "partial_routes": row["partial_routes"] or 0,
+        "blocked_routes": row["blocked_routes"] or 0,
+        "sms_routes": row["sms_routes"] or 0,
+        "voice_routes": row["voice_routes"] or 0,
+        "voicemail_routes": row["voicemail_routes"] or 0,
+        "call_review_routes": row["call_review_routes"] or 0,
+        "date_filter_routes": row["date_filter_routes"] or 0,
+        "school_filter_routes": row["school_filter_routes"] or 0,
+        "keyword_filter_routes": row["keyword_filter_routes"] or 0,
+        "statuses": statuses,
     }
 
 
@@ -678,6 +758,7 @@ def dialpad_section(conn, window_start):
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     latest_call_review_import_run = import_run_summary(conn, "dialpad_call_reviews")
     target_search = dialpad_target_search_summary(conn)
+    route_discovery = dialpad_route_discovery_summary(conn)
     latest_voice_view_summaries = {}
     conversation_history_proof = {}
     conversation_history_rows = 0
@@ -770,7 +851,9 @@ def dialpad_section(conn, window_start):
         "latest_voice_import_run": latest_voice_import_run,
         "latest_call_review_import_run": latest_call_review_import_run,
         "target_search": target_search,
+        "route_discovery": route_discovery,
         "latest_target_search_import_run": target_search["latest_import_run"],
+        "latest_route_discovery_import_run": route_discovery["latest_import_run"],
         "blockers": blockers,
     }
 

@@ -237,6 +237,34 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS dialpad_route_discoveries (
+                route_id TEXT PRIMARY KEY,
+                run_id INTEGER,
+                route_name TEXT NOT NULL,
+                route_url TEXT NOT NULL,
+                status TEXT NOT NULL,
+                loaded_at TEXT NOT NULL,
+                supports_daily_refresh INTEGER DEFAULT 0,
+                supports_targeted_search INTEGER DEFAULT 0,
+                supports_date_filter INTEGER DEFAULT 0,
+                supports_school_filter INTEGER DEFAULT 0,
+                supports_keyword_filter INTEGER DEFAULT 0,
+                visible_row_count INTEGER DEFAULT 0,
+                visible_link_count INTEGER DEFAULT 0,
+                call_review_url_count INTEGER DEFAULT 0,
+                transcript_link_visible INTEGER DEFAULT 0,
+                recording_link_visible INTEGER DEFAULT 0,
+                download_link_visible INTEGER DEFAULT 0,
+                sms_signal_visible INTEGER DEFAULT 0,
+                voice_signal_visible INTEGER DEFAULT 0,
+                voicemail_signal_visible INTEGER DEFAULT 0,
+                required_filter_state TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(run_id) REFERENCES source_import_runs(id)
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS pike13_people (
                 person_id TEXT PRIMARY KEY,
                 full_name TEXT,
@@ -352,6 +380,9 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_target_searches_deal ON dialpad_target_searches(deal_id)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_outcome ON dialpad_target_searches(outcome)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_hash ON dialpad_target_searches(target_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_route_discoveries_run ON dialpad_route_discoveries(run_id)",
+            "CREATE INDEX IF NOT EXISTS idx_route_discoveries_status ON dialpad_route_discoveries(status)",
+            "CREATE INDEX IF NOT EXISTS idx_route_discoveries_route ON dialpad_route_discoveries(route_name)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",

@@ -47,11 +47,21 @@ def fake_report():
                 "call_review_transcript_rows": 10,
                 "call_review_recap_rows": 8,
                 "call_review_action_item_rows": 4,
+                "route_discovery": {
+                    "rows": 7,
+                    "usable_routes": 2,
+                    "partial_routes": 4,
+                    "blocked_routes": 1,
+                    "sms_routes": 1,
+                    "voice_routes": 5,
+                    "call_review_routes": 1,
+                },
                 "target_search": {
                     "rows": 8,
                     "targets_found": 0,
                     "targets_not_found": 6,
-                    "ui_blocked_rows": 2,
+                    "filter_not_supported_rows": 2,
+                    "ui_blocked_rows": 0,
                     "auth_blocked_rows": 0,
                 },
                 "future_sms_timestamp_rows": 0,
@@ -75,6 +85,13 @@ def fake_report():
                     "finished_at": "2026-04-28T17:59:50+00:00",
                     "rows_seen": 25,
                     "rows_inserted": 25,
+                    "rows_updated": 0,
+                },
+                "latest_route_discovery_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-29T09:55:00+00:00",
+                    "rows_seen": 7,
+                    "rows_inserted": 7,
                     "rows_updated": 0,
                 },
                 "latest_target_search_import_run": {
@@ -147,6 +164,9 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Call-review rows: 12", markdown)
         self.assertIn("Call-review transcripts: 10", markdown)
         self.assertIn("Call-review recaps: 8", markdown)
+        self.assertIn("Route-map probes: 7", markdown)
+        self.assertIn("Route-map usable/partial/blocked: 2/4/1", markdown)
+        self.assertIn("Latest route-map import: SUCCESS", markdown)
         self.assertIn("Targeted lead-phone searches: 8", markdown)
         self.assertIn("Targeted searches not found/blocked: 8", markdown)
         self.assertIn("Latest target-search import: SUCCESS", markdown)

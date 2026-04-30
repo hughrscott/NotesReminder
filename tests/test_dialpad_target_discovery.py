@@ -7,10 +7,16 @@ from pathlib import Path
 from lead_followup_schema import ensure_lead_followup_schema, start_import_run, utc_now_iso
 from scripts.discover_dialpad_targets import (
     classify_target_search_result,
+    conversation_history_participant_url,
+    render_route_map_report,
     render_target_coverage_report,
+    route_discovery_summary,
+    route_probe_row,
+    sanitize_dialpad_url,
     select_target_candidates,
     target_hash,
     target_search_summary,
+    upsert_route_discovery,
     upsert_target_search,
 )
 
@@ -115,8 +121,62 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual(
             classify_target_search_result("No matching records", [], phone),
-            "not_found",
+            "not_found_after_route_search",
         )
+
+    def test_conversation_history_participant_url_and_sanitization(self):
+        url = conversation_history_participant_url("(713) 922-9723")
+
+        self.assertEqual(
+            url,
+            "https://dialpad.com/conversationhistory?days=0-30&external_endpoint=7139229723",
+        )
+        self.assertEqual(
+            sanitize_dialpad_url(url),
+            "https://dialpad.com/conversationhistory?days=0-30",
+        )
+
+    def test_route_discovery_summary_and_report_are_sanitized(self):
+        conn = self.open_db()
+        run_id = start_import_run(conn, "dialpad_route_discovery", "test")
+        row = route_probe_row(
+            run_id,
+            {
+                "name": "conversation_history",
+                "url": "https://dialpad.com/conversationhistory",
+                "daily_refresh": True,
+                "targeted_search": True,
+                "date_filter": True,
+                "school_filter": True,
+                "keyword_filter": True,
+                "required_filter_state": "Office/group set to West U.",
+            },
+            "usable",
+            "Conversation history Call Voicemail Messages Keyword Past 7 days",
+            [{"href": "https://dialpad.com/callhistory/callreview/abc123", "text": "AI"}],
+            {"school_filter_applied": True, "date_filter_visible": True, "keyword_filter_visible": True},
+        )
+        row["raw_json"] = json.dumps({"phone": "(713) 555-1212", "customer": "Sensitive Customer Name"})
+        upsert_route_discovery(conn, row)
+
+        summary = route_discovery_summary(conn, run_id)
+        markdown = render_route_map_report(summary, school="West U")
+
+        self.assertEqual(summary["routes_checked"], 1)
+        self.assertEqual(summary["usable_routes"], 1)
+        self.assertEqual(summary["call_review_routes"], 1)
+        self.assertIn("Dialpad Route Map", markdown)
+        self.assertIn("conversation_history", markdown)
+        self.assertIn("Usable routes: 1", markdown)
+        for forbidden in [
+            "Sensitive Customer Name",
+            "(713) 555-1212",
+            "7135551212",
+            "customer@example.com",
+            "Sensitive SMS body",
+            "Sensitive transcript",
+        ]:
+            self.assertNotIn(forbidden, markdown)
 
     def test_target_search_summary_and_report_are_sanitized(self):
         conn = self.open_db()

@@ -27,6 +27,10 @@ from scripts.extract_dialpad_voice import (  # noqa: E402
 CALL_REVIEW_URL_RE = re.compile(r"dialpad\.com/callhistory/callreview/([A-Za-z0-9_-]+)", re.IGNORECASE)
 
 
+def short_error(value):
+    return str(value or "").replace("\n", " ")[:300]
+
+
 def call_review_id_from_url(url):
     match = CALL_REVIEW_URL_RE.search(url or "")
     return match.group(1) if match else extract_source_id(url)
@@ -205,6 +209,7 @@ def main():
     conn.commit()
     targets = call_review_targets(conn, args.limit)
     rows_seen = rows_inserted = rows_updated = 0
+    failures = []
     try:
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
@@ -215,7 +220,17 @@ def main():
             page = context.pages[0] if context.pages else context.new_page()
             for target in targets:
                 rows_seen += 1
-                row = extract_call_review_page(page, target, args.interactive_login, args.login_timeout)
+                try:
+                    row = extract_call_review_page(page, target, args.interactive_login, args.login_timeout)
+                except Exception as exc:
+                    failures.append(
+                        {
+                            "voice_event_id": target["voice_event_id"],
+                            "call_review_id": call_review_id_from_url(target["call_review_url"]),
+                            "error": short_error(exc),
+                        }
+                    )
+                    continue
                 exists = conn.execute(
                     "SELECT 1 FROM dialpad_call_reviews WHERE call_review_id = ?",
                     (row["call_review_id"],),
@@ -230,11 +245,11 @@ def main():
         finish_import_run(
             conn,
             run_id,
-            "success",
+            "partial" if failures else "success",
             rows_seen=rows_seen,
             rows_inserted=rows_inserted,
             rows_updated=rows_updated,
-            metadata={"limit": args.limit},
+            metadata={"limit": args.limit, "failure_count": len(failures), "failures": failures[:10]},
         )
         conn.commit()
     except Exception as exc:
