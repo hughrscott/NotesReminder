@@ -47,6 +47,16 @@ def fake_report():
                 "call_review_transcript_rows": 10,
                 "call_review_recap_rows": 8,
                 "call_review_action_item_rows": 4,
+                "daily_intake": {
+                    "daily_intake_rows": 40,
+                    "communication_window_rows": 45,
+                    "daily_inbound_rows": 9,
+                    "unmatched_inbound_rows": 3,
+                    "possible_lead_not_in_hubspot_rows": 2,
+                    "no_followup_rows": 1,
+                    "latest_daily_intake_at": "2026-04-29T18:08:44",
+                    "discovery_fallback_required": False,
+                },
                 "route_discovery": {
                     "rows": 7,
                     "usable_routes": 2,
@@ -87,6 +97,13 @@ def fake_report():
                     "rows_inserted": 25,
                     "rows_updated": 0,
                 },
+                "latest_daily_intake_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-29T18:15:00+00:00",
+                    "rows_seen": 40,
+                    "rows_inserted": 5,
+                    "rows_updated": 35,
+                },
                 "latest_route_discovery_import_run": {
                     "status": "success",
                     "finished_at": "2026-04-29T09:55:00+00:00",
@@ -118,11 +135,24 @@ def fake_report():
                 "rich_visit_rows": 0,
                 "plan_pass_rows": 1,
                 "window_plus_lookahead_visit_rows": 0,
+                "route_discovery": {
+                    "rows": 2,
+                    "usable_routes": 1,
+                    "partial_routes": 1,
+                    "blocked_routes": 0,
+                },
                 "latest_import_run": {
                     "status": "error",
                     "finished_at": "2026-04-28T16:47:33+00:00",
                     "rows_seen": 0,
                     "rows_inserted": 0,
+                    "rows_updated": 0,
+                },
+                "latest_route_discovery_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-29T18:20:00+00:00",
+                    "rows_seen": 2,
+                    "rows_inserted": 2,
                     "rows_updated": 0,
                 },
             },
@@ -164,6 +194,12 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Call-review rows: 12", markdown)
         self.assertIn("Call-review transcripts: 10", markdown)
         self.assertIn("Call-review recaps: 8", markdown)
+        self.assertIn("Daily intake tagged rows: 40", markdown)
+        self.assertIn("Dialpad communication rows in proof window: 45", markdown)
+        self.assertIn("Unmatched inbound rows: 3", markdown)
+        self.assertIn("Possible leads not in HubSpot: 2", markdown)
+        self.assertIn("Inbound rows without later outbound follow-up: 1", markdown)
+        self.assertIn("Latest daily intake import: SUCCESS", markdown)
         self.assertIn("Route-map probes: 7", markdown)
         self.assertIn("Route-map usable/partial/blocked: 2/4/1", markdown)
         self.assertIn("Latest route-map import: SUCCESS", markdown)
@@ -180,6 +216,8 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("No-shows: 1768", markdown)
         self.assertIn("Canceled lessons: 720", markdown)
         self.assertIn("Trial lesson rows: 196", markdown)
+        self.assertIn("Route fallback probes: 2", markdown)
+        self.assertIn("Latest route fallback import: SUCCESS", markdown)
         self.assertIn("Pike13: Rich Pike13 lead/outcome visits are not loaded.", markdown)
         self.assertIn("Identity matches: 2", markdown)
         self.assertIn("## Future AI Readiness", markdown)

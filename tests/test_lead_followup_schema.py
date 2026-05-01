@@ -80,6 +80,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "dialpad_call_reviews",
             "dialpad_target_searches",
             "dialpad_route_discoveries",
+            "source_route_discoveries",
             "pike13_people",
             "pike13_visits",
             "pike13_plans_passes",
@@ -228,6 +229,122 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         )
         insight = conn.execute("SELECT * FROM communication_ai_insights").fetchone()
         self.assertEqual(insight["intent"], "callback_request")
+
+    def test_dialpad_daily_intake_marks_unmatched_inbound_and_later_followup(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, call_id, phone, phone_normalized,
+                contact_name, direction, event_at, school, department, outcome,
+                source_url, raw_text, raw_json, updated_at
+            )
+            VALUES (
+                'daily-in-1', 'conversation_history', 'missed_call', 'call-1',
+                '(713) 555-1212', '7135551212', 'Sensitive Name', 'inbound',
+                '2026-04-28T10:00:00', 'West U', 'WESTU', 'missed',
+                'https://dialpad.com/conversationhistory?external_endpoint=7135551212',
+                'raw sensitive row', '{}', ?
+            )
+            """,
+            (now,),
+        )
+        unmatched = conn.execute("SELECT * FROM vw_unmatched_dialpad_inbound").fetchall()
+        self.assertEqual(len(unmatched), 1)
+        self.assertEqual(unmatched[0]["action_status"], "possible_lead_not_in_hubspot")
+        self.assertEqual(unmatched[0]["has_later_outbound_followup"], 0)
+
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, call_id, phone, phone_normalized,
+                contact_name, direction, event_at, school, department, outcome,
+                source_url, raw_text, raw_json, updated_at
+            )
+            VALUES (
+                'daily-out-1', 'conversation_history', 'call', 'call-2',
+                '(713) 555-1212', '7135551212', 'Sensitive Name', 'outbound',
+                '2026-04-28T11:00:00', 'West U', 'WESTU', 'called back',
+                'https://dialpad.com/conversationhistory', 'raw sensitive row',
+                '{}', ?
+            )
+            """,
+            (now,),
+        )
+        daily = conn.execute(
+            "SELECT * FROM vw_dialpad_daily_intake WHERE communication_id = 'daily-in-1'"
+        ).fetchone()
+        self.assertEqual(daily["has_later_outbound_followup"], 1)
+        self.assertEqual(daily["action_status"], "followed_up")
+        unmatched = conn.execute("SELECT * FROM vw_unmatched_dialpad_inbound").fetchall()
+        self.assertEqual(len(unmatched), 1)
+        self.assertEqual(unmatched[0]["has_later_outbound_followup"], 1)
+
+    def test_dialpad_daily_intake_excludes_trusted_hubspot_phone_from_unmatched(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email_normalized, phone_normalized,
+                associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-1', 'Sensitive Name', 'parent@example.com', '7135551212',
+                    'deal-1', ?, ?)
+            """,
+            (json.dumps({"trusted": True}), now),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, call_id, phone, phone_normalized,
+                contact_name, direction, event_at, school, department, outcome,
+                source_url, raw_text, raw_json, updated_at
+            )
+            VALUES (
+                'daily-in-1', 'conversation_history', 'voicemail', 'call-1',
+                '(713) 555-1212', '7135551212', 'Sensitive Name', 'inbound',
+                '2026-04-28T10:00:00', 'West U', 'WESTU', 'voicemail',
+                'https://dialpad.com/callhistory/callreview/call-1',
+                'raw sensitive row', '{}', ?
+            )
+            """,
+            (now,),
+        )
+        daily = conn.execute("SELECT * FROM vw_dialpad_daily_intake").fetchone()
+        self.assertEqual(daily["match_status"], "matched_hubspot")
+        unmatched = conn.execute("SELECT * FROM vw_unmatched_dialpad_inbound").fetchall()
+        self.assertEqual(unmatched, [])
+
+    def test_source_route_discovery_is_repeatable(self):
+        conn = self.open_db()
+        run_id = start_import_run(conn, "pike13_route_discovery", "discover_pike13_routes.py")
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO source_route_discoveries (
+                route_id, run_id, source, route_name, route_url, status,
+                loaded_at, visible_row_count, visible_link_count,
+                source_timestamp_visible, transcript_link_visible,
+                recording_link_visible, expected_controls_json, blocker,
+                raw_json, updated_at
+            )
+            VALUES (
+                'route-1', ?, 'pike13', 'known_person', 'https://westu-sor.pike13.com/people/1',
+                'partial', ?, 12, 3, 1, 0, 0, '[]',
+                'Route loaded, but expected Pike13 fields were not visible.',
+                '{"raw_page_text_not_stored": true}', ?
+            )
+            """,
+            (run_id, now, now),
+        )
+        finish_import_run(conn, run_id, "success", rows_seen=1, rows_inserted=1)
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        route = report["sources"]["pike13"]["route_discovery"]
+        self.assertEqual(route["rows"], 1)
+        self.assertEqual(route["partial_routes"], 1)
+        self.assertEqual(route["source_timestamp_routes"], 1)
 
     def test_source_completeness_report_identifies_partial_and_matching(self):
         conn = self.open_db()

@@ -66,6 +66,7 @@ def dialpad_summary(dialpad):
     voice_coverage = dialpad.get("voice_field_coverage", {})
     target_search = dialpad.get("target_search", {})
     route_discovery = dialpad.get("route_discovery", {})
+    daily_intake = dialpad.get("daily_intake", {})
     return [
         f"SMS rows: {dialpad.get('sms_rows', 0)}",
         f"SMS timestamp coverage: {coverage_text(sms_coverage, 'message_at')}",
@@ -78,6 +79,14 @@ def dialpad_summary(dialpad):
         f"Call-review transcripts: {dialpad.get('call_review_transcript_rows', 0)}",
         f"Call-review recaps: {dialpad.get('call_review_recap_rows', 0)}",
         f"Call-review action-item rows: {dialpad.get('call_review_action_item_rows', 0)}",
+        f"Daily intake tagged rows: {daily_intake.get('daily_intake_rows', 0)}",
+        f"Dialpad communication rows in proof window: {daily_intake.get('communication_window_rows', 0)}",
+        f"Daily inbound rows: {daily_intake.get('daily_inbound_rows', 0)}",
+        f"Unmatched inbound rows: {daily_intake.get('unmatched_inbound_rows', 0)}",
+        f"Possible leads not in HubSpot: {daily_intake.get('possible_lead_not_in_hubspot_rows', 0)}",
+        f"Inbound rows without later outbound follow-up: {daily_intake.get('no_followup_rows', 0)}",
+        f"Latest daily intake timestamp: {daily_intake.get('latest_daily_intake_at') or 'none'}",
+        f"Discovery fallback required: {'yes' if daily_intake.get('discovery_fallback_required') else 'no'}",
         f"Route-map probes: {route_discovery.get('rows', 0)}",
         f"Route-map usable/partial/blocked: {route_discovery.get('usable_routes', 0)}/{route_discovery.get('partial_routes', 0)}/{route_discovery.get('blocked_routes', 0)}",
         f"Route-map SMS/voice/call-review routes: {route_discovery.get('sms_routes', 0)}/{route_discovery.get('voice_routes', 0)}/{route_discovery.get('call_review_routes', 0)}",
@@ -89,6 +98,7 @@ def dialpad_summary(dialpad):
 
 
 def pike13_summary(pike13):
+    route_discovery = pike13.get("route_discovery", {})
     return [
         "Lesson Visits / Notes",
         f"Lesson visit rows: {pike13.get('lesson_visit_rows', 0)}",
@@ -105,6 +115,8 @@ def pike13_summary(pike13):
         f"Rich lead/outcome visit rows: {pike13.get('rich_visit_rows', pike13.get('visit_rows', 0))}",
         f"Plan/pass rows: {pike13.get('plan_pass_rows', 0)}",
         f"Window plus lookahead visits: {pike13.get('window_plus_lookahead_visit_rows', 0)}",
+        f"Route fallback probes: {route_discovery.get('rows', 0)}",
+        f"Route fallback usable/partial/blocked: {route_discovery.get('usable_routes', 0)}/{route_discovery.get('partial_routes', 0)}/{route_discovery.get('blocked_routes', 0)}",
     ]
 
 
@@ -148,9 +160,15 @@ def next_actions(report):
         and dialpad.get("conversation_history_recording_or_transcript_url_rows", 0) == 0
     ):
         actions.append("Fix Dialpad Conversation History call-review URL capture.")
+    daily_intake = dialpad.get("daily_intake", {})
+    if daily_intake.get("discovery_fallback_required"):
+        actions.append("Review Dialpad route-discovery fallback before any DB upload/sync; the latest daily intake was not fully successful.")
+    if daily_intake.get("unmatched_inbound_rows", 0):
+        actions.append("Review the unmatched inbound report for missed calls, voicemails, inbound SMS, and possible leads not in HubSpot.")
     if (
         dialpad.get("status") == "ready"
         and first_value.get("candidate_leads_with_dialpad_comms", 0) > 0
+        and daily_intake.get("daily_intake_rows", 0) == 0
     ):
         actions.append("Build daily Dialpad communications intake and an unmatched inbound action report so calls, texts, and voicemails without HubSpot leads are not missed.")
     if pike13.get("lesson_visit_rows", 0) and pike13.get("rich_visit_rows", pike13.get("visit_rows", 0)) == 0:
@@ -226,6 +244,7 @@ def render_dashboard(report):
         bullet_list(dialpad_summary(dialpad)),
         f"- Latest SMS import: {import_run_text(dialpad.get('latest_sms_import_run'))}",
         f"- Latest voice import: {import_run_text(dialpad.get('latest_voice_import_run'))}",
+        f"- Latest daily intake import: {import_run_text(dialpad.get('latest_daily_intake_import_run'))}",
         f"- Latest call-review import: {import_run_text(dialpad.get('latest_call_review_import_run'))}",
         f"- Latest route-map import: {import_run_text(dialpad.get('latest_route_discovery_import_run'))}",
         f"- Latest target-search import: {import_run_text(dialpad.get('latest_target_search_import_run'))}",
@@ -233,6 +252,7 @@ def render_dashboard(report):
         f"### Pike13 - {status_label(pike13.get('status'))}",
         bullet_list(pike13_summary(pike13)),
         f"- Latest import: {import_run_text(pike13.get('latest_import_run'))}",
+        f"- Latest route fallback import: {import_run_text(pike13.get('latest_route_discovery_import_run'))}",
         "",
         f"### Matching - {status_label(matching.get('status'))}",
         bullet_list(matching_summary(matching)),

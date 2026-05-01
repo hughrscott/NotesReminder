@@ -503,6 +503,123 @@ def dialpad_route_discovery_summary(conn):
     }
 
 
+def source_route_discovery_summary(conn, source):
+    latest_run = import_run_summary(conn, f"{source}_route_discovery")
+    if not latest_run:
+        return {
+            "latest_import_run": None,
+            "rows": 0,
+            "usable_routes": 0,
+            "partial_routes": 0,
+            "blocked_routes": 0,
+            "source_timestamp_routes": 0,
+            "transcript_link_routes": 0,
+            "recording_link_routes": 0,
+            "statuses": {},
+        }
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS rows,
+            SUM(CASE WHEN status = 'usable' THEN 1 ELSE 0 END) AS usable_routes,
+            SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) AS partial_routes,
+            SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked_routes,
+            SUM(CASE WHEN source_timestamp_visible = 1 THEN 1 ELSE 0 END) AS source_timestamp_routes,
+            SUM(CASE WHEN transcript_link_visible = 1 THEN 1 ELSE 0 END) AS transcript_link_routes,
+            SUM(CASE WHEN recording_link_visible = 1 THEN 1 ELSE 0 END) AS recording_link_routes
+        FROM source_route_discoveries
+        WHERE run_id = (
+            SELECT id
+            FROM source_import_runs
+            WHERE source = ?
+            ORDER BY id DESC
+            LIMIT 1
+        )
+        """,
+        (f"{source}_route_discovery",),
+    ).fetchone()
+    statuses = {
+        item["status"]: item["rows"]
+        for item in conn.execute(
+            """
+            SELECT status, COUNT(*) AS rows
+            FROM source_route_discoveries
+            WHERE run_id = (
+                SELECT id
+                FROM source_import_runs
+                WHERE source = ?
+                ORDER BY id DESC
+                LIMIT 1
+            )
+            GROUP BY status
+            ORDER BY status
+            """,
+            (f"{source}_route_discovery",),
+        ).fetchall()
+    }
+    return {
+        "latest_import_run": latest_run,
+        "rows": row["rows"] or 0,
+        "usable_routes": row["usable_routes"] or 0,
+        "partial_routes": row["partial_routes"] or 0,
+        "blocked_routes": row["blocked_routes"] or 0,
+        "source_timestamp_routes": row["source_timestamp_routes"] or 0,
+        "transcript_link_routes": row["transcript_link_routes"] or 0,
+        "recording_link_routes": row["recording_link_routes"] or 0,
+        "statuses": statuses,
+    }
+
+
+def dialpad_daily_intake_summary(conn, window_start):
+    latest_run = import_run_summary(conn, "dialpad_daily_intake")
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS communication_window_rows,
+            SUM(CASE WHEN is_inbound_needing_followup = 1 THEN 1 ELSE 0 END) AS daily_inbound_rows,
+            SUM(CASE WHEN is_inbound_needing_followup = 1 AND match_status != 'matched_hubspot' THEN 1 ELSE 0 END) AS unmatched_inbound_rows,
+            SUM(CASE WHEN action_status = 'possible_lead_not_in_hubspot' THEN 1 ELSE 0 END) AS possible_lead_not_in_hubspot_rows,
+            SUM(CASE WHEN is_inbound_needing_followup = 1 AND has_later_outbound_followup = 0 THEN 1 ELSE 0 END) AS no_followup_rows,
+            SUM(CASE WHEN match_status = 'matched_hubspot' THEN 1 ELSE 0 END) AS matched_hubspot_rows,
+            MAX(event_at) AS latest_daily_intake_at
+        FROM vw_dialpad_daily_intake
+        WHERE date(event_at) >= date(:window_start)
+        """,
+        {"window_start": window_start},
+    ).fetchone()
+    tagged_daily_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) >= date(:window_start)
+          AND COALESCE(
+                json_extract(
+                    CASE WHEN json_valid(COALESCE(raw_json, '{}')) THEN raw_json ELSE '{}' END,
+                    '$.daily_intake'
+                ),
+                0
+              ) = 1
+        """,
+        {"window_start": window_start},
+    )
+    discovery_required = False
+    if latest_run and latest_run.get("status") in {"blocked", "error", "partial"}:
+        discovery_required = True
+    return {
+        "latest_import_run": latest_run,
+        "daily_intake_rows": tagged_daily_rows,
+        "communication_window_rows": row["communication_window_rows"] or 0,
+        "daily_inbound_rows": row["daily_inbound_rows"] or 0,
+        "unmatched_inbound_rows": row["unmatched_inbound_rows"] or 0,
+        "possible_lead_not_in_hubspot_rows": row["possible_lead_not_in_hubspot_rows"] or 0,
+        "no_followup_rows": row["no_followup_rows"] or 0,
+        "matched_hubspot_rows": row["matched_hubspot_rows"] or 0,
+        "latest_daily_intake_at": row["latest_daily_intake_at"],
+        "discovery_fallback_required": discovery_required,
+    }
+
+
 def hubspot_section(conn, window_start):
     total, coverage = field_coverage(
         conn,
@@ -757,8 +874,10 @@ def dialpad_section(conn, window_start):
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     latest_call_review_import_run = import_run_summary(conn, "dialpad_call_reviews")
+    latest_daily_intake_import_run = import_run_summary(conn, "dialpad_daily_intake")
     target_search = dialpad_target_search_summary(conn)
     route_discovery = dialpad_route_discovery_summary(conn)
+    daily_intake = dialpad_daily_intake_summary(conn, window_start)
     latest_voice_view_summaries = {}
     conversation_history_proof = {}
     conversation_history_rows = 0
@@ -800,6 +919,10 @@ def dialpad_section(conn, window_start):
         blockers.append("Latest Dialpad SMS import run failed.")
     if latest_voice_import_run and latest_voice_import_run.get("status") == "error":
         blockers.append("Latest Dialpad voice import run failed.")
+    if latest_daily_intake_import_run and latest_daily_intake_import_run.get("status") == "blocked":
+        blockers.append("Latest Dialpad daily intake was blocked; discovery fallback review is required.")
+    if latest_daily_intake_import_run and latest_daily_intake_import_run.get("status") == "partial":
+        blockers.append("Latest Dialpad daily intake was partial; review route discovery before sync/upload.")
     if latest_voice_import_run and latest_voice_import_run.get("status") == "success":
         if "voicemails" in latest_voice_view_summaries and latest_voice_view_summaries["voicemails"].get("transcript_rows", 0) == 0:
             blockers.append("Latest Dialpad voice proof did not capture visible voicemail transcript rows.")
@@ -850,6 +973,8 @@ def dialpad_section(conn, window_start):
         "latest_sms_import_run": latest_sms_import_run,
         "latest_voice_import_run": latest_voice_import_run,
         "latest_call_review_import_run": latest_call_review_import_run,
+        "latest_daily_intake_import_run": latest_daily_intake_import_run,
+        "daily_intake": daily_intake,
         "target_search": target_search,
         "route_discovery": route_discovery,
         "latest_target_search_import_run": target_search["latest_import_run"],
@@ -859,6 +984,7 @@ def dialpad_section(conn, window_start):
 
 
 def pike13_section(conn, window_start, lookahead_end):
+    route_discovery = source_route_discovery_summary(conn, "pike13")
     lesson_visit_metrics = {
         "lesson_visit_rows": 0,
         "completed_note_rows": 0,
@@ -979,6 +1105,8 @@ def pike13_section(conn, window_start, lookahead_end):
         "visit_field_coverage": visits_coverage,
         "plan_pass_field_coverage": plans_coverage,
         "latest_import_run": import_run_summary(conn, "pike13"),
+        "route_discovery": route_discovery,
+        "latest_route_discovery_import_run": route_discovery["latest_import_run"],
         "blockers": blockers,
     }
 

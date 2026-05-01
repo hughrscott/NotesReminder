@@ -265,6 +265,27 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS source_route_discoveries (
+                route_id TEXT PRIMARY KEY,
+                run_id INTEGER,
+                source TEXT NOT NULL,
+                route_name TEXT NOT NULL,
+                route_url TEXT,
+                status TEXT NOT NULL,
+                loaded_at TEXT NOT NULL,
+                visible_row_count INTEGER DEFAULT 0,
+                visible_link_count INTEGER DEFAULT 0,
+                source_timestamp_visible INTEGER DEFAULT 0,
+                transcript_link_visible INTEGER DEFAULT 0,
+                recording_link_visible INTEGER DEFAULT 0,
+                expected_controls_json TEXT,
+                blocker TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(run_id) REFERENCES source_import_runs(id)
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS pike13_people (
                 person_id TEXT PRIMARY KEY,
                 full_name TEXT,
@@ -383,6 +404,9 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_run ON dialpad_route_discoveries(run_id)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_status ON dialpad_route_discoveries(status)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_route ON dialpad_route_discoveries(route_name)",
+            "CREATE INDEX IF NOT EXISTS idx_source_route_discoveries_source_status ON source_route_discoveries(source, status)",
+            "CREATE INDEX IF NOT EXISTS idx_source_route_discoveries_run ON source_route_discoveries(run_id)",
+            "CREATE INDEX IF NOT EXISTS idx_source_route_discoveries_route ON source_route_discoveries(source, route_name)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
@@ -402,6 +426,8 @@ def _create_views(conn):
             "DROP VIEW IF EXISTS vw_lead_timeline",
             "DROP VIEW IF EXISTS vw_unanswered_messages",
             "DROP VIEW IF EXISTS vw_unanswered_communications",
+            "DROP VIEW IF EXISTS vw_unmatched_dialpad_inbound",
+            "DROP VIEW IF EXISTS vw_dialpad_daily_intake",
             "DROP VIEW IF EXISTS vw_dialpad_communications",
             "DROP VIEW IF EXISTS vw_pike13_lesson_visits",
             "DROP VIEW IF EXISTS vw_stale_leads",
@@ -529,6 +555,135 @@ def _create_views(conn):
                 END,
                 COALESCE(phone_normalized, event_id)
             FROM dialpad_voice_events
+            """,
+            """
+            CREATE VIEW vw_dialpad_daily_intake AS
+            SELECT
+                c.source_table,
+                c.communication_id,
+                c.channel,
+                c.event_type,
+                c.direction,
+                c.event_at,
+                c.phone_normalized,
+                c.school,
+                c.department,
+                c.source_url,
+                c.has_transcript,
+                c.is_inbound_needing_followup,
+                c.followup_key,
+                (
+                    SELECT COUNT(*)
+                    FROM hubspot_contacts hc
+                    WHERE COALESCE(hc.phone_normalized, '') != ''
+                      AND hc.phone_normalized = c.phone_normalized
+                      AND COALESCE(
+                            json_extract(
+                                CASE WHEN json_valid(COALESCE(hc.raw_json, '{}')) THEN hc.raw_json ELSE '{}' END,
+                                '$.trusted'
+                            ),
+                            0
+                          ) = 1
+                      AND LOWER(COALESCE(hc.email_normalized, '')) NOT LIKE '%@schoolofrock.com'
+                ) AS hubspot_contact_match_count,
+                (
+                    SELECT COUNT(*)
+                    FROM pike13_people pp
+                    WHERE COALESCE(pp.phone_normalized, '') != ''
+                      AND pp.phone_normalized = c.phone_normalized
+                ) AS pike13_person_match_count,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM vw_dialpad_communications later
+                        WHERE later.followup_key = c.followup_key
+                          AND later.event_at > c.event_at
+                          AND LOWER(COALESCE(later.direction, '')) LIKE '%outbound%'
+                    ) THEN 1
+                    ELSE 0
+                END AS has_later_outbound_followup,
+                CASE
+                    WHEN (
+                        SELECT COUNT(*)
+                        FROM hubspot_contacts hc
+                        WHERE COALESCE(hc.phone_normalized, '') != ''
+                          AND hc.phone_normalized = c.phone_normalized
+                          AND COALESCE(
+                                json_extract(
+                                    CASE WHEN json_valid(COALESCE(hc.raw_json, '{}')) THEN hc.raw_json ELSE '{}' END,
+                                    '$.trusted'
+                                ),
+                                0
+                              ) = 1
+                          AND LOWER(COALESCE(hc.email_normalized, '')) NOT LIKE '%@schoolofrock.com'
+                    ) > 0 THEN 'matched_hubspot'
+                    WHEN (
+                        SELECT COUNT(*)
+                        FROM pike13_people pp
+                        WHERE COALESCE(pp.phone_normalized, '') != ''
+                          AND pp.phone_normalized = c.phone_normalized
+                    ) > 0 THEN 'matched_pike13_only'
+                    ELSE 'unmatched'
+                END AS match_status,
+                CASE
+                    WHEN c.is_inbound_needing_followup = 1
+                     AND EXISTS (
+                        SELECT 1
+                        FROM vw_dialpad_communications later
+                        WHERE later.followup_key = c.followup_key
+                          AND later.event_at > c.event_at
+                          AND LOWER(COALESCE(later.direction, '')) LIKE '%outbound%'
+                     ) THEN 'followed_up'
+                    WHEN c.is_inbound_needing_followup = 1
+                     AND (
+                        SELECT COUNT(*)
+                        FROM hubspot_contacts hc
+                        WHERE COALESCE(hc.phone_normalized, '') != ''
+                          AND hc.phone_normalized = c.phone_normalized
+                          AND COALESCE(
+                                json_extract(
+                                    CASE WHEN json_valid(COALESCE(hc.raw_json, '{}')) THEN hc.raw_json ELSE '{}' END,
+                                    '$.trusted'
+                                ),
+                                0
+                              ) = 1
+                          AND LOWER(COALESCE(hc.email_normalized, '')) NOT LIKE '%@schoolofrock.com'
+                     ) > 0 THEN 'matched_lead_review'
+                    WHEN c.is_inbound_needing_followup = 1
+                     AND (
+                        SELECT COUNT(*)
+                        FROM pike13_people pp
+                        WHERE COALESCE(pp.phone_normalized, '') != ''
+                          AND pp.phone_normalized = c.phone_normalized
+                     ) > 0 THEN 'matched_pike13_review'
+                    WHEN c.is_inbound_needing_followup = 1 THEN 'possible_lead_not_in_hubspot'
+                    ELSE 'informational'
+                END AS action_status
+            FROM vw_dialpad_communications c
+            WHERE date(c.event_at) IS NOT NULL
+              AND date(c.event_at) <= date('now')
+            """,
+            """
+            CREATE VIEW vw_unmatched_dialpad_inbound AS
+            SELECT
+                source_table,
+                communication_id,
+                channel,
+                event_type,
+                direction,
+                event_at,
+                phone_normalized,
+                school,
+                department,
+                source_url,
+                has_transcript,
+                is_inbound_needing_followup,
+                has_later_outbound_followup,
+                match_status,
+                action_status
+            FROM vw_dialpad_daily_intake
+            WHERE is_inbound_needing_followup = 1
+              AND match_status != 'matched_hubspot'
             """,
             """
             CREATE VIEW vw_lead_timeline AS
