@@ -9,14 +9,22 @@ import argparse
 import asyncio
 from datetime import datetime, timedelta
 import os
+import time
 
 PIKE13_USER = os.environ.get("PIKE13_USER")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
-if not PIKE13_USER or not PIKE13_PASS:
-    raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
 
-async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date=None, verbose=False):
+async def scrape_lessons(
+    school_subdomain,
+    dates=None,
+    start_date=None,
+    end_date=None,
+    verbose=False,
+    profile_dir=None,
+    interactive_login=False,
+    login_timeout=300,
+):
     if dates is None and start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -46,22 +54,74 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
         return False
 
     async with async_playwright() as p:
-        # Launch browser with more debugging options
-        browser = await p.chromium.launch(
-            headless=True,  # Keep headless for CI
-            args=['--disable-dev-shm-usage']  # Helps with memory issues in CI
-        )
-        
-        # Create a new context with tracing enabled
-        context = await browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        )
+        browser = None
+        context_options = {
+            "viewport": {'width': 1920, 'height': 1080},
+            "user_agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        }
+        if profile_dir:
+            context = await p.chromium.launch_persistent_context(
+                profile_dir,
+                headless=not interactive_login,
+                args=['--disable-dev-shm-usage'],
+                **context_options,
+            )
+        else:
+            if not PIKE13_USER or not PIKE13_PASS:
+                raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
+            # Launch browser with more debugging options
+            browser = await p.chromium.launch(
+                headless=True,  # Keep headless for CI
+                args=['--disable-dev-shm-usage']  # Helps with memory issues in CI
+            )
+            
+            # Create a new context with tracing enabled
+            context = await browser.new_context(**context_options)
         
         # Start tracing
         await context.tracing.start(screenshots=True, snapshots=True, sources=True)
         
-        page = await context.new_page()
+        page = next((candidate for candidate in context.pages if not candidate.is_closed()), None)
+        if page is None:
+            page = await context.new_page()
+
+        async def is_authenticated():
+            if any(marker in page.url for marker in ("/accounts/sign_in", "/account/two_factor", "/login")):
+                return False
+            try:
+                body_text = await page.locator("body").inner_text(timeout=5000)
+            except Exception:
+                body_text = ""
+            lowered = body_text.lower()
+            if any(marker in lowered for marker in ("two-factor", "two factor", "verification code", "sign in", "password")):
+                return False
+            if "schedule" in lowered:
+                return True
+            try:
+                return await page.locator('a:has-text("Schedule")').count() > 0
+            except Exception:
+                return False
+
+        async def wait_for_interactive_login(target_url):
+            if not interactive_login:
+                return False
+            print("Pike13 login/MFA required. Complete login in the opened browser window; scraping will continue automatically.")
+            deadline = time.time() + login_timeout
+            while time.time() < deadline:
+                await page.wait_for_timeout(2000)
+                await handle_post_login_interstitial()
+                if await is_authenticated():
+                    await page.goto(target_url)
+                    await page.wait_for_load_state("networkidle", timeout=30000)
+                    return True
+            raise RuntimeError("Timed out waiting for Pike13 interactive login/MFA.")
+
+        async def safe_screenshot(path, **kwargs):
+            try:
+                await page.screenshot(path=path, timeout=10000, **kwargs)
+            except Exception as exc:
+                if verbose:
+                    print(f"⚠️ Screenshot skipped for {path}: {exc}")
 
         async def handle_post_login_interstitial():
             """
@@ -96,20 +156,30 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
             if verbose:
                 print(f"Logging into {school_subdomain}.pike13.com...")
             
-            # Navigate to login page
-            await page.goto(f"https://{school_subdomain}.pike13.com/accounts/sign_in")
-            await page.screenshot(path="screenshots/01_login_page.png")
-            
-            # Fill login form
-            await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
-            await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
-            await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
-            await page.screenshot(path="screenshots/02_login_form_filled.png")
-            
-            # Click login and wait for navigation
-            await page.click('button:has-text("Sign In")')
-            await page.wait_for_timeout(1500)
-            await handle_post_login_interstitial()
+            login_url = f"https://{school_subdomain}.pike13.com/accounts/sign_in"
+            schedule_home_url = f"https://{school_subdomain}.pike13.com/schedule"
+            if profile_dir:
+                await page.goto(schedule_home_url)
+                await page.wait_for_load_state("networkidle", timeout=30000)
+                if not await is_authenticated():
+                    await page.goto(login_url)
+                    await safe_screenshot("screenshots/01_login_page.png")
+                    await wait_for_interactive_login(schedule_home_url)
+            else:
+                # Navigate to login page
+                await page.goto(login_url)
+                await safe_screenshot("screenshots/01_login_page.png")
+                
+                # Fill login form
+                await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
+                await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
+                await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
+                await safe_screenshot("screenshots/02_login_form_filled.png")
+                
+                # Click login and wait for navigation
+                await page.click('button:has-text("Sign In")')
+                await page.wait_for_timeout(1500)
+                await handle_post_login_interstitial()
             
             # Wait for successful login
             try:
@@ -118,13 +188,14 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                     await page.wait_for_selector('a:has-text("Schedule")', timeout=15000)
                 except Exception:
                     await handle_post_login_interstitial()
-                    await page.wait_for_selector('a:has-text("Schedule")', timeout=60000)
+                    if not await wait_for_interactive_login(schedule_home_url):
+                        await page.wait_for_selector('a:has-text("Schedule")', timeout=60000)
                 if verbose:
                     print("✅ Logged in successfully")
-                await page.screenshot(path="screenshots/03_after_login.png")
+                await safe_screenshot("screenshots/03_after_login.png")
             except Exception as e:
                 print(f"⚠️ Login failed: {e}")
-                await page.screenshot(path="screenshots/03_login_failed.png")
+                await safe_screenshot("screenshots/03_login_failed.png")
                 raise Exception("Login failed - check screenshots")
 
             for date in dates:
@@ -135,6 +206,8 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                     if verbose:
                         print(f"⚠️ Skipping {date} due to repeated navigation failures.")
                     continue
+                if not await is_authenticated():
+                    await wait_for_interactive_login(schedule_url)
                 
                 # Wait for calendar to load
                 try:
@@ -148,7 +221,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                     except Exception as e:
                         if verbose:
                             print(f"⚠️ Could not confirm date label {date_label}: {e}")
-                    await page.screenshot(path=f"screenshots/schedule_{date}.png", full_page=True)
+                    await safe_screenshot(f"screenshots/schedule_{date}.png", full_page=True)
                     
                     # Print page title and URL for debugging
                     if verbose:
@@ -272,7 +345,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
                                     print(f"⚠️ Skipping lesson {lesson_id} on {date} due to navigation failures.")
                                 continue
                             await page.wait_for_selector("span#title", timeout=15000)
-                            await page.screenshot(path=f"screenshots/lesson_{lesson_id}.png")
+                            await safe_screenshot(f"screenshots/lesson_{lesson_id}.png")
 
                             lesson_type = await page.text_content("span#title")
                             lesson_time_raw = await page.text_content("span#subtitle")
@@ -324,7 +397,7 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
                             await page.goto(notes_url)
                             await page.wait_for_load_state("networkidle", timeout=30000)
-                            await page.screenshot(path=f"screenshots/notes_{lesson_id}.png")
+                            await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
 
                             notes_element = await page.query_selector("div.richtext_output.unbordered")
                             if notes_element:
@@ -373,13 +446,19 @@ async def scrape_lessons(school_subdomain, dates=None, start_date=None, end_date
 
                 except Exception as e:
                     print(f"⚠️ Error loading schedule for {date}: {e}")
-                    await page.screenshot(path=f"screenshots/error_{date}.png")
+                    try:
+                        await safe_screenshot(f"screenshots/error_{date}.png")
+                    except Exception as screenshot_exc:
+                        if verbose:
+                            print(f"⚠️ Could not capture error screenshot for {date}: {screenshot_exc}")
                     continue
 
         finally:
             # Stop tracing and save trace
             await context.tracing.stop(path="screenshots/trace.zip")
-            await browser.close()
+            await context.close()
+            if browser:
+                await browser.close()
 
     df = pd.DataFrame(lessons_data)
     file_name = f"{school_subdomain}_lessons_{dates[0]}_to_{dates[-1]}.csv"

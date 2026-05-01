@@ -60,6 +60,12 @@ def parse_args():
                         help='OpenAI model for note scoring (default: gpt-4o-mini)')
     parser.add_argument('--note-score-version', default='v1-note-quality',
                         help='Version tag for note scoring prompt/rubric')
+    parser.add_argument('--pike13-profile-dir',
+                        help='Use a persistent local browser profile for Pike13 authentication.')
+    parser.add_argument('--interactive-login', action='store_true',
+                        help='Open a headed Pike13 browser and wait for manual login/MFA before scraping.')
+    parser.add_argument('--login-timeout', type=int, default=300,
+                        help='Seconds to wait for interactive Pike13 login/MFA.')
     return parser.parse_args()
 
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
@@ -689,7 +695,15 @@ async def main():
 
     if args.verbose:
         print(f"🔍 Scraping lessons from {start_date} to {end_date} for {school_subdomain}")
-    await scrape_lessons(school_subdomain, start_date=start_date, end_date=end_date, verbose=args.verbose)
+    await scrape_lessons(
+        school_subdomain,
+        start_date=start_date,
+        end_date=end_date,
+        verbose=args.verbose,
+        profile_dir=args.pike13_profile_dir,
+        interactive_login=args.interactive_login,
+        login_timeout=args.login_timeout,
+    )
 
     # Read the scraped data
     csv_file = f"{school_subdomain}_lessons_{start_date}_to_{end_date}.csv"

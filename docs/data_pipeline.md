@@ -38,6 +38,14 @@ Optional for transcription:
   --to you@example.com manager@example.com
 ```
 
+If Pike13 requires Okta/MFA, run the production notes pipeline locally with a shared persistent browser profile so you can approve the login once, then let the normal scrape/email/S3 sync continue for both schools:
+
+```bash
+scripts/run_notes_local_mfa.sh --date YYYY-MM-DD
+```
+
+The wrapper creates local and S3 backups, runs West U and The Heights with the normal recipients, sends the usual summary emails, and uploads the updated DB to S3. It uses `browser_profiles/pike13` by default. The GitHub Actions job still uses the non-interactive path and cannot satisfy a fresh MFA prompt by itself.
+
 2) Import Dialpad + Pike13 clients (updates call tables + matches):
 
 ```bash
@@ -86,6 +94,33 @@ Pike13 is split into two readiness tracks:
 - Existing lesson visits/notes from `reminders`, used for note-quality and current-student operations.
 - Rich lead outcomes from authenticated Pike13 extraction, used for trial attendance, no-shows, memberships/plans, and conversion attribution.
 
+## Dialpad daily intake and unmatched inbound
+
+Daily Dialpad refresh uses Conversation History as the primary browser route. The default window is 2 days so the daily run has overlap; use 7 days for proof/backfill.
+
+```bash
+python3 scripts/extract_dialpad_daily_intake.py \
+  --db reminders.db \
+  --school "West U" \
+  --window-days 2 \
+  --limit 100 \
+  --profile-dir browser_profiles/dialpad \
+  --interactive-login
+```
+
+If Conversation History loads but returns no rows, or if expected controls are blocked, the command records the import as `partial` or `blocked` and runs Dialpad route discovery for repair diagnostics. Do not upload/sync a DB after a blocked browser refresh without reviewing the dashboard and route-discovery output.
+
+Generate the sanitized unmatched inbound report:
+
+```bash
+python3 scripts/unmatched_inbound_report.py \
+  --db reminders.db \
+  --school "West U" \
+  --window-days 2
+```
+
+The default output is `outputs/progress/unmatched_inbound_report.md`. It flags inbound Dialpad communications without a trusted HubSpot phone match, including possible leads not in HubSpot and rows with no later outbound follow-up. The report is count/status oriented and excludes customer names, phone numbers, SMS bodies, transcripts, recaps, raw notes, and call summaries.
+
 ## Dialpad call reviews and lead attention
 
 After Dialpad Conversation History has loaded call-review URLs, ingest the transcript/recap/action-item evidence without downloading audio by default:
@@ -114,6 +149,7 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.
 - `backfill.py` : Multi-school historical scrape (no email by default).
+- `scripts/run_notes_local_mfa.sh` : Local two-school production notes runner for Pike13 MFA periods.
 - `import_call_data.py` : Import Dialpad + Pike13 client CSVs, build call matches, and refresh `call_logs`.
 - `generate_call_reports.py` : Write voicemail/missed-call CSVs from call data.
 - `build_reporting_schema.py` : Create/backfill reporting tables (`lessons`, `lesson_students`, etc.).
@@ -125,7 +161,10 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 - `scripts/import_call_logs.sh` : Shell wrapper for `import_call_data.py`.
 - `scripts/generate_reports.sh` : Shell wrapper for `generate_call_reports.py`.
 - `scripts/progress_dashboard.py` : Generate the sanitized lead-intelligence readiness dashboard.
+- `scripts/extract_dialpad_daily_intake.py` : Load recent Dialpad Conversation History rows with route-discovery fallback on failure.
 - `scripts/extract_dialpad_call_reviews.py` : Ingest Dialpad call-review transcripts, recaps, action items, and access diagnostics.
+- `scripts/unmatched_inbound_report.py` : Generate the sanitized unmatched inbound Dialpad report.
+- `scripts/discover_pike13_routes.py` : Probe Pike13 routes and record sanitized route-capability diagnostics.
 - `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).

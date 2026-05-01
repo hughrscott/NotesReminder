@@ -1,14 +1,9 @@
 name: Daily Notes Reminder
 
 on:
-  schedule:
-    # Daily run at 9PM America/Chicago year-round.
-    # GitHub cron is UTC, so schedule both DST/standard candidates and gate in-job.
-    - cron: '0 2 * * *'
-    - cron: '0 3 * * *'
-    # Weekly summary on Sunday 9AM America/Chicago year-round.
-    - cron: '0 14 * * 0'
-    - cron: '0 15 * * 0'
+  # Pike13 now requires interactive MFA. Scheduled Actions cannot complete that
+  # login, so production notes are run locally with scripts/run_notes_local_mfa.sh
+  # until a stable non-interactive auth path exists.
   workflow_dispatch:
 
 jobs:
