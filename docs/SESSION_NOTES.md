@@ -1,49 +1,123 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-03-09
+Last updated: 2026-05-01 evening
 
 ## Current State
-- Working DB: `reminders.db` (~67MB). Latest uploaded to S3 via `scripts/publish_db_to_s3.py`.
-- MCP DB copy: `reminders_mcp.db` created via `scripts/publish_mcp_db.sh`.
-- Claude config uses `REMINDERS_DB_PATH` = `reminders_mcp.db` (safe from overwrite).
-- Call transcripts + analyses are in `recording_transcripts`.
-- Intent buckets:
-  - Rule-based: `intent_bucket` (from `scripts/map_intents.py`)
-  - AI-based: `intent_bucket_ai`, `intent_bucket_ai_confidence`, `intent_bucket_ai_reason`, `intent_bucket_ai_run_id`, `intent_bucket_ai_version`, `intent_bucket_ai_updated_at`
 
-## In Progress
-- AI intent classification using:
-  - `scripts/classify_intents_openai.py`
-  - Uses direction-aware prompt + school-context requirement.
-  - Run in batches (e.g., `--limit 250`) until `intent_bucket_ai` is filled for all rows.
-  - Progress check:
-    - `sqlite3 reminders.db "SELECT COUNT(*) FROM recording_transcripts WHERE intent_bucket_ai IS NOT NULL;"`
+- `main` is synced to GitHub through `962f38e` plus the next Dialpad cleanup commit should be checked in before stopping.
+- Current local `reminders.db` is the production notes DB after the May 1 local MFA run.
+- The production notes DB was uploaded to `s3://notesreminder-db/reminders.db` after both schools completed.
+- Current production DB sanity:
+  - `pragma integrity_check`: `ok`
+  - total `reminders`: `15,995`
+  - latest lesson date: `2026-05-01`
+  - May 1 West U rows: `26`, with notes: `14`
+  - May 1 The Heights rows: `5`, with notes: `1`
+- The current production DB does **not** contain the lead-intelligence additive tables, because `run_daily.py` downloads the S3 production DB at the start of each school run.
+- The latest local lead-intelligence proof DB is preserved here:
+  - `outputs/db_backups/reminders.db.20260501-211741.before-local-mfa-notes-run.bak`
+  - contains `25` HubSpot deals
+  - contains `117` Dialpad call-review rows
+  - contains `59` source import runs
 
-## Key Scripts
-- `scripts/publish_mcp_db.sh` — copy working DB to MCP DB
-- `scripts/publish_db_to_s3.py` — upload working DB to S3
-- `scripts/db_guard.py` — verify/backup/replace guard to prevent stale DB overwrites
-- `scripts/discover_db_sources.py` — list S3 versions/candidate DB keys
-- `scripts/recover_legacy_scores.py` — discover/compare/extract legacy score rows
-- `scripts/merge_legacy_scores.py` — import matched legacy scores into `lesson_note_scores_history`
-- `scripts/rebuild_recording_downloads.py` — rebuild recording_downloads from `recordings/`
-- `scripts/find_missed_signup_leads.py` — produce missed leads CSV (default outputs/)
-- `scripts/classify_intents_openai.py` — AI bucket classification
+## Tonight's Production Notes Run
 
-## Outputs
-- `outputs/missed_signup_leads.csv`
-- `outputs/alt_contact_numbers.csv`
-- `outputs/alt_contact_numbers_leads.csv`
-- `outputs/alt_contact_numbers_leads_with_callback.csv`
-- `outputs/matched_legacy_scores.csv`
-- `outputs/unmatched_legacy_scores.csv`
+- Command used:
 
-## Known Gotchas
-- Claude auto-sync from S3 can overwrite MCP DB; use `publish_mcp_db.sh` instead of syncing to working DB.
-- `classify_intents_openai.py` default limit is 100; use `--limit 250` and rerun in batches.
-- If API errors happen, check `logs/classify_intents_errors.log`.
+```bash
+scripts/run_notes_local_mfa.sh --date 2026-05-01
+```
 
-## Next Steps
-1) Finish AI classification in batches.
-2) Regenerate missed signup leads using AI buckets.
-3) Publish MCP DB (`publish_mcp_db.sh`) and optionally upload to S3.
+- Local DB backup:
+  - `outputs/db_backups/reminders.db.20260501-211741.before-local-mfa-notes-run.bak`
+- S3 DB backup:
+  - `s3://notesreminder-db/backups/reminders-before-local-mfa-notes-run-20260501-211741.db`
+- West U:
+  - scraped `27` Pike13 lessons
+  - wrote `26` unique DB rows after one duplicate lesson update
+  - sent the normal daily email
+  - uploaded DB to S3
+- The Heights:
+  - scraped `5` Pike13 lessons
+  - wrote `5` DB rows
+  - sent the normal daily email
+  - uploaded DB to S3
+- The shared Pike13 browser profile worked for both schools:
+  - `browser_profiles/pike13`
+  - West U needed login/MFA
+  - The Heights reused the same browser session without a second MFA prompt
+
+## Dialpad Proof Status
+
+- Dialpad daily intake blocker was resolved.
+- Conversation History pagination was added to `scripts/extract_dialpad_daily_intake.py`.
+- The paginated proof loaded:
+  - 2-day run: `100` rows seen, `76` inserted, `24` updated
+  - 7-day run: `75` rows seen, `12` inserted, `63` updated
+- Call-review ingestion reached `117` targets and inserted many new transcript/recap rows, but a retry pass later ran too long and was stopped.
+- `scripts/extract_dialpad_call_reviews.py` now has:
+  - retry around call-review page navigation
+  - tolerant handling for Transcript-tab click timeouts
+- Before the production notes run overwrote local lead tables, the progress dashboard showed:
+  - HubSpot: `READY`
+  - Dialpad: `READY`
+  - Pike13: `PARTIAL`
+  - first value report: `READY`
+
+## Important Gotcha
+
+The production notes pipeline and the lead-intelligence proof currently compete over the same `reminders.db` file:
+
+- `run_daily.py` starts by downloading `s3://notesreminder-db/reminders.db`.
+- That S3 DB is currently the production notes DB.
+- Lead-intelligence tables may disappear locally after a production notes run unless they are merged back from a lead proof backup.
+
+Tomorrow's first technical decision should be whether to:
+
+1. keep one DB and add a safe merge step after notes runs, or
+2. split production notes DB from local lead-intelligence proof DB until the lead pipeline is ready for S3.
+
+Do **not** upload a lead-mutated DB to S3 until this operating model is explicit.
+
+## Next Steps Tomorrow
+
+1. Confirm no leftover browser/process state:
+
+```bash
+ps -axo pid,ppid,etime,command | rg "run_daily.py|extract_dialpad|browser_profiles/(dialpad|pike13)"
+```
+
+2. Decide DB operating model for lead proof vs production notes.
+3. If continuing the lead proof locally, restore or merge from:
+
+```bash
+outputs/db_backups/reminders.db.20260501-211741.before-local-mfa-notes-run.bak
+```
+
+4. Regenerate:
+
+```bash
+python3 scripts/progress_dashboard.py --db reminders.db --window-days 7 --pike13-lookahead-days 30
+python3 scripts/lead_attention_report.py --db reminders.db --school "West U" --window-days 7
+python3 scripts/unmatched_inbound_report.py --db reminders.db --school "West U" --window-days 2
+```
+
+5. Review Phase 3 check-in:
+   - Dialpad intake is no longer blocked.
+   - Pagination works.
+   - Call-review ingestion needs progress logging and bounded retries before broad backfill.
+6. Then move to Phase 4:
+   - Pike13 rich lead/outcome hardening.
+
+## Files To Check In
+
+These should be committed before stopping:
+
+- `scripts/extract_dialpad_daily_intake.py`
+- `scripts/extract_dialpad_call_reviews.py`
+- `docs/SESSION_NOTES.md`
+
+Leave these untracked files alone unless the user confirms they are intentional:
+
+- `package.json`
+- `package-lock.json`

@@ -36,6 +36,77 @@ DEFAULT_SCHOOL = "West U"
 DEFAULT_OUTPUT_PROFILE = "browser_profiles/dialpad"
 
 
+def click_next_conversation_history_page(page):
+    next_button = page.get_by_label("Next page").first
+    if next_button.count() == 0:
+        return False
+    try:
+        if next_button.is_disabled():
+            return False
+    except Exception:
+        pass
+    try:
+        before_text = page.locator("table tr").nth(1).inner_text(timeout=3000)
+    except Exception:
+        before_text = ""
+    next_button.scroll_into_view_if_needed(timeout=5000)
+    next_button.click(timeout=10000)
+    try:
+        page.wait_for_function(
+            """
+            previous => {
+              const row = document.querySelectorAll('table tr')[1];
+              return row && (row.innerText || row.textContent || '') !== previous;
+            }
+            """,
+            before_text,
+            timeout=10000,
+        )
+    except Exception:
+        page.wait_for_timeout(1500)
+    wait_until_ready(page)
+    return True
+
+
+def extract_conversation_history_pages(page, limit):
+    rows = []
+    links = []
+    seen_event_ids = set()
+    pages_seen = 0
+    while len(rows) < limit:
+        pages_seen += 1
+        page_links = extract_links(page)
+        links.extend(page_links)
+        page_rows = extract_conversation_history_rows_from_dom(page, limit - len(rows))
+        if not page_rows:
+            text = page.locator("body").inner_text(timeout=30000)
+            page_rows = rows_from_visible_text(
+                "conversation_history",
+                page.url,
+                text,
+                limit - len(rows),
+                links=page_links,
+            )
+        new_rows = 0
+        for row in page_rows:
+            event_id = row.get("event_id")
+            if event_id and event_id in seen_event_ids:
+                continue
+            if event_id:
+                seen_event_ids.add(event_id)
+            rows.append(row)
+            new_rows += 1
+            if len(rows) >= limit:
+                break
+        if len(rows) >= limit:
+            break
+        if new_rows == 0:
+            break
+        if not click_next_conversation_history_page(page):
+            break
+    return rows, links, pages_seen
+
+
 def conversation_history_window_url(window_days):
     days = max(int(window_days), 0)
     return f"https://dialpad.com/conversationhistory?days=0-{days}"
@@ -127,14 +198,11 @@ def run_daily_intake(
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 wait_until_ready(page)
             filter_diagnostics = try_apply_conversation_history_filters(page, school)
-            text = page.locator("body").inner_text(timeout=30000)
-            links = extract_links(page)
-            rows = extract_conversation_history_rows_from_dom(page, limit)
-            if not rows:
-                rows = rows_from_visible_text("conversation_history", page.url, text, limit, links=links)
+            rows, links, pages_seen = extract_conversation_history_pages(page, limit)
             view_summary = summarize_view("conversation_history", page.url, rows, links)
             view_summary["filter_diagnostics"] = filter_diagnostics
             view_summary["clear_diagnostics"] = clear_diagnostics
+            view_summary["pages_seen"] = pages_seen
             rows_seen = len(rows)
             for row in rows:
                 row = enrich_daily_row(row, window_days, school, filter_diagnostics)

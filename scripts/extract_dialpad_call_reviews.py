@@ -6,6 +6,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -164,14 +165,30 @@ def call_review_targets(conn, limit):
     ).fetchall()
 
 
+def goto_call_review_with_retry(page, url, attempts=3):
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                page.wait_for_timeout(2000 * attempt)
+    raise last_error
+
+
 def extract_call_review_page(page, target, interactive_login=False, login_timeout=300):
-    page.goto(target["call_review_url"], wait_until="domcontentloaded", timeout=60000)
+    goto_call_review_with_retry(page, target["call_review_url"])
     wait_until_ready(page)
     wait_for_authenticated_page(page, target["call_review_url"], interactive_login, login_timeout)
     transcript_button = page.get_by_text("Transcript", exact=True)
     if transcript_button.count():
-        transcript_button.first.click()
-        page.wait_for_timeout(1000)
+        try:
+            transcript_button.first.click(timeout=10000)
+            page.wait_for_timeout(1000)
+        except PlaywrightTimeoutError:
+            pass
     text = page.locator("body").inner_text(timeout=30000)
     parsed = parse_call_review_text(page.url, text)
     parsed.update(
