@@ -9,10 +9,23 @@ from lead_followup_schema import ensure_lead_followup_schema, upsert_identity_ma
 
 DEFAULT_WINDOW_DAYS = 7
 DEFAULT_PIKE13_LOOKAHEAD_DAYS = 30
+STALE_RUNNING_RUN_HOURS = 6
 
 
 def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0)
+
+
+def parse_iso_datetime(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def iso_date_days_ago(days, now=None):
@@ -332,10 +345,31 @@ def refresh_identity_matches(conn):
     return inserted
 
 
-def import_run_summary(conn, source):
+def _import_run_dict(row):
+    summary = dict(row)
+    metadata = summary.pop("metadata_json", None)
+    if metadata:
+        try:
+            summary["metadata"] = json.loads(metadata)
+        except json.JSONDecodeError:
+            summary["metadata"] = metadata
+    return summary
+
+
+def _stale_running_run(summary, now=None, stale_after_hours=STALE_RUNNING_RUN_HOURS):
+    if (summary.get("status") or "").lower() != "running":
+        return False
+    started_at = parse_iso_datetime(summary.get("started_at"))
+    if not started_at:
+        return False
+    age = (now or utc_now()) - started_at
+    return age.total_seconds() >= stale_after_hours * 3600
+
+
+def import_run_summary(conn, source, now=None, stale_after_hours=STALE_RUNNING_RUN_HOURS):
     row = conn.execute(
         """
-        SELECT source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error, metadata_json
+        SELECT id, source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error, metadata_json
         FROM source_import_runs
         WHERE source = ?
         ORDER BY id DESC
@@ -345,13 +379,37 @@ def import_run_summary(conn, source):
     ).fetchone()
     if not row:
         return None
-    summary = dict(row)
-    metadata = summary.pop("metadata_json", None)
-    if metadata:
-        try:
-            summary["metadata"] = json.loads(metadata)
-        except json.JSONDecodeError:
-            summary["metadata"] = metadata
+    summary = _import_run_dict(row)
+    if not _stale_running_run(summary, now=now, stale_after_hours=stale_after_hours):
+        return summary
+
+    fallback = conn.execute(
+        """
+        SELECT id, source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error, metadata_json
+        FROM source_import_runs
+        WHERE source = ?
+          AND LOWER(COALESCE(status, '')) != 'running'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (source,),
+    ).fetchone()
+    stale_info = {
+        "id": summary.get("id"),
+        "source": summary.get("source"),
+        "status": summary.get("status"),
+        "started_at": summary.get("started_at"),
+        "rows_seen": summary.get("rows_seen"),
+        "rows_inserted": summary.get("rows_inserted"),
+        "rows_updated": summary.get("rows_updated"),
+    }
+    if fallback:
+        fallback_summary = _import_run_dict(fallback)
+        fallback_summary["stale_running_run"] = stale_info
+        return fallback_summary
+
+    summary["status"] = "stale"
+    summary["stale_running_run"] = stale_info
     return summary
 
 

@@ -117,6 +117,20 @@ python3 scripts/unmatched_inbound_report.py --db outputs/lead_intelligence/lead_
    - Call-review ingestion needs progress logging and bounded retries before broad backfill.
 5. Then move to Phase 4:
    - Pike13 rich lead/outcome hardening.
+   - Use `venv/bin/python` for the headed Pike13 proof on this machine; system `python3` can run headless but the headed bundled browser crashes.
+   - Current proof command:
+
+```bash
+venv/bin/python scripts/extract_pike13_leads.py \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --profile-dir browser_profiles/pike13 \
+  --base-url https://westu-sor.pike13.com \
+  --school "West U" \
+  --limit 5 \
+  --interactive-login
+```
+
+   - The command waits at the login checkpoint; complete Pike13 MFA, then press Enter in the terminal.
 
 ## Files To Check In
 

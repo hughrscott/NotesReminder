@@ -104,6 +104,17 @@ def fake_report():
                     "rows_inserted": 5,
                     "rows_updated": 35,
                 },
+                "latest_call_review_import_run": {
+                    "status": "success",
+                    "finished_at": "2026-04-29T18:16:00+00:00",
+                    "rows_seen": 12,
+                    "rows_inserted": 12,
+                    "rows_updated": 0,
+                    "stale_running_run": {
+                        "status": "running",
+                        "started_at": "2026-04-30T00:00:00+00:00",
+                    },
+                },
                 "latest_route_discovery_import_run": {
                     "status": "success",
                     "finished_at": "2026-04-29T09:55:00+00:00",
@@ -206,6 +217,8 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Targeted lead-phone searches: 8", markdown)
         self.assertIn("Targeted searches not found/blocked: 8", markdown)
         self.assertIn("Latest target-search import: SUCCESS", markdown)
+        self.assertIn("Latest call-review import: SUCCESS", markdown)
+        self.assertIn("Ignored stale RUNNING run", markdown)
         self.assertIn("## First Value Report - READY", markdown)
         self.assertIn("Report ready: yes", markdown)
         self.assertIn("Lead-attention candidates: 10", markdown)

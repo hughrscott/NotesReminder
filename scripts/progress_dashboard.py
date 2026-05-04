@@ -19,6 +19,7 @@ STATUS_LABELS = {
     "ready": "READY",
     "partial": "PARTIAL",
     "blocked": "BLOCKED",
+    "stale": "STALE",
 }
 
 
@@ -39,7 +40,11 @@ def import_run_text(run):
     seen = run.get("rows_seen", 0)
     inserted = run.get("rows_inserted", 0)
     updated = run.get("rows_updated", 0)
-    return f"{status} at {finished}; seen {seen}, inserted {inserted}, updated {updated}."
+    text = f"{status} at {finished}; seen {seen}, inserted {inserted}, updated {updated}."
+    stale = run.get("stale_running_run")
+    if stale:
+        text += f" Ignored stale RUNNING run started {stale.get('started_at') or 'unknown'}."
+    return text
 
 
 def bullet_list(items):

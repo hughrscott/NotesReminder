@@ -124,6 +124,20 @@ Pike13 is split into two readiness tracks:
 - Existing lesson visits/notes from `reminders`, used for note-quality and current-student operations.
 - Rich lead outcomes from authenticated Pike13 extraction, used for trial attendance, no-shows, memberships/plans, and conversion attribution.
 
+Run the West U linked-lead Pike13 outcome proof against the local lead working DB. Use the repo venv for headed MFA login on this machine:
+
+```bash
+venv/bin/python scripts/extract_pike13_leads.py \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --profile-dir browser_profiles/pike13 \
+  --base-url https://westu-sor.pike13.com \
+  --school "West U" \
+  --limit 5 \
+  --interactive-login
+```
+
+If the browser pauses at the login checkpoint, complete Pike13 MFA manually, then press Enter in the terminal. Do not upload the lead working DB to production S3 after a blocked or interrupted Pike13 run.
+
 ## Dialpad daily intake and unmatched inbound
 
 Daily Dialpad refresh uses Conversation History as the primary browser route. The default window is 2 days so the daily run has overlap; use 7 days for proof/backfill.

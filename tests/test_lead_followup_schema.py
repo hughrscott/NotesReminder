@@ -2,6 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from lead_followup_schema import (
@@ -12,7 +13,7 @@ from lead_followup_schema import (
     start_import_run,
     utc_now_iso,
 )
-from source_completeness import build_source_completeness_report
+from source_completeness import build_source_completeness_report, import_run_summary
 
 
 class LeadFollowupSchemaTests(unittest.TestCase):
@@ -98,6 +99,46 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(row["rows_seen"], 3)
         self.assertEqual(row["rows_inserted"], 2)
         self.assertEqual(row["rows_updated"], 1)
+
+    def test_import_run_summary_uses_latest_completed_when_running_run_is_stale(self):
+        conn = self.open_db()
+        completed_id = start_import_run(
+            conn,
+            "dialpad_call_reviews",
+            "extract_dialpad_call_reviews.py",
+            "2026-04-25",
+        )
+        finish_import_run(
+            conn,
+            completed_id,
+            "success",
+            rows_seen=117,
+            rows_inserted=117,
+        )
+        conn.execute(
+            """
+            INSERT INTO source_import_runs (
+                source, extractor, started_at, status, rows_seen, rows_inserted, rows_updated
+            )
+            VALUES (
+                'dialpad_call_reviews', 'extract_dialpad_call_reviews.py',
+                '2026-05-01T00:00:00+00:00', 'running', 0, 0, 0
+            )
+            """
+        )
+
+        summary = import_run_summary(
+            conn,
+            "dialpad_call_reviews",
+            now=datetime.fromisoformat("2026-05-01T12:00:00+00:00"),
+        )
+        self.assertEqual(summary["status"], "success")
+        self.assertEqual(summary["rows_seen"], 117)
+        self.assertEqual(summary["stale_running_run"]["status"], "running")
+        self.assertEqual(
+            summary["stale_running_run"]["started_at"],
+            "2026-05-01T00:00:00+00:00",
+        )
 
     def test_curated_views_return_actionable_rows(self):
         conn = self.open_db()

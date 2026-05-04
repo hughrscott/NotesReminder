@@ -34,6 +34,15 @@ def _execute_many(conn, statements):
         conn.execute(statement)
 
 
+def _table_columns(conn, table):
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _add_column_if_missing(conn, table, column, definition):
+    if column not in _table_columns(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def ensure_lead_followup_schema(conn):
     """Create the V1 lead follow-up tables, indexes, and curated views."""
     _execute_many(
@@ -312,6 +321,7 @@ def ensure_lead_followup_schema(conn):
                 starts_at TEXT,
                 status TEXT,
                 no_show_flag INTEGER DEFAULT 0,
+                canceled_flag INTEGER DEFAULT 0,
                 unpaid_flag INTEGER DEFAULT 0,
                 waiver_flag INTEGER DEFAULT 0,
                 school TEXT,
@@ -376,6 +386,7 @@ def ensure_lead_followup_schema(conn):
             """,
         ],
     )
+    _add_column_if_missing(conn, "pike13_visits", "canceled_flag", "INTEGER DEFAULT 0")
     _execute_many(
         conn,
         [
