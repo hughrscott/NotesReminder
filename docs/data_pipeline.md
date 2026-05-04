@@ -1,14 +1,14 @@
 # NotesReminder Data Pipeline
 
 ## Overview
-This project maintains a single SQLite database (`reminders.db`) that is synced to S3. The daily scrape updates lesson notes; call logs + client imports add Dialpad/Pike13 data for reporting.
+This project keeps the production lesson-note database (`reminders.db`) synced to S3. While lead intelligence is still being hardened, a separate local working DB is used for HubSpot/Dialpad/Pike13 lead proof work so production notes emails stay isolated.
 
 ## Two-pipeline operating model
 
-`reminders.db` is the single version of truth, but the current notes emails and the new lead intelligence work are separate operational pipelines.
+`reminders.db` is the production source of truth, but the current notes emails and the new lead intelligence work are separate operational pipelines until the production merge gate is passed.
 
 - Production notes pipeline: GitHub Actions runs `run_daily.py`, downloads the S3 DB, scrapes Pike13 lesson notes, scores notes, sends the daily/weekly lesson-note emails, and uploads the DB back to S3.
-- Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into the same DB, then validates them with the source completeness report.
+- Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into `outputs/lead_intelligence/lead_intelligence_working.db`, then validates them with the source completeness report.
 - Lead refresh work must not change the current daily/weekly email content until there is a separate plan and acceptance gate for adding lead insights to those summaries.
 - Lead tables are additive. They must not change the meaning of the existing `reminders` table or note-score columns used by `run_daily.py`.
 
@@ -16,6 +16,7 @@ This project maintains a single SQLite database (`reminders.db`) that is synced 
 - `Call Log/` : Dialpad CSV exports (`Call_Logs*.csv`, `Voicemails*.csv`, etc.)
 - `ClientList/` : Pike13 client CSV export
 - `reminders.db` : Local SQLite database (synced to S3)
+- `outputs/lead_intelligence/lead_intelligence_working.db` : Local lead proof DB seeded from production notes plus additive lead tables
 - `screenshots/` : Playwright screenshots for debugging Pike13 scraping
 
 ## Environment setup
@@ -46,6 +47,24 @@ scripts/run_notes_local_mfa.sh --date YYYY-MM-DD
 
 The wrapper creates local and S3 backups, runs West U and The Heights with the normal recipients, sends the usual summary emails, and uploads the updated DB to S3. It uses `browser_profiles/pike13` by default. The GitHub Actions job still uses the non-interactive path and cannot satisfy a fresh MFA prompt by itself.
 
+After a successful production notes run, rebuild the local lead working DB so lead reports include the latest lesson-note evidence:
+
+```bash
+python3 scripts/rebuild_lead_working_db.py \
+  --production-db reminders.db \
+  --lead-proof-db outputs/lead_intelligence/lead_intelligence_working.db \
+  --output outputs/lead_intelligence/lead_intelligence_working.db
+```
+
+For the first rebuild after the May 1 lead proof, use the preserved proof backup as the lead source:
+
+```bash
+python3 scripts/rebuild_lead_working_db.py \
+  --production-db reminders.db \
+  --lead-proof-db outputs/db_backups/reminders.db.20260501-211741.before-local-mfa-notes-run.bak \
+  --output outputs/lead_intelligence/lead_intelligence_working.db
+```
+
 2) Import Dialpad + Pike13 clients (updates call tables + matches):
 
 ```bash
@@ -63,18 +82,29 @@ The wrapper creates local and S3 backups, runs West U and The Heights with the n
 
 ## Lead refresh safety checklist
 
-Use this checklist before uploading a DB that has been touched by local authenticated lead refresh work:
+Use this checklist before uploading any DB that has been touched by local authenticated lead refresh work. During the split-DB phase, lead refresh and reporting should use `outputs/lead_intelligence/lead_intelligence_working.db`, not production `reminders.db`.
 
 1. Pull the latest Git state and confirm no unexpected tracked files are dirty.
 2. Verify or download the latest S3 `reminders.db`.
 3. Create a local backup of `reminders.db`.
-4. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the backup-backed working DB.
-5. Run `python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
-6. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db reminders.db --window-days 7 --pike13-lookahead-days 30`.
-7. Generate the lead-attention report with `python3 scripts/lead_attention_report.py --db reminders.db --school "West U" --window-days 7`.
-8. Validate that existing `reminders` row counts and note-score columns are still intact.
-9. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
-10. Upload/sync the DB only after the source completeness report, progress dashboard, lead-attention report, and notes-pipeline checks look correct.
+4. Rebuild the lead working DB from production notes plus the latest lead table source.
+5. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the lead working DB.
+6. Run `python3 scripts/source_completeness_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
+7. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db outputs/lead_intelligence/lead_intelligence_working.db --window-days 7 --pike13-lookahead-days 30`.
+8. Generate the lead-attention report with `python3 scripts/lead_attention_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --school "West U" --window-days 7`.
+9. Validate that existing `reminders` row counts and note-score columns are still intact.
+10. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
+11. Upload/sync a lead-mutated DB only after the production merge gate is explicitly reviewed.
+
+Production merge gate:
+
+- Production notes run succeeds for both schools.
+- Lead working DB includes the latest `reminders` rows and note scores.
+- Dialpad daily intake is repeatable.
+- Lead reports are useful and sanitized.
+- Pike13 rich outcomes have a clear readiness status.
+- A backup exists before any DB upload.
+- We explicitly decide whether to upload one merged DB or a separate lead-intelligence S3 key.
 
 ## Lead intelligence progress dashboard
 
@@ -82,7 +112,7 @@ Generate a sanitized Markdown dashboard after each local lead refresh:
 
 ```bash
 python3 scripts/progress_dashboard.py \
-  --db reminders.db \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
   --window-days 7 \
   --pike13-lookahead-days 30
 ```
@@ -100,7 +130,7 @@ Daily Dialpad refresh uses Conversation History as the primary browser route. Th
 
 ```bash
 python3 scripts/extract_dialpad_daily_intake.py \
-  --db reminders.db \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
   --school "West U" \
   --window-days 2 \
   --limit 100 \
@@ -114,7 +144,7 @@ Generate the sanitized unmatched inbound report:
 
 ```bash
 python3 scripts/unmatched_inbound_report.py \
-  --db reminders.db \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
   --school "West U" \
   --window-days 2
 ```
@@ -127,7 +157,7 @@ After Dialpad Conversation History has loaded call-review URLs, ingest the trans
 
 ```bash
 python3 scripts/extract_dialpad_call_reviews.py \
-  --db reminders.db \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
   --profile-dir browser_profiles/dialpad \
   --limit 25 \
   --interactive-login
@@ -139,7 +169,7 @@ Generate the first value report:
 
 ```bash
 python3 scripts/lead_attention_report.py \
-  --db reminders.db \
+  --db outputs/lead_intelligence/lead_intelligence_working.db \
   --school "West U" \
   --window-days 7
 ```
@@ -150,6 +180,7 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.
 - `backfill.py` : Multi-school historical scrape (no email by default).
 - `scripts/run_notes_local_mfa.sh` : Local two-school production notes runner for Pike13 MFA periods.
+- `scripts/rebuild_lead_working_db.py` : Rebuild ignored local lead working DB from production notes plus additive lead tables.
 - `import_call_data.py` : Import Dialpad + Pike13 client CSVs, build call matches, and refresh `call_logs`.
 - `generate_call_reports.py` : Write voicemail/missed-call CSVs from call data.
 - `build_reporting_schema.py` : Create/backfill reporting tables (`lessons`, `lesson_students`, etc.).

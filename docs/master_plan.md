@@ -23,6 +23,8 @@ At the end of every phase, check in, review what actually happened, compare it a
 
 ## Phase 3: Finish Dialpad Daily Intake
 
+- Keep Dialpad/HubSpot/Pike13 lead proof work in `outputs/lead_intelligence/lead_intelligence_working.db` until the production merge gate passes.
+- Rebuild the lead working DB from the latest production `reminders.db` after each successful notes run so lesson-note evidence remains current.
 - Use Dialpad Conversation History as the main intake route.
 - Default daily refresh is a 2-day rolling window; proof/backfill starts at 7 days.
 - Capture calls, missed calls, voicemails, recordings, call-review URLs, AI transcripts/recaps, and SMS where available.
@@ -41,6 +43,7 @@ At the end of every phase, check in, review what actually happened, compare it a
 
 - Widen only after the 7-day proof is trustworthy: 7 days, 30 days, April 1 2026 forward, then January 1 2025 forward.
 - Before each widening, create local and S3 DB backups, run source completeness, and review dashboard blockers.
+- Keep backfill in the lead working DB until production notes, lead reports, Dialpad intake, and Pike13 outcome readiness pass the merge gate.
 - Acceptance: each wider window preserves source timestamps, matching quality, and report usefulness without corrupting the production notes workflow.
 
 ## Phase 6: First Business Value Reports And MCP Tools
@@ -73,6 +76,8 @@ At the end of every phase, check in, review what actually happened, compare it a
 ## Assumptions And Defaults
 
 - `reminders.db` remains the production source of truth and syncs to S3.
+- `outputs/lead_intelligence/lead_intelligence_working.db` is the temporary local lead proof DB and is not committed or uploaded to the production S3 key.
+- Lead intelligence must merge with production before production use because lesson notes are key performance indicators.
 - Manual Pike13 MFA runs are the correct short-term answer.
 - Browser profiles are local operational state and are not committed.
 - Existing daily/weekly notes emails remain unchanged until there is a separate accepted plan to add new reporting.
