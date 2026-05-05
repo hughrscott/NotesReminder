@@ -655,6 +655,25 @@ class LeadFollowupSchemaTests(unittest.TestCase):
                  '', NULL, 'pike-3', NULL, '2026-04-23')
             """
         )
+        route_run_id = start_import_run(conn, "pike13_route_discovery", "test", metadata={"route_count": 2})
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO source_route_discoveries (
+                route_id, run_id, source, route_name, route_url, status, loaded_at,
+                visible_row_count, visible_link_count, source_timestamp_visible,
+                transcript_link_visible, recording_link_visible, expected_controls_json,
+                blocker, raw_json, updated_at
+            )
+            VALUES
+                ('route-person', ?, 'pike13', 'known_person', 'https://westu-sor.pike13.com/people/1',
+                 'usable', ?, 10, 5, 1, 0, 0, '[]', NULL, '{}', ?),
+                ('route-events', ?, 'pike13', 'visits_or_events', 'https://westu-sor.pike13.com/events',
+                 'usable', ?, 4, 1, 0, 0, 0, '[]', NULL, '{}', ?)
+            """,
+            (route_run_id, now, now, route_run_id, now, now),
+        )
+        finish_import_run(conn, route_run_id, "success", rows_seen=2, rows_inserted=2, rows_updated=0)
 
         report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
         pike13 = report["sources"]["pike13"]
@@ -667,7 +686,12 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(pike13["canceled_rows"], 1)
         self.assertEqual(pike13["trial_lesson_rows"], 1)
         self.assertEqual(pike13["note_score_coverage"]["filled"], 1)
-        self.assertTrue(any("Rich Pike13 lead/outcome visits" in blocker for blocker in pike13["blockers"]))
+        self.assertTrue(
+            any(
+                "route discovery can load Pike13 pages, but the extractor did not find visit/event IDs" in blocker
+                for blocker in pike13["blockers"]
+            )
+        )
 
 
 if __name__ == "__main__":

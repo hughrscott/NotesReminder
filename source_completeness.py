@@ -1129,7 +1129,17 @@ def pike13_section(conn, window_start, lookahead_end):
     if people_total == 0:
         blockers.append("No Pike13 people loaded.")
     if visits_total == 0:
-        blockers.append("Rich Pike13 lead/outcome visits are not loaded.")
+        if route_discovery["rows"] and route_discovery["blocked_routes"] == 0:
+            blockers.append(
+                "Rich Pike13 lead/outcome visits are not loaded; route discovery can load Pike13 pages, "
+                "but the extractor did not find visit/event IDs."
+            )
+        elif route_discovery["blocked_routes"]:
+            blockers.append(
+                "Rich Pike13 lead/outcome visits are not loaded; Pike13 route discovery has blocked routes."
+            )
+        else:
+            blockers.append("Rich Pike13 lead/outcome visits are not loaded.")
     if visits_total and visits_coverage["starts_at"]["fill_rate"] < 80:
         blockers.append("Pike13 visit date coverage is below readiness threshold.")
     if lesson_visit_metrics["lesson_visit_rows"] == 0 and visits_total == 0:
