@@ -143,6 +143,15 @@ async def scrape_lessons(
                 if verbose:
                     print(f"⚠️ Screenshot skipped for {path}: {exc}")
 
+        async def optional_text_content(selector, default="", timeout=5000):
+            try:
+                value = await page.text_content(selector, timeout=timeout)
+                return value if value is not None else default
+            except Exception as exc:
+                if verbose:
+                    print(f"⚠️ Optional Pike13 field missing for {selector}: {exc}")
+                return default
+
         async def handle_post_login_interstitial():
             """
             Pike13 may show a 2FA setup interstitial after login.
@@ -379,7 +388,9 @@ async def scrape_lessons(
                             if " on " in lesson_time_clean:
                                 lesson_time_clean = lesson_time_clean.split(" on ", 1)[0].strip()
                             lesson_time = lesson_time_clean
-                            instructor = await page.text_content(".sidebar_group.sidebar_menu li.person_menu_item a")
+                            instructor = await optional_text_content(
+                                ".sidebar_group.sidebar_menu li.person_menu_item a"
+                            )
 
                             student_elements = await page.query_selector_all(".person-name a.name-link")
                             students = []
