@@ -3,7 +3,11 @@ import unittest
 
 from lead_followup_schema import ensure_lead_followup_schema
 from scripts.extract_pike13_leads import (
+    capture_visit_link_rows,
     capture_related_rows,
+    first_date_like,
+    is_auth_redirect,
+    normalize_date_like,
     parse_person_text,
     person_urls_from_db,
     upsert_person,
@@ -108,6 +112,7 @@ class Pike13ExtractorTests(unittest.TestCase):
         self.assertEqual(len(visits), 1)
         self.assertEqual(visits[0]["visit_id"], "987654")
         self.assertEqual(visits[0]["event_id"], "292297814")
+        self.assertEqual(visits[0]["starts_at"], "2026-04-28T18:00:00")
         self.assertEqual(visits[0]["status"], "No Show")
         self.assertEqual(visits[0]["no_show_flag"], 1)
         self.assertEqual(visits[0]["unpaid_flag"], 1)
@@ -131,7 +136,44 @@ class Pike13ExtractorTests(unittest.TestCase):
         self.assertEqual(len(plans), 1)
         self.assertEqual(plans[0]["name"], "Rock 101 Monthly")
         self.assertEqual(plans[0]["status"], "Active")
-        self.assertEqual(plans[0]["starts_at"], "Apr 29, 2026")
+        self.assertEqual(plans[0]["starts_at"], "2026-04-29")
+
+    def test_capture_visit_link_rows_extracts_row_level_outcomes(self):
+        visits = capture_visit_link_rows(
+            "15046380",
+            [
+                {
+                    "href": "https://westu-sor.pike13.com/events/292297814/visits/987654",
+                    "text": "Adult Band Trial\nApr 28, 2026 at 6:00 PM\nNo Show\nUnpaid",
+                },
+                {
+                    "href": "https://westu-sor.pike13.com/events/292297815",
+                    "text": "Rock 101 Trial\nMay 1, 2026 5:30 PM\nComplete",
+                },
+            ],
+            "West U",
+        )
+
+        self.assertEqual(len(visits), 2)
+        self.assertEqual(visits[0]["visit_id"], "987654")
+        self.assertEqual(visits[0]["event_id"], "292297814")
+        self.assertEqual(visits[0]["service"], "Adult Band Trial")
+        self.assertEqual(visits[0]["starts_at"], "2026-04-28T18:00:00")
+        self.assertEqual(visits[0]["status"], "No Show")
+        self.assertEqual(visits[0]["no_show_flag"], 1)
+        self.assertTrue(visits[1]["visit_id"].startswith("pike13_visit_"))
+        self.assertEqual(visits[1]["event_id"], "292297815")
+        self.assertEqual(visits[1]["starts_at"], "2026-05-01T17:30:00")
+        self.assertEqual(visits[1]["status"], "Complete")
+
+    def test_date_normalization_handles_pike13_formats(self):
+        self.assertEqual(normalize_date_like("Apr 28, 2026 at 6:00 PM"), "2026-04-28T18:00:00")
+        self.assertEqual(normalize_date_like("4/28/2026 6:00 PM"), "2026-04-28T18:00:00")
+        self.assertEqual(first_date_like("When Tuesday, Apr 28, 2026 at 6:00 PM"), "2026-04-28T18:00:00")
+
+    def test_auth_redirect_detection(self):
+        self.assertTrue(is_auth_redirect("https://westu-sor.pike13.com/accounts/sign_in"))
+        self.assertFalse(is_auth_redirect("https://westu-sor.pike13.com/people/15046380"))
 
     def test_upserts_are_idempotent_and_person_urls_are_school_scoped(self):
         conn = open_db()

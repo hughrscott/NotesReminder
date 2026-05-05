@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urljoin
 
+from dateutil import parser as date_parser
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -33,9 +34,14 @@ PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
 VISIT_RE = re.compile(r"/visits/(\d+)")
 EVENT_RE = re.compile(r"/events/(\d+)")
 DATE_RE = re.compile(
-    r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:AM|PM)?)?",
+    r"\b(?:Mon|Tue|Tues|Wed|Thu|Thurs|Fri|Sat|Sun)?(?:day)?[,]?\s*"
+    r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}"
+    r"(?:\s+(?:at\s+)?\d{1,2}:\d{2}\s*(?:AM|PM)?)?",
     re.IGNORECASE,
 )
+NUMERIC_DATE_RE = re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}(?:\s+\d{1,2}:\d{2}\s*(?:AM|PM)?)?\b", re.IGNORECASE)
+ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?\b")
+SERVICE_LABELS = ("Service", "Event", "Offering", "Appointment", "Visit", "Class")
 
 
 def stable_id(prefix, *parts):
@@ -47,6 +53,23 @@ def text_after(label, text):
     pattern = re.compile(rf"{re.escape(label)}\s*:?\s+([^\n]+)", re.IGNORECASE)
     match = pattern.search(text)
     return match.group(1).strip() if match else None
+
+
+def normalize_date_like(value):
+    if not value:
+        return None
+    clean = re.sub(r"\s+", " ", str(value).replace(" at ", " ")).strip(" ,")
+    if not clean:
+        return None
+    try:
+        parsed = date_parser.parse(clean, fuzzy=True, default=date_parser.parse("1900-01-01"))
+    except (ValueError, OverflowError, TypeError):
+        return value.strip() if isinstance(value, str) else None
+    if parsed.year == 1900:
+        return value.strip() if isinstance(value, str) else None
+    if parsed.hour or parsed.minute or parsed.second:
+        return parsed.replace(second=0, microsecond=0).isoformat()
+    return parsed.date().isoformat()
 
 
 def person_id_from_url(url):
@@ -121,9 +144,9 @@ def first_date_like(text):
     for label in ("Date & Time", "Date", "Starts", "Start", "When"):
         value = text_after(label, text)
         if value:
-            return value
-    match = DATE_RE.search(text)
-    return match.group(0).strip() if match else None
+            return normalize_date_like(value)
+    match = DATE_RE.search(text) or NUMERIC_DATE_RE.search(text) or ISO_DATE_RE.search(text)
+    return normalize_date_like(match.group(0)) if match else None
 
 
 def pike13_status(text):
@@ -140,6 +163,60 @@ def pike13_status(text):
     if "incomplete" in lower:
         return "Incomplete"
     return value
+
+
+def pike13_service(text):
+    for label in SERVICE_LABELS:
+        value = text_after(label, text)
+        if value:
+            return value
+    for line in (text or "").splitlines():
+        clean = line.strip()
+        if not clean:
+            continue
+        lower = clean.lower()
+        if any(token in lower for token in ("trial", "lesson", "class", "band", "rookies", "rock 101")):
+            return clean[:240]
+    return None
+
+
+def outcome_label(text):
+    status = pike13_status(text)
+    if status:
+        return status
+    lower = (text or "").lower()
+    if "first visit" in lower:
+        return "First Visit"
+    if "converted" in lower or "membership" in lower or "plan" in lower or "pass" in lower:
+        return "Enrollment Signal"
+    return None
+
+
+def visit_segments(text):
+    text = text or ""
+    matches = list(VISIT_RE.finditer(text))
+    if not matches:
+        return []
+    segments = []
+    for index, match in enumerate(matches):
+        start = max(0, match.start() - 800)
+        end = matches[index + 1].start() if index + 1 < len(matches) else min(len(text), match.end() + 1200)
+        segments.append((match.group(1), text[start:end]))
+    return segments
+
+
+def visit_id_from_record(record):
+    href = record.get("href") or record.get("url") or ""
+    text = record.get("text") or ""
+    match = VISIT_RE.search(href) or VISIT_RE.search(text)
+    return match.group(1) if match else None
+
+
+def event_id_from_record(record):
+    href = record.get("href") or record.get("url") or ""
+    text = record.get("text") or ""
+    match = EVENT_RE.search(href) or EVENT_RE.search(text)
+    return match.group(1) if match else None
 
 
 def pike13_flags(text):
@@ -215,6 +292,40 @@ def extract_page_links(page, base_url):
     return sorted({urljoin(base_url, href) for href in hrefs})
 
 
+def extract_visit_link_records(page, base_url):
+    records = page.locator("a").evaluate_all(
+        """
+        links => links
+          .map(link => {
+            const href = link.getAttribute('href') || '';
+            if (!href.match(/\\/(visits|events)\\/\\d+/)) return null;
+            let node = link;
+            let text = link.innerText || link.textContent || '';
+            for (let depth = 0; node && depth < 6; depth += 1) {
+              const candidate = (node.innerText || node.textContent || '').trim();
+              if (candidate.length > text.length && candidate.length <= 5000) {
+                text = candidate;
+              }
+              const tag = (node.tagName || '').toLowerCase();
+              if (['tr', 'li', 'article', 'section'].includes(tag)) break;
+              node = node.parentElement;
+            }
+            return {href, text};
+          })
+          .filter(Boolean)
+        """
+    )
+    rows = []
+    seen = set()
+    for record in records:
+        href = urljoin(base_url, record.get("href") or "")
+        key = (href, record.get("text") or "")
+        if href and key not in seen:
+            rows.append({"href": href, "text": record.get("text") or ""})
+            seen.add(key)
+    return rows
+
+
 def related_urls(person_url, links):
     person_url = person_url.rstrip("/")
     urls = {f"{person_url}/visits", f"{person_url}/balances"}
@@ -224,46 +335,59 @@ def related_urls(person_url, links):
     return sorted(urls)
 
 
+def visit_row(person_id, visit_id, event_id, url, text, school, extraction):
+    flags = pike13_flags(text)
+    return {
+        "visit_id": visit_id,
+        "person_id": person_id,
+        "event_id": event_id,
+        "service": pike13_service(text),
+        "starts_at": first_date_like(text),
+        "status": outcome_label(text),
+        **flags,
+        "school": school,
+        "source_url": url,
+        "raw_text": text,
+        "raw_json": json.dumps(
+            {
+                "extraction": extraction,
+                "canceled_flag": flags["canceled_flag"],
+                "source_timestamp_field": "starts_at",
+                "trial_signal_visible": int("trial" in (text or "").lower()),
+                "outcome_signal_visible": int(bool(outcome_label(text))),
+            },
+            sort_keys=True,
+        ),
+        "updated_at": utc_now_iso(),
+    }
+
+
 def capture_related_rows(person_id, url, text, school, extraction="related_text"):
     visits = []
     plans = []
     event_match = EVENT_RE.search(url) or EVENT_RE.search(text)
-    visit_ids = set(VISIT_RE.findall(text))
-    url_visit = VISIT_RE.search(url)
-    if url_visit:
-        visit_ids.add(url_visit.group(1))
-    if event_match and not visit_ids:
-        visit_ids.add(stable_id("pike13_visit", person_id, event_match.group(1), url))
-    for visit_id in sorted(set(VISIT_RE.findall(text))):
-        visit_ids.add(visit_id)
-    flags = pike13_flags(text)
-    for visit_id in sorted(visit_ids):
+    segmented_visit_ids = set()
+    for visit_id, segment in visit_segments(text):
+        segmented_visit_ids.add(visit_id)
         visits.append(
-            {
-                "visit_id": visit_id,
-                "person_id": person_id,
-                "event_id": event_match.group(1) if event_match else None,
-                "service": text_after("Service", text)
-                or text_after("Event", text)
-                or text_after("Offering", text)
-                or text_after("Appointment", text),
-                "starts_at": first_date_like(text),
-                "status": pike13_status(text),
-                **flags,
-                "school": school,
-                "source_url": url,
-                "raw_text": text,
-                "raw_json": json.dumps(
-                    {
-                        "extraction": extraction,
-                        "canceled_flag": flags["canceled_flag"],
-                        "source_timestamp_field": "starts_at",
-                    },
-                    sort_keys=True,
-                ),
-                "updated_at": utc_now_iso(),
-            }
+            visit_row(
+                person_id,
+                visit_id,
+                event_match.group(1) if event_match else None,
+                url,
+                segment,
+                school,
+                f"{extraction}:visit_segment",
+            )
         )
+    visit_ids = set(VISIT_RE.findall(text)) - segmented_visit_ids
+    url_visit = VISIT_RE.search(url)
+    if url_visit and url_visit.group(1) not in segmented_visit_ids:
+        visit_ids.add(url_visit.group(1))
+    if event_match and not visit_ids and not segmented_visit_ids:
+        visit_ids.add(stable_id("pike13_visit", person_id, event_match.group(1), url))
+    for visit_id in sorted(visit_ids):
+        visits.append(visit_row(person_id, visit_id, event_match.group(1) if event_match else None, url, text, school, extraction))
     if re.search(r"\b(pass|plan|membership)\b", text, re.IGNORECASE) and not re.search(
         r"\bno\s+(active|upcoming|inactive)?\s*(plans?|passes?|memberships?)\b",
         text,
@@ -275,8 +399,8 @@ def capture_related_rows(person_id, url, text, school, extraction="related_text"
                 "person_id": person_id,
                 "name": text_after("Plan", text) or text_after("Pass", text) or text_after("Membership", text),
                 "status": text_after("Status", text) or ("Active" if re.search(r"\bactive\b", text, re.IGNORECASE) else None),
-                "starts_at": text_after("Start", text) or first_date_like(text),
-                "ends_at": text_after("End", text),
+                "starts_at": normalize_date_like(text_after("Start", text)) or first_date_like(text),
+                "ends_at": normalize_date_like(text_after("End", text)),
                 "school": school,
                 "source_url": url,
                 "raw_text": text,
@@ -285,6 +409,29 @@ def capture_related_rows(person_id, url, text, school, extraction="related_text"
             }
         )
     return visits, plans
+
+
+def capture_visit_link_rows(person_id, records, school, extraction="visit_link_record"):
+    visits = []
+    for record in records:
+        visit_id = visit_id_from_record(record)
+        event_id = event_id_from_record(record)
+        if not visit_id and event_id:
+            visit_id = stable_id("pike13_visit", person_id, event_id, record.get("href"))
+        if not visit_id:
+            continue
+        visits.append(
+            visit_row(
+                person_id,
+                visit_id,
+                event_id,
+                record.get("href"),
+                record.get("text") or record.get("href") or "",
+                school,
+                extraction,
+            )
+        )
+    return visits
 
 
 def person_urls_from_db(conn, base_url, limit, school=None):
@@ -350,6 +497,11 @@ def wait_until_ready(page, timeout=30000):
         pass
 
 
+def is_auth_redirect(url):
+    lowered = (url or "").lower()
+    return "/accounts/sign_in" in lowered or "/sign_in" in lowered or "/login" in lowered
+
+
 def launch_browser_context(playwright, profile_dir, headless=False, chrome_channel=False):
     launch_kwargs = {
         "headless": headless,
@@ -399,7 +551,7 @@ def main():
         {"base_url": args.base_url, "url_count": len(urls), "chrome_channel": args.chrome_channel},
     )
     conn.commit()
-    rows_seen = rows_written = 0
+    rows_seen = rows_written = auth_blocked_rows = 0
     try:
         with sync_playwright() as p:
             context = launch_browser_context(
@@ -418,6 +570,10 @@ def main():
                 rows_seen += 1
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 wait_until_ready(page)
+                if is_auth_redirect(page.url):
+                    auth_blocked_rows += 1
+                    print(f"Skipping Pike13 URL that redirected to login: {url}")
+                    continue
                 person, text = parse_person(page, args.school)
                 upsert_person(conn, person)
                 rows_written += 1
@@ -434,14 +590,18 @@ def main():
                             page.goto(related_url, wait_until="domcontentloaded", timeout=60000)
                             wait_until_ready(page)
                             text = page.locator("body").inner_text(timeout=30000)
+                            link_records = extract_visit_link_records(page, args.base_url)
                             for discovered_url in related_urls(person_url, extract_page_links(page, args.base_url)):
                                 if discovered_url not in seen_related_urls and discovered_url not in queue:
                                     queue.append(discovered_url)
                         except Exception as exc:
                             print(f"Could not extract Pike13 related page {related_url}: {exc}")
                             continue
+                    else:
+                        link_records = extract_visit_link_records(page, args.base_url)
                     extraction = "person_text" if related_url == person_url else "related_page_text"
                     visits, plans = capture_related_rows(person["person_id"], related_url, text, args.school, extraction)
+                    visits.extend(capture_visit_link_rows(person["person_id"], link_records, args.school))
                     for visit in visits:
                         upsert_visit(conn, visit)
                         rows_written += 1
@@ -449,7 +609,18 @@ def main():
                         upsert_plan_pass(conn, plan)
                         rows_written += 1
             context.close()
-        finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0)
+        status = "success" if rows_written else "blocked"
+        error = None if rows_written else "Pike13 authentication blocked all requested person URLs."
+        finish_import_run(
+            conn,
+            run_id,
+            status,
+            rows_seen,
+            rows_written,
+            0,
+            error,
+            metadata={"auth_blocked_rows": auth_blocked_rows},
+        )
         conn.commit()
     except KeyboardInterrupt:
         finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, "interrupted before completion")

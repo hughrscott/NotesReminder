@@ -31,11 +31,16 @@ def visible_row_count(text):
 def route_signals(text, links):
     lowered = (text or "").lower()
     link_values = [f"{link.get('href', '')} {link.get('text', '')}".lower() for link in links or []]
+    visit_tokens = ("visit", "attendance", "no show", "no-show", "late cancel", "cancel", "complete", "incomplete")
+    trial_tokens = ("trial", "first visit", "intro", "tour")
+    outcome_tokens = ("no show", "no-show", "complete", "completed", "cancel", "late cancel", "unpaid", "converted", "membership")
     return {
         "source_timestamp_visible": int(any(token in lowered for token in ("date", "time", "starts", "visit", "event"))),
         "transcript_link_visible": 0,
         "recording_link_visible": 0,
-        "visit_signal_visible": int(any(token in lowered for token in ("visit", "attendance", "no show", "cancel"))),
+        "visit_signal_visible": int(any(token in lowered for token in visit_tokens)),
+        "trial_signal_visible": int(any(token in lowered for token in trial_tokens)),
+        "outcome_signal_visible": int(any(token in lowered for token in outcome_tokens)),
         "plan_signal_visible": int(any(token in lowered for token in ("plan", "pass", "membership"))),
         "person_signal_visible": int(any(token in lowered for token in ("phone", "email", "membership", "client"))),
         "login_signal_visible": int(any(token in lowered for token in ("sign in", "login", "password"))),
@@ -85,6 +90,12 @@ def route_row(run_id, source, route_name, route_url, status, text, links, expect
         "raw_json": json.dumps(
             {
                 "signals": signals,
+                "route_capabilities": {
+                    "visits_or_attendance": bool(signals["visit_signal_visible"]),
+                    "trials_or_first_visits": bool(signals["trial_signal_visible"]),
+                    "outcomes": bool(signals["outcome_signal_visible"]),
+                    "plans_or_memberships": bool(signals["plan_signal_visible"]),
+                },
                 "sensitive_values_redacted_from_reports": True,
                 "raw_page_text_not_stored": True,
             },
@@ -138,12 +149,27 @@ def routes_for_probe(conn, base_url, limit):
     ]
     person_urls = person_urls_from_db(conn, base, max(limit, 1))
     if person_urls:
+        person_url = person_urls[0].rstrip("/")
         routes.append(
             {
                 "name": "known_person",
-                "url": person_urls[0],
+                "url": person_url,
                 "expected_controls": ["person profile", "visits/events", "plans/passes", "contact fields"],
             }
+        )
+        routes.extend(
+            [
+                {
+                    "name": "known_person_visits",
+                    "url": f"{person_url}/visits",
+                    "expected_controls": ["visit history", "attendance state", "trial rows", "visit links"],
+                },
+                {
+                    "name": "known_person_plans_passes",
+                    "url": f"{person_url}/balances",
+                    "expected_controls": ["plans", "passes", "membership state", "conversion or active plan state"],
+                },
+            ]
         )
     else:
         routes.append(
@@ -165,6 +191,16 @@ def routes_for_probe(conn, base_url, limit):
                 "url": f"{base}/plans",
                 "expected_controls": ["plans", "passes", "membership state"],
             },
+            {
+                "name": "reports_catalog",
+                "url": f"{base}/desk/reports#/",
+                "expected_controls": ["reports catalog", "first visits", "last visits", "no-shows", "passes and plans"],
+            },
+            {
+                "name": "schedule_list",
+                "url": f"{base}/schedule#/list",
+                "expected_controls": ["schedule list", "events", "attendance or roster links"],
+            },
         ]
     )
     return routes[:limit]
@@ -176,16 +212,22 @@ def render_route_report(rows):
         "",
         "This report is sanitized and records route capability only.",
         "",
-        "| Route | Status | Rows | Links | Source timestamp visible | Blocker |",
-        "| --- | --- | ---: | ---: | ---: | --- |",
+        "| Route | Status | Rows | Links | Visit | Trial | Outcome | Plans | Source timestamp visible | Blocker |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in rows:
+        raw = json.loads(row.get("raw_json") or "{}")
+        signals = raw.get("signals") or {}
         lines.append(
-            "| {route_name} | {status} | {visible_row_count} | {visible_link_count} | {source_timestamp_visible} | {blocker} |".format(
+            "| {route_name} | {status} | {visible_row_count} | {visible_link_count} | {visit} | {trial} | {outcome} | {plans} | {source_timestamp_visible} | {blocker} |".format(
                 route_name=row["route_name"],
                 status=row["status"],
                 visible_row_count=row["visible_row_count"],
                 visible_link_count=row["visible_link_count"],
+                visit="yes" if signals.get("visit_signal_visible") else "no",
+                trial="yes" if signals.get("trial_signal_visible") else "no",
+                outcome="yes" if signals.get("outcome_signal_visible") else "no",
+                plans="yes" if signals.get("plan_signal_visible") else "no",
                 source_timestamp_visible="yes" if row["source_timestamp_visible"] else "no",
                 blocker=(row["blocker"] or "").replace("|", "/"),
             )
@@ -233,7 +275,10 @@ def run_pike13_route_discovery(db_path, profile_dir, base_url=DEFAULT_URL, inter
                     text = page.locator("body").inner_text(timeout=30000)
                     links = extract_links(page)
                     signals = route_signals(text, links)
-                    status, blocker = route_status(text, signals)
+                    if "/accounts/sign_in" in page.url.lower() or "/sign_in" in page.url.lower():
+                        status, blocker = "blocked", "Login/session required."
+                    else:
+                        status, blocker = route_status(text, signals)
                     row = route_row(
                         run_id,
                         "pike13",
@@ -292,7 +337,7 @@ def main():
     parser.add_argument("--base-url", default=DEFAULT_URL)
     parser.add_argument("--interactive-login", action="store_true")
     parser.add_argument("--headless", action="store_true")
-    parser.add_argument("--limit", type=int, default=4)
+    parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--output", default=DEFAULT_OUTPUT)
     parser.add_argument("--print", action="store_true", dest="print_output")
     args = parser.parse_args()
