@@ -85,6 +85,25 @@ async def scrape_lessons(
         if page is None:
             page = await context.new_page()
 
+        async def ensure_open_page():
+            nonlocal page
+            if page.is_closed():
+                page = await context.new_page()
+            return page
+
+        async def wait_until_ready(timeout=30000):
+            await ensure_open_page()
+            try:
+                await page.wait_for_load_state("load", timeout=timeout)
+            except Exception as exc:
+                if verbose:
+                    print(f"⚠️ Pike13 load-state wait skipped: {exc}")
+            try:
+                await page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception as exc:
+                if verbose:
+                    print(f"⚠️ Pike13 networkidle wait skipped: {exc}")
+
         async def is_authenticated():
             if any(marker in page.url for marker in ("/accounts/sign_in", "/account/two_factor", "/login")):
                 return False
@@ -108,17 +127,18 @@ async def scrape_lessons(
             print("Pike13 login/MFA required. Complete login in the opened browser window; scraping will continue automatically.")
             deadline = time.time() + login_timeout
             while time.time() < deadline:
+                await ensure_open_page()
                 await page.wait_for_timeout(2000)
                 await handle_post_login_interstitial()
                 if await is_authenticated():
                     await page.goto(target_url)
-                    await page.wait_for_load_state("networkidle", timeout=30000)
+                    await wait_until_ready()
                     return True
             raise RuntimeError("Timed out waiting for Pike13 interactive login/MFA.")
 
         async def safe_screenshot(path, **kwargs):
             try:
-                await page.screenshot(path=path, timeout=10000, **kwargs)
+                await page.screenshot(path=path, timeout=2000, **kwargs)
             except Exception as exc:
                 if verbose:
                     print(f"⚠️ Screenshot skipped for {path}: {exc}")
@@ -160,7 +180,7 @@ async def scrape_lessons(
             schedule_home_url = f"https://{school_subdomain}.pike13.com/schedule"
             if profile_dir:
                 await page.goto(schedule_home_url)
-                await page.wait_for_load_state("networkidle", timeout=30000)
+                await wait_until_ready()
                 if not await is_authenticated():
                     await page.goto(login_url)
                     await safe_screenshot("screenshots/01_login_page.png")
@@ -212,7 +232,7 @@ async def scrape_lessons(
                 # Wait for calendar to load
                 try:
                     await page.wait_for_selector("div.calendar-lane", timeout=30000)
-                    await page.wait_for_load_state("networkidle")
+                    await wait_until_ready()
                     await page.wait_for_timeout(5000)  # Wait longer for JS to render
                     date_obj = datetime.strptime(date, "%Y-%m-%d")
                     date_label = date_obj.strftime("%b %d, %Y").replace(" 0", " ")
@@ -311,7 +331,7 @@ async def scrape_lessons(
                         for list_url in list_urls:
                             try:
                                 await page.goto(list_url)
-                                await page.wait_for_load_state("networkidle")
+                                await wait_until_ready()
                                 await page.wait_for_timeout(3000)
                                 lesson_links = await page.evaluate("""
                                     () => Array.from(document.querySelectorAll("a[href*='/e/']"))
@@ -396,7 +416,7 @@ async def scrape_lessons(
                                 attendance_status = "unknown"
 
                             await page.goto(notes_url)
-                            await page.wait_for_load_state("networkidle", timeout=30000)
+                            await wait_until_ready()
                             await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
 
                             notes_element = await page.query_selector("div.richtext_output.unbordered")
