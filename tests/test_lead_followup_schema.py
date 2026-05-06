@@ -89,6 +89,23 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             "communication_ai_insights",
         }:
             self.assertIn(table, tables)
+        visit_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(pike13_visits)").fetchall()
+        }
+        for column in {
+            "instructor",
+            "first_visit_flag",
+            "attendance_confirmed_flag",
+            "checked_in_flag",
+            "enrolled_flag",
+            "terms_accepted_flag",
+        }:
+            self.assertIn(column, visit_columns)
+        plan_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(pike13_plans_passes)").fetchall()
+        }
+        for column in {"payer_name", "next_invoice_at", "terms_accepted_flag"}:
+            self.assertIn(column, plan_columns)
 
     def test_import_run_logging(self):
         conn = self.open_db()

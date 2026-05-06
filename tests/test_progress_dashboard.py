@@ -144,7 +144,10 @@ def fake_report():
                 "people_rows": 1,
                 "visit_rows": 0,
                 "rich_visit_rows": 0,
+                "report_backed_first_visit_rows": 0,
+                "event_enriched_visit_rows": 0,
                 "plan_pass_rows": 1,
+                "plan_enrichment_rows": 0,
                 "window_plus_lookahead_visit_rows": 0,
                 "route_discovery": {
                     "rows": 2,
@@ -229,6 +232,9 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("No-shows: 1768", markdown)
         self.assertIn("Canceled lessons: 720", markdown)
         self.assertIn("Trial lesson rows: 196", markdown)
+        self.assertIn("Report-backed first visit rows: 0", markdown)
+        self.assertIn("Event-enriched visit rows: 0", markdown)
+        self.assertIn("Plan/conversion enriched rows: 0", markdown)
         self.assertIn("Route fallback probes: 2", markdown)
         self.assertIn("Latest route fallback import: SUCCESS", markdown)
         self.assertIn("Pike13: Rich Pike13 lead/outcome visits are not loaded.", markdown)

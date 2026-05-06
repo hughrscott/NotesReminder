@@ -5,14 +5,20 @@ from lead_followup_schema import ensure_lead_followup_schema
 from scripts.extract_pike13_leads import (
     capture_visit_link_rows,
     capture_related_rows,
+    first_visits_filter,
     first_date_like,
     is_auth_redirect,
     normalize_date_like,
     parse_person_text,
     person_urls_from_db,
+    report_person_row,
+    report_plan_row,
+    report_visit_row,
+    row_dict,
     upsert_person,
     upsert_plan_pass,
     upsert_visit,
+    FIRST_VISITS_FIELDS,
 )
 
 
@@ -183,6 +189,72 @@ class Pike13ExtractorTests(unittest.TestCase):
     def test_auth_redirect_detection(self):
         self.assertTrue(is_auth_redirect("https://westu-sor.pike13.com/accounts/sign_in"))
         self.assertFalse(is_auth_redirect("https://westu-sor.pike13.com/people/15046380"))
+
+    def test_first_visits_report_rows_map_to_people_visits_and_plans(self):
+        api_row = [
+            "Jose Example",
+            "jose@example.com",
+            "3055829682",
+            "Trial - Vocals",
+            "Iman Qureshi",
+            "2026-05-11",
+            1,
+            "14:45",
+            "t",
+            "f",
+            "f",
+            None,
+            "registered",
+            "f",
+            "Free Trial Lesson",
+            "f",
+            "f",
+            "Account Manager",
+            "manager@example.com",
+            "7135551212",
+            "School of Rock West U",
+            "School of Rock West U",
+            "Trial Lessons",
+            "active",
+            "appointment",
+            None,
+            "f",
+            "unpaid",
+            "2026-04-24 17:23:55",
+            652986879,
+            None,
+            15055901,
+            292374954,
+            0,
+            None,
+            "f",
+            "t",
+            None,
+            "USD",
+        ]
+        row = row_dict(FIRST_VISITS_FIELDS, api_row)
+
+        person = report_person_row(row, "West U", "https://westu-sor.pike13.com")
+        visit = report_visit_row(row, "West U", "https://westu-sor.pike13.com")
+        plan = report_plan_row(row, "West U", "https://westu-sor.pike13.com")
+
+        self.assertEqual(person["person_id"], "15055901")
+        self.assertEqual(person["email_normalized"], "jose@example.com")
+        self.assertEqual(person["phone_normalized"], "3055829682")
+        self.assertEqual(visit["event_id"], "292374954")
+        self.assertEqual(visit["service"], "Trial - Vocals")
+        self.assertEqual(visit["instructor"], "Iman Qureshi")
+        self.assertEqual(visit["starts_at"], "2026-05-11T14:45:00")
+        self.assertEqual(visit["status"], "Enrolled")
+        self.assertEqual(visit["first_visit_flag"], 1)
+        self.assertEqual(visit["enrolled_flag"], 1)
+        self.assertEqual(visit["unpaid_flag"], 1)
+        self.assertIsNone(plan)
+
+        filters = first_visits_filter("2026-04-01", "2026-05-12")
+        self.assertEqual(filters[0], "and")
+        self.assertIn(["btw", "service_date", ["2026-04-01", "2026-05-12"]], filters[1])
+        self.assertIn(["eq", "first_visit", ["t"]], filters[1])
 
     def test_upserts_are_idempotent_and_person_urls_are_school_scoped(self):
         conn = open_db()

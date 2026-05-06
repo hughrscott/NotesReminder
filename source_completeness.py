@@ -1099,7 +1099,16 @@ def pike13_section(conn, window_start, lookahead_end):
     visits_total, visits_coverage = field_coverage(
         conn,
         "pike13_visits",
-        ["visit_id", "person_id", "service", "starts_at", "status", "source_url", "raw_text"],
+        [
+            "visit_id",
+            "person_id",
+            "service",
+            "starts_at",
+            "status",
+            "instructor",
+            "source_url",
+            "raw_text",
+        ],
     )
     visits_coverage["starts_at"] = valid_date_coverage(conn, "pike13_visits", "starts_at")
     plans_total, plans_coverage = field_coverage(
@@ -1117,6 +1126,37 @@ def pike13_section(conn, window_start, lookahead_end):
         WHERE date(starts_at) BETWEEN date(:window_start) AND date(:lookahead_end)
         """,
         {"window_start": window_start, "lookahead_end": lookahead_end},
+    )
+    first_visit_rows = count(conn, "SELECT COUNT(*) FROM pike13_visits WHERE COALESCE(first_visit_flag, 0) = 1")
+    report_backed_first_visit_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM pike13_visits
+        WHERE COALESCE(first_visit_flag, 0) = 1
+          AND COALESCE(raw_json, '') LIKE '%first_visits_report%'
+        """,
+    )
+    event_enriched_visit_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM pike13_visits
+        WHERE COALESCE(raw_json, '') LIKE '%event_enriched%'
+           OR COALESCE(attendance_confirmed_flag, 0) = 1
+           OR COALESCE(checked_in_flag, 0) = 1
+           OR terms_accepted_flag IS NOT NULL
+        """,
+    )
+    plan_enrichment_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM pike13_plans_passes
+        WHERE COALESCE(payer_name, '') != ''
+           OR COALESCE(next_invoice_at, '') != ''
+           OR terms_accepted_flag IS NOT NULL
+        """,
     )
     required_rates = [
         people_coverage["person_id"]["fill_rate"],
@@ -1156,6 +1196,10 @@ def pike13_section(conn, window_start, lookahead_end):
         "visit_rows": visits_total,
         "rich_visit_rows": visits_total,
         "plan_pass_rows": plans_total,
+        "first_visit_rows": first_visit_rows,
+        "report_backed_first_visit_rows": report_backed_first_visit_rows,
+        "event_enriched_visit_rows": event_enriched_visit_rows,
+        "plan_enrichment_rows": plan_enrichment_rows,
         "window_plus_lookahead_visit_rows": recent_visits,
         **lesson_visit_metrics,
         "latest_timestamp": latest(

@@ -387,6 +387,15 @@ def ensure_lead_followup_schema(conn):
         ],
     )
     _add_column_if_missing(conn, "pike13_visits", "canceled_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "pike13_visits", "instructor", "TEXT")
+    _add_column_if_missing(conn, "pike13_visits", "first_visit_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "pike13_visits", "attendance_confirmed_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "pike13_visits", "checked_in_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "pike13_visits", "enrolled_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "pike13_visits", "terms_accepted_flag", "INTEGER")
+    _add_column_if_missing(conn, "pike13_plans_passes", "payer_name", "TEXT")
+    _add_column_if_missing(conn, "pike13_plans_passes", "next_invoice_at", "TEXT")
+    _add_column_if_missing(conn, "pike13_plans_passes", "terms_accepted_flag", "INTEGER")
     _execute_many(
         conn,
         [
