@@ -46,7 +46,7 @@ def route_signals(text, links):
         "login_signal_visible": int(any(token in lowered for token in ("sign in", "login", "password"))),
         "link_count": len(links or []),
         "person_link_count": sum(1 for value in link_values if "/people/" in value),
-        "visit_link_count": sum(1 for value in link_values if "/visits/" in value or "/events/" in value),
+        "visit_link_count": sum(1 for value in link_values if "/visits/" in value or "/events/" in value or re.search(r"/e/\d+", value)),
     }
 
 

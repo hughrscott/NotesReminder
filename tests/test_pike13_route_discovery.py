@@ -8,7 +8,7 @@ class Pike13RouteDiscoveryTests(unittest.TestCase):
     def test_route_signals_identify_visit_trial_outcome_exposure(self):
         signals = route_signals(
             "Past Visits\nAdult Band Trial\nNo Show\nUnpaid\nActive Membership",
-            [{"href": "https://westu-sor.pike13.com/events/292297814/visits/987654", "text": "visit"}],
+            [{"href": "https://westu-sor.pike13.com/e/292297814", "text": "visit"}],
         )
 
         self.assertEqual(signals["visit_signal_visible"], 1)

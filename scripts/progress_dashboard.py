@@ -202,6 +202,7 @@ def ai_readiness(report):
     first_value = report.get("first_value", {})
     first_value_ready = first_value.get("report_ready", False)
     candidate_comms = first_value.get("candidate_leads_with_dialpad_comms", 0)
+    pike13_visits = sources.get("pike13", {}).get("rich_visit_rows", sources.get("pike13", {}).get("visit_rows", 0))
     if call_review_text and candidate_comms:
         sentiment_status = "ready for limited proof"
     elif call_review_text:
@@ -210,11 +211,17 @@ def ai_readiness(report):
         sentiment_status = "ready after call-review transcript ingestion"
     else:
         sentiment_status = "not ready"
+    if pike13_ready:
+        outcome_status = "ready"
+    elif pike13_visits:
+        outcome_status = "partial; Pike13 visit/outcome rows loaded but below readiness threshold"
+    else:
+        outcome_status = "blocked until Pike13 visits/outcomes load"
     return [
         f"Lead follow-up insights: {'ready for limited proof' if hubspot_ready and dialpad_ready and matching_rows and first_value_ready else 'not ready'}",
         f"Sentiment/coaching analysis: {sentiment_status}",
         f"Lesson-note quality/current-student operations: {'ready for existing notes data' if lesson_visits else 'not ready'}",
-        f"Outcome attribution: {'ready' if pike13_ready else 'blocked until Pike13 visits/outcomes load'}",
+        f"Outcome attribution: {outcome_status}",
         "AI lead-management automation: not ready; needs reliable source completeness, outcome data, and human-reviewed recommendation quality first.",
     ]
 

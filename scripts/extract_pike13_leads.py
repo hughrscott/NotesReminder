@@ -32,7 +32,7 @@ PERSON_RE = re.compile(r"/people/(\d+)")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
 VISIT_RE = re.compile(r"/visits/(\d+)")
-EVENT_RE = re.compile(r"/events/(\d+)")
+EVENT_RE = re.compile(r"(?:/events/|/e/)(\d+)")
 DATE_RE = re.compile(
     r"\b(?:Mon|Tue|Tues|Wed|Thu|Thurs|Fri|Sat|Sun)?(?:day)?[,]?\s*"
     r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}"
@@ -61,12 +61,14 @@ def normalize_date_like(value):
     clean = re.sub(r"\s+", " ", str(value).replace(" at ", " ")).strip(" ,")
     if not clean:
         return None
+    if not (DATE_RE.search(clean) or NUMERIC_DATE_RE.search(clean) or ISO_DATE_RE.search(clean)):
+        return None
     try:
         parsed = date_parser.parse(clean, fuzzy=True, default=date_parser.parse("1900-01-01"))
     except (ValueError, OverflowError, TypeError):
-        return value.strip() if isinstance(value, str) else None
+        return None
     if parsed.year == 1900:
-        return value.strip() if isinstance(value, str) else None
+        return None
     if parsed.hour or parsed.minute or parsed.second:
         return parsed.replace(second=0, microsecond=0).isoformat()
     return parsed.date().isoformat()
@@ -124,7 +126,11 @@ def upsert_visit(conn, row):
             person_id = COALESCE(excluded.person_id, pike13_visits.person_id),
             event_id = COALESCE(excluded.event_id, pike13_visits.event_id),
             service = COALESCE(excluded.service, pike13_visits.service),
-            starts_at = COALESCE(excluded.starts_at, pike13_visits.starts_at),
+            starts_at = CASE
+                WHEN excluded.starts_at IS NOT NULL THEN excluded.starts_at
+                WHEN date(pike13_visits.starts_at) IS NULL THEN NULL
+                ELSE pike13_visits.starts_at
+            END,
             status = COALESCE(excluded.status, pike13_visits.status),
             no_show_flag = excluded.no_show_flag,
             canceled_flag = excluded.canceled_flag,
@@ -298,7 +304,7 @@ def extract_visit_link_records(page, base_url):
         links => links
           .map(link => {
             const href = link.getAttribute('href') || '';
-            if (!href.match(/\\/(visits|events)\\/\\d+/)) return null;
+            if (!href.match(/\\/(visits|events)\\/\\d+/) && !href.match(/\\/e\\/\\d+/)) return null;
             let node = link;
             let text = link.innerText || link.textContent || '';
             for (let depth = 0; node && depth < 6; depth += 1) {
@@ -330,7 +336,7 @@ def related_urls(person_url, links):
     person_url = person_url.rstrip("/")
     urls = {f"{person_url}/visits", f"{person_url}/balances"}
     for href in links:
-        if "/events/" in href or "/visits/" in href:
+        if "/events/" in href or "/visits/" in href or re.search(r"/e/\d+", href):
             urls.add(href.split("#", 1)[0])
     return sorted(urls)
 

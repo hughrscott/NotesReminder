@@ -150,11 +150,15 @@ class Pike13ExtractorTests(unittest.TestCase):
                     "href": "https://westu-sor.pike13.com/events/292297815",
                     "text": "Rock 101 Trial\nMay 1, 2026 5:30 PM\nComplete",
                 },
+                {
+                    "href": "https://westu-sor.pike13.com/e/292297816",
+                    "text": "Rookies Trial\nMay 2, 2026 4:30 PM\nLate Cancel",
+                },
             ],
             "West U",
         )
 
-        self.assertEqual(len(visits), 2)
+        self.assertEqual(len(visits), 3)
         self.assertEqual(visits[0]["visit_id"], "987654")
         self.assertEqual(visits[0]["event_id"], "292297814")
         self.assertEqual(visits[0]["service"], "Adult Band Trial")
@@ -165,10 +169,15 @@ class Pike13ExtractorTests(unittest.TestCase):
         self.assertEqual(visits[1]["event_id"], "292297815")
         self.assertEqual(visits[1]["starts_at"], "2026-05-01T17:30:00")
         self.assertEqual(visits[1]["status"], "Complete")
+        self.assertTrue(visits[2]["visit_id"].startswith("pike13_visit_"))
+        self.assertEqual(visits[2]["event_id"], "292297816")
+        self.assertEqual(visits[2]["status"], "Late Cancel")
+        self.assertEqual(visits[2]["canceled_flag"], 1)
 
     def test_date_normalization_handles_pike13_formats(self):
         self.assertEqual(normalize_date_like("Apr 28, 2026 at 6:00 PM"), "2026-04-28T18:00:00")
         self.assertEqual(normalize_date_like("4/28/2026 6:00 PM"), "2026-04-28T18:00:00")
+        self.assertIsNone(normalize_date_like("Cancel"))
         self.assertEqual(first_date_like("When Tuesday, Apr 28, 2026 at 6:00 PM"), "2026-04-28T18:00:00")
 
     def test_auth_redirect_detection(self):
