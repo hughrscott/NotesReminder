@@ -28,6 +28,12 @@ from lead_followup_schema import (  # noqa: E402
 
 DEFAULT_URL = "https://westu-sor.pike13.com"
 DEFAULT_PROFILE_DIR = "browser_profiles/pike13"
+DEFAULT_AUTH_PROBE_START_DATE = "2000-01-01"
+DEFAULT_AUTH_PROBE_END_DATE = "2100-12-31"
+AUTH_AUTHENTICATED = "authenticated"
+AUTH_EMPTY_REPORT = "empty_report"
+AUTH_EXPIRED_SESSION = "expired_session"
+AUTH_BLOCKED = "blocked"
 PERSON_RE = re.compile(r"/people/(\d+)")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
@@ -570,7 +576,7 @@ def first_visits_filter(start_date, end_date):
     ]
 
 
-def find_enrollments_query_url(page, base_url, report_url=None):
+def discover_enrollments_query_url(page, base_url, report_url=None):
     query_urls = []
     page.on(
         "request",
@@ -581,14 +587,28 @@ def find_enrollments_query_url(page, base_url, report_url=None):
     page.goto(report_url or first_visit_report_url(base_url), wait_until="domcontentloaded", timeout=60000)
     wait_until_ready(page)
     page.wait_for_timeout(5000)
-    if is_auth_redirect(page.url):
+    return (query_urls[-1] if query_urls else None), page.url
+
+
+def find_enrollments_query_url(page, base_url, report_url=None):
+    query_url, final_url = discover_enrollments_query_url(page, base_url, report_url)
+    if is_auth_redirect(final_url):
         return None
-    if query_urls:
-        return query_urls[-1]
+    if query_url:
+        return query_url
     raise RuntimeError("Could not discover Pike13 Enrollments report query URL.")
 
 
 def fetch_first_visits_report_rows(page, query_url, start_date, end_date, limit=500):
+    response = fetch_first_visits_report_response(page, query_url, start_date, end_date, limit)
+    if response.status >= 400:
+        raise RuntimeError(f"Pike13 First Visits report query failed with HTTP {response.status}: {response.text()[:500]}")
+    data = response.json()
+    rows = data.get("data", {}).get("attributes", {}).get("rows") or []
+    return [row_dict(FIRST_VISITS_FIELDS, row) for row in rows]
+
+
+def fetch_first_visits_report_response(page, query_url, start_date, end_date, limit=500):
     payload = {
         "data": {
             "type": "queries",
@@ -601,7 +621,7 @@ def fetch_first_visits_report_rows(page, query_url, start_date, end_date, limit=
             },
         }
     }
-    response = page.request.post(
+    return page.request.post(
         query_url,
         data=json.dumps(payload),
         headers={
@@ -610,11 +630,74 @@ def fetch_first_visits_report_rows(page, query_url, start_date, end_date, limit=
         },
         timeout=60000,
     )
-    if response.status >= 400:
-        raise RuntimeError(f"Pike13 First Visits report query failed with HTTP {response.status}: {response.text()[:500]}")
-    data = response.json()
-    rows = data.get("data", {}).get("attributes", {}).get("rows") or []
-    return [row_dict(FIRST_VISITS_FIELDS, row) for row in rows]
+
+
+def classify_auth_probe_result(final_url, query_url, response_status=None, row_count=None, error_text=None):
+    if is_auth_redirect(final_url):
+        return AUTH_EXPIRED_SESSION
+    if response_status in {401, 403}:
+        return AUTH_EXPIRED_SESSION
+    if response_status is not None and 300 <= response_status < 400:
+        return AUTH_EXPIRED_SESSION
+    if not query_url:
+        return AUTH_BLOCKED
+    if response_status is not None and response_status >= 400:
+        return AUTH_BLOCKED
+    if error_text:
+        return AUTH_BLOCKED
+    if row_count == 0:
+        return AUTH_EMPTY_REPORT
+    return AUTH_AUTHENTICATED
+
+
+def auth_probe_success(status):
+    return status in {AUTH_AUTHENTICATED, AUTH_EMPTY_REPORT}
+
+
+def sanitized_auth_probe(probe):
+    if not probe:
+        return None
+    return {
+        key: value
+        for key, value in probe.items()
+        if key in {"status", "response_status", "row_count", "error"}
+    }
+
+
+def probe_pike13_auth(page, base_url, report_url=None, start_date=None, end_date=None, limit=1):
+    query_url, final_url = discover_enrollments_query_url(page, base_url, report_url)
+    if is_auth_redirect(final_url) or not query_url:
+        status = classify_auth_probe_result(final_url, query_url)
+        return {"status": status, "final_url": final_url, "query_url": query_url, "row_count": None}
+    try:
+        response = fetch_first_visits_report_response(
+            page,
+            query_url,
+            start_date or DEFAULT_AUTH_PROBE_START_DATE,
+            end_date or DEFAULT_AUTH_PROBE_END_DATE,
+            limit,
+        )
+        row_count = None
+        if response.status < 400:
+            data = response.json()
+            row_count = len(data.get("data", {}).get("attributes", {}).get("rows") or [])
+        status = classify_auth_probe_result(final_url, query_url, response.status, row_count)
+        return {
+            "status": status,
+            "final_url": final_url,
+            "query_url": query_url,
+            "response_status": response.status,
+            "row_count": row_count,
+        }
+    except Exception as exc:
+        status = classify_auth_probe_result(final_url, query_url, error_text=str(exc))
+        return {
+            "status": status,
+            "final_url": final_url,
+            "query_url": query_url,
+            "error": str(exc)[:240],
+            "row_count": None,
+        }
 
 
 def report_source_text(row):
@@ -864,12 +947,12 @@ def enrich_report_visit_from_event(page, visit, timeout=60000):
     return enriched
 
 
-def extract_first_visits_report(conn, page, args):
+def extract_first_visits_report(conn, page, args, query_url=None):
     start_date = args.first_visits_start_date
     end_date = args.first_visits_end_date
     if not start_date or not end_date:
         raise ValueError("--first-visits-start-date and --first-visits-end-date are required for first-visits mode.")
-    query_url = find_enrollments_query_url(page, args.base_url, args.first_visits_report_url)
+    query_url = query_url or find_enrollments_query_url(page, args.base_url, args.first_visits_report_url)
     if not query_url:
         raise RuntimeError("Pike13 authentication blocked the First Visits report.")
     rows = fetch_first_visits_report_rows(page, query_url, start_date, end_date, args.first_visits_limit)
@@ -920,11 +1003,48 @@ def main():
     parser.add_argument("--first-visits-end-date")
     parser.add_argument("--first-visits-limit", type=int, default=500)
     parser.add_argument("--skip-first-visits-enrichment", action="store_true")
+    parser.add_argument(
+        "--auth-check-only",
+        action="store_true",
+        help="Check whether the persistent Pike13 browser profile is authenticated, without opening or writing the DB.",
+    )
+    parser.add_argument(
+        "--reauth-if-needed",
+        action="store_true",
+        help="If the Pike13 session is expired, open headed login/MFA and retry before extraction.",
+    )
+    parser.add_argument(
+        "--auth-probe-url",
+        help="Pike13 URL used for session probing. Defaults to the derived First Visits report URL.",
+    )
     args = parser.parse_args()
+
+    first_visits_mode = bool(args.first_visits_report_url or args.first_visits_start_date or args.first_visits_end_date)
+    report_url = args.first_visits_report_url or first_visit_report_url(args.base_url)
+    auth_probe_url = args.auth_probe_url or report_url
+
+    if args.auth_check_only:
+        with sync_playwright() as p:
+            context = launch_browser_context(
+                p,
+                args.profile_dir,
+                headless=args.headless,
+                chrome_channel=args.chrome_channel,
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+            probe = probe_pike13_auth(
+                page,
+                args.base_url,
+                auth_probe_url,
+                args.first_visits_start_date,
+                args.first_visits_end_date,
+            )
+            context.close()
+        print(json.dumps(sanitized_auth_probe(probe), sort_keys=True))
+        return 0 if auth_probe_success(probe["status"]) else 2
 
     conn = sqlite3.connect(args.db)
     ensure_lead_followup_schema(conn)
-    first_visits_mode = bool(args.first_visits_report_url or args.first_visits_start_date or args.first_visits_end_date)
     urls = [] if first_visits_mode else args.person_url or person_urls_from_db(conn, args.base_url, args.limit, args.school)
     run_id = start_import_run(
         conn,
@@ -937,9 +1057,10 @@ def main():
             "url_count": len(urls),
             "chrome_channel": args.chrome_channel,
             "mode": "first_visits_report" if first_visits_mode else "person_urls",
-            "first_visits_report_url": args.first_visits_report_url or first_visit_report_url(args.base_url) if first_visits_mode else None,
+            "first_visits_report_url": report_url if first_visits_mode else None,
             "first_visits_start_date": args.first_visits_start_date,
             "first_visits_end_date": args.first_visits_end_date,
+            "auth_probe_url": auth_probe_url,
         },
     )
     conn.commit()
@@ -958,8 +1079,63 @@ def main():
                 wait_until_ready(page)
                 print("Complete Pike13 login/navigation in the browser, then press Enter here.")
                 input()
+            auth_probe = None
             if first_visits_mode:
-                rows_seen, rows_written = extract_first_visits_report(conn, page, args)
+                auth_probe = probe_pike13_auth(
+                    page,
+                    args.base_url,
+                    auth_probe_url,
+                    args.first_visits_start_date,
+                    args.first_visits_end_date,
+                )
+                if not auth_probe_success(auth_probe["status"]) and args.reauth_if_needed:
+                    if args.headless:
+                        context.close()
+                        context = launch_browser_context(
+                            p,
+                            args.profile_dir,
+                            headless=False,
+                            chrome_channel=args.chrome_channel,
+                        )
+                        page = context.pages[0] if context.pages else context.new_page()
+                    page.goto(args.base_url, wait_until="domcontentloaded", timeout=60000)
+                    wait_until_ready(page)
+                    print("Complete Pike13 login/MFA in the browser, then press Enter here.")
+                    input()
+                    auth_probe = probe_pike13_auth(
+                        page,
+                        args.base_url,
+                        auth_probe_url,
+                        args.first_visits_start_date,
+                        args.first_visits_end_date,
+                    )
+                if not auth_probe_success(auth_probe["status"]):
+                    context.close()
+                    finish_import_run(
+                        conn,
+                        run_id,
+                        "blocked",
+                        rows_seen,
+                        rows_written,
+                        0,
+                        f"Pike13 authentication probe failed with status={auth_probe['status']}.",
+                        metadata={
+                            "auth_blocked_rows": 0,
+                            "mode": "first_visits_report",
+                            "auth_status": auth_probe["status"],
+                            "auth_probe": sanitized_auth_probe(auth_probe),
+                        },
+                    )
+                    conn.commit()
+                    print(f"Pike13 extraction blocked: auth_status={auth_probe['status']}")
+                    return 2
+            if first_visits_mode:
+                rows_seen, rows_written = extract_first_visits_report(
+                    conn,
+                    page,
+                    args,
+                    query_url=auth_probe.get("query_url") if auth_probe else None,
+                )
                 auth_blocked_rows = 0
                 context.close()
                 status = "success" if rows_written else "blocked"
@@ -971,7 +1147,12 @@ def main():
                     rows_written,
                     0,
                     None if rows_written else "Pike13 First Visits report returned no rows.",
-                    metadata={"auth_blocked_rows": auth_blocked_rows, "mode": "first_visits_report"},
+                    metadata={
+                        "auth_blocked_rows": auth_blocked_rows,
+                        "mode": "first_visits_report",
+                        "auth_status": auth_probe["status"] if auth_probe else None,
+                        "auth_probe": sanitized_auth_probe(auth_probe) if auth_probe else None,
+                    },
                 )
                 conn.commit()
                 print(f"Pike13 extraction complete: rows_seen={rows_seen} rows_written={rows_written}")
@@ -1047,4 +1228,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

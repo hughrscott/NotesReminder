@@ -3,8 +3,14 @@ import unittest
 
 from lead_followup_schema import ensure_lead_followup_schema
 from scripts.extract_pike13_leads import (
+    AUTH_AUTHENTICATED,
+    AUTH_BLOCKED,
+    AUTH_EMPTY_REPORT,
+    AUTH_EXPIRED_SESSION,
+    auth_probe_success,
     capture_visit_link_rows,
     capture_related_rows,
+    classify_auth_probe_result,
     first_visits_filter,
     first_date_like,
     is_auth_redirect,
@@ -189,6 +195,31 @@ class Pike13ExtractorTests(unittest.TestCase):
     def test_auth_redirect_detection(self):
         self.assertTrue(is_auth_redirect("https://westu-sor.pike13.com/accounts/sign_in"))
         self.assertFalse(is_auth_redirect("https://westu-sor.pike13.com/people/15046380"))
+
+    def test_auth_probe_classification_distinguishes_session_states(self):
+        self.assertEqual(
+            classify_auth_probe_result("https://westu-sor.pike13.com/desk/reports", "https://westu-sor.pike13.com/desk/api/v3/reports/enrollments/queries", 200, 1),
+            AUTH_AUTHENTICATED,
+        )
+        self.assertEqual(
+            classify_auth_probe_result("https://westu-sor.pike13.com/accounts/sign_in", None),
+            AUTH_EXPIRED_SESSION,
+        )
+        self.assertEqual(
+            classify_auth_probe_result("https://westu-sor.pike13.com/desk/reports", "https://westu-sor.pike13.com/desk/api/v3/reports/enrollments/queries", 401, None),
+            AUTH_EXPIRED_SESSION,
+        )
+        self.assertEqual(
+            classify_auth_probe_result("https://westu-sor.pike13.com/desk/reports", "https://westu-sor.pike13.com/desk/api/v3/reports/enrollments/queries", 200, 0),
+            AUTH_EMPTY_REPORT,
+        )
+        self.assertEqual(
+            classify_auth_probe_result("https://westu-sor.pike13.com/desk/reports", None),
+            AUTH_BLOCKED,
+        )
+        self.assertTrue(auth_probe_success(AUTH_AUTHENTICATED))
+        self.assertTrue(auth_probe_success(AUTH_EMPTY_REPORT))
+        self.assertFalse(auth_probe_success(AUTH_EXPIRED_SESSION))
 
     def test_first_visits_report_rows_map_to_people_visits_and_plans(self):
         api_row = [
