@@ -194,6 +194,20 @@ def fake_report():
             "candidate_leads_with_trusted_phone": 6,
             "candidate_leads_with_dialpad_comms": 2,
         },
+        "lead_gap": {
+            "status": "ready",
+            "rows_reviewed": 10,
+            "ready_for_review_rows": 3,
+            "missing_pike13_match_rows": 2,
+            "missing_dialpad_match_rows": 1,
+            "targeted_dialpad_not_wired_rows": 4,
+            "by_gap_category": {
+                "ready_for_review": 3,
+                "missing_pike13_match": 2,
+                "missing_dialpad_match": 1,
+                "targeted_dialpad_not_wired": 4,
+            },
+        },
     }
 
 
@@ -239,6 +253,12 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("Latest route fallback import: SUCCESS", markdown)
         self.assertIn("Pike13: Rich Pike13 lead/outcome visits are not loaded.", markdown)
         self.assertIn("Identity matches: 2", markdown)
+        self.assertIn("### Lead Gap - READY", markdown)
+        self.assertIn("Gap rows reviewed: 10", markdown)
+        self.assertIn("Ready-for-review rows: 3", markdown)
+        self.assertIn("Missing Pike13 match rows: 2", markdown)
+        self.assertIn("Missing Dialpad match rows: 1", markdown)
+        self.assertIn("Targeted Dialpad not wired rows: 4", markdown)
         self.assertIn("## Future AI Readiness", markdown)
         self.assertIn("Sentiment/coaching analysis: ready for limited proof", markdown)
         self.assertIn("Lesson-note quality/current-student operations: ready for existing notes data", markdown)

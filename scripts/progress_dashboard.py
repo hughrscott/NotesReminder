@@ -142,6 +142,21 @@ def matching_summary(matching):
     ]
 
 
+def lead_gap_summary(lead_gap):
+    by_gap = lead_gap.get("by_gap_category", {})
+    return [
+        f"Gap rows reviewed: {lead_gap.get('rows_reviewed', 0)}",
+        f"Ready-for-review rows: {lead_gap.get('ready_for_review_rows', 0)}",
+        f"Missing Pike13 match rows: {lead_gap.get('missing_pike13_match_rows', 0)}",
+        f"Missing Dialpad match rows: {lead_gap.get('missing_dialpad_match_rows', 0)}",
+        f"Targeted Dialpad not wired rows: {lead_gap.get('targeted_dialpad_not_wired_rows', 0)}",
+        "Gap categories: "
+        + ", ".join(f"{category}: {count}" for category, count in by_gap.items())
+        if by_gap
+        else "Gap categories: none",
+    ]
+
+
 def next_actions(report):
     sources = report.get("sources", {})
     actions = []
@@ -237,6 +252,7 @@ def render_dashboard(report):
     pike13 = sources.get("pike13", {})
     matching = report.get("matching", {})
     first_value = report.get("first_value", {})
+    lead_gap = report.get("lead_gap", {})
     blockers = []
     for name, source in (("HubSpot", hubspot), ("Dialpad", dialpad), ("Pike13", pike13)):
         for blocker in source.get("blockers") or []:
@@ -271,6 +287,9 @@ def render_dashboard(report):
         "",
         f"### Matching - {status_label(matching.get('status'))}",
         bullet_list(matching_summary(matching)),
+        "",
+        f"### Lead Gap - {status_label(lead_gap.get('status'))}",
+        bullet_list(lead_gap_summary(lead_gap)),
         "",
         f"## First Value Report - {status_label(first_value.get('status'))}",
         "",

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from lead_followup_schema import ensure_lead_followup_schema, upsert_identity_match
+from lead_gap_analysis import build_gap_report
 
 
 DEFAULT_WINDOW_DAYS = 7
@@ -1360,6 +1361,24 @@ def first_value_section(conn, sources, matching, window_start):
     }
 
 
+def lead_gap_section(conn):
+    refresh_identity_matches(conn)
+    report = build_gap_report(conn, school="West University Place", limit=500)
+    summary = report["summary"]
+    return {
+        "status": "ready" if summary["rows_reviewed"] else "blocked",
+        "rows_reviewed": summary["rows_reviewed"],
+        "ready_for_review_rows": summary["ready_for_review_rows"],
+        "missing_pike13_match_rows": summary["missing_pike13_match_rows"],
+        "missing_dialpad_match_rows": summary["missing_dialpad_match_rows"],
+        "targeted_dialpad_not_wired_rows": summary["targeted_dialpad_not_wired_rows"],
+        "by_gap_category": summary["by_gap_category"],
+        "by_school": summary["by_school"],
+        "by_stage": summary["by_stage"],
+        "source_readiness": summary["source_readiness"],
+    }
+
+
 def build_source_completeness_report(conn, window_days=DEFAULT_WINDOW_DAYS, pike13_lookahead_days=DEFAULT_PIKE13_LOOKAHEAD_DAYS):
     ensure_lead_followup_schema(conn)
     conn.row_factory = sqlite3.Row
@@ -1383,6 +1402,7 @@ def build_source_completeness_report(conn, window_days=DEFAULT_WINDOW_DAYS, pike
         "matching": matching_section(conn),
     }
     report["first_value"] = first_value_section(conn, report["sources"], report["matching"], window_start)
+    report["lead_gap"] = lead_gap_section(conn)
     statuses = [source["status"] for source in report["sources"].values()]
     if any(status == "blocked" for status in statuses):
         overall = "blocked"
