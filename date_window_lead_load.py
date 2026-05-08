@@ -261,12 +261,20 @@ def _summarize_metadata(metadata):
 def screenshot_checklist(gap_report):
     counts = gap_report["summary"].get("by_gap_category", {})
     requests = []
-    if counts.get("missing_pike13_match", 0):
+    if counts.get("hubspot_only_unworked", 0):
         requests.append(
             {
-                "gap": "missing_pike13_match",
-                "count": counts["missing_pike13_match"],
-                "request": "HubSpot deal detail plus Pike13 client search/client profile for one representative unresolved lead.",
+                "gap": "hubspot_only_unworked",
+                "count": counts["hubspot_only_unworked"],
+                "request": "HubSpot deal detail plus Dialpad conversation/call-history filtered to the contact phone for one representative unworked lead.",
+            }
+        )
+    if counts.get("scheduled_trial_missing_pike13", 0):
+        requests.append(
+            {
+                "gap": "scheduled_trial_missing_pike13",
+                "count": counts["scheduled_trial_missing_pike13"],
+                "request": "HubSpot scheduled trial detail plus Pike13 First Visits/client search evidence for one representative unresolved lead.",
             }
         )
     if counts.get("missing_first_visit", 0):
@@ -352,7 +360,9 @@ def render_date_window_markdown(report):
         [
             f"- Rows reviewed: {gap['rows_reviewed']}",
             f"- Ready for review: {gap['ready_for_review_rows']}",
-            f"- Missing Pike13 match: {gap['missing_pike13_match_rows']}",
+            f"- HubSpot-only unworked: {gap.get('hubspot_only_unworked_rows', 0)}",
+            f"- HubSpot-only with outreach: {gap.get('hubspot_only_with_outreach_rows', 0)}",
+            f"- Scheduled trial missing Pike13: {gap.get('scheduled_trial_missing_pike13_rows', 0)}",
             f"- Missing Dialpad match: {gap['missing_dialpad_match_rows']}",
             f"- Targeted Dialpad not wired: {gap['targeted_dialpad_not_wired_rows']}",
             "",

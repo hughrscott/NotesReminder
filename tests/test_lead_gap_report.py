@@ -61,15 +61,16 @@ def open_db():
     return conn
 
 
-def insert_deal(conn, deal_id, stage="Contacted", pike13_person_id=None):
+def insert_deal(conn, deal_id, stage="Contacted", pike13_person_id=None, last_activity_date=None, last_contacted=None, trial_date=None):
     conn.execute(
         """
         INSERT INTO hubspot_deals (
-            deal_id, deal_name, stage, school, create_date, pike13_person_id, updated_at
+            deal_id, deal_name, stage, school, create_date, last_activity_date,
+            last_contacted, trial_date, pike13_person_id, updated_at
         )
-        VALUES (?, ?, ?, 'West University Place', '2026-04-24', ?, '2026-05-07T00:00:00+00:00')
+        VALUES (?, ?, ?, 'West University Place', '2026-04-24', ?, ?, ?, ?, '2026-05-07T00:00:00+00:00')
         """,
-        (deal_id, f"Lead {deal_id}", stage, pike13_person_id),
+        (deal_id, f"Lead {deal_id}", stage, last_activity_date, last_contacted, trial_date, pike13_person_id),
     )
 
 
@@ -146,7 +147,15 @@ class LeadGapReportTests(unittest.TestCase):
     def test_classify_gap_uses_fixed_precedence(self):
         self.assertEqual(classify_gap({"excluded_stage_flag": 1}), "excluded_stage")
         self.assertEqual(classify_gap({}), "missing_hubspot_contact")
-        self.assertEqual(classify_gap({"trusted_contact_flag": 1}), "missing_pike13_match")
+        self.assertEqual(classify_gap({"trusted_contact_flag": 1}), "hubspot_only_unworked")
+        self.assertEqual(
+            classify_gap({"trusted_contact_flag": 1, "outreach_evidence_flag": 1}),
+            "hubspot_only_with_outreach",
+        )
+        self.assertEqual(
+            classify_gap({"trusted_contact_flag": 1, "stage": "Scheduled Trial/Tour"}),
+            "scheduled_trial_missing_pike13",
+        )
         self.assertEqual(
             classify_gap({"trusted_contact_flag": 1, "pike13_match_flag": 1}),
             "missing_first_visit",
@@ -181,6 +190,16 @@ class LeadGapReportTests(unittest.TestCase):
 
         insert_deal(conn, "deal-no-pike")
         insert_trusted_contact(conn, "contact-no-pike", "deal-no-pike", "7135550002")
+
+        insert_deal(conn, "deal-hubspot-outreach", last_activity_date="2026-05-01")
+        insert_trusted_contact(conn, "contact-hubspot-outreach", "deal-hubspot-outreach", "7135550007")
+
+        insert_deal(conn, "deal-dialpad-outreach")
+        insert_trusted_contact(conn, "contact-dialpad-outreach", "deal-dialpad-outreach", "7135550008")
+        insert_dialpad_sms(conn, "7135550008")
+
+        insert_deal(conn, "deal-trial-missing-pike", stage="Scheduled Trial/Tour")
+        insert_trusted_contact(conn, "contact-trial-missing-pike", "deal-trial-missing-pike", "7135550009")
 
         insert_deal(conn, "deal-no-visit", pike13_person_id="person-no-visit")
         insert_trusted_contact(conn, "contact-no-visit", "deal-no-visit", "7135550003")
@@ -217,20 +236,42 @@ class LeadGapReportTests(unittest.TestCase):
 
         self.assertIn("ready_for_review", categories)
         self.assertIn("missing_hubspot_contact", categories)
-        self.assertIn("missing_pike13_match", categories)
+        self.assertIn("hubspot_only_unworked", categories)
+        self.assertIn("hubspot_only_with_outreach", categories)
+        self.assertIn("scheduled_trial_missing_pike13", categories)
         self.assertIn("missing_first_visit", categories)
         self.assertIn("missing_conversion_signal", categories)
         self.assertIn("targeted_dialpad_not_wired", categories)
         self.assertIn("excluded_stage", categories)
         self.assertEqual(summary["ready_for_review_rows"], 1)
         self.assertEqual(summary["targeted_dialpad_not_wired_rows"], 1)
-        self.assertEqual(summary["by_diagnostic_area"]["identity"], 1)
-        self.assertEqual(summary["by_diagnostic_area"]["communication"], 1)
+        self.assertEqual(summary["hubspot_only_unworked_rows"], 1)
+        self.assertEqual(summary["hubspot_only_with_outreach_rows"], 2)
+        self.assertEqual(summary["scheduled_trial_missing_pike13_rows"], 1)
+        self.assertEqual(summary["by_diagnostic_area"]["funnel_state"], 2)
+        self.assertEqual(summary["by_diagnostic_area"]["communication"], 2)
         self.assertIn("Lead Intelligence Gap Report", markdown)
         self.assertIn("Diagnostic Areas", markdown)
         self.assertNotIn("Lead deal-ready", markdown)
         self.assertNotIn("7135550001", markdown)
         self.assertNotIn("redacted", markdown)
+
+    def test_hubspot_task_activity_counts_as_outreach(self):
+        conn = open_db()
+        insert_deal(conn, "deal-task-outreach")
+        insert_trusted_contact(conn, "contact-task-outreach", "deal-task-outreach", "7135550111")
+        conn.execute(
+            """
+            INSERT INTO hubspot_tasks (
+                task_id, deal_id, due_date, status, title, updated_at
+            )
+            VALUES ('task-outreach', 'deal-task-outreach', '2026-05-01', 'open', 'Call', '2026-05-01T00:00:00+00:00')
+            """
+        )
+
+        rows = fetch_gap_rows(conn, "West University Place", 20)
+        self.assertEqual(rows[0]["gap_category"], "hubspot_only_with_outreach")
+        self.assertTrue(rows[0]["outreach_evidence_found"])
 
     def test_gap_report_can_filter_to_a_date_window(self):
         conn = open_db()

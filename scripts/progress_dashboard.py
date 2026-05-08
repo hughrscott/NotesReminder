@@ -147,7 +147,9 @@ def lead_gap_summary(lead_gap):
     return [
         f"Gap rows reviewed: {lead_gap.get('rows_reviewed', 0)}",
         f"Ready-for-review rows: {lead_gap.get('ready_for_review_rows', 0)}",
-        f"Missing Pike13 match rows: {lead_gap.get('missing_pike13_match_rows', 0)}",
+        f"HubSpot-only unworked rows: {lead_gap.get('hubspot_only_unworked_rows', 0)}",
+        f"HubSpot-only with outreach rows: {lead_gap.get('hubspot_only_with_outreach_rows', 0)}",
+        f"Scheduled trial missing Pike13 rows: {lead_gap.get('scheduled_trial_missing_pike13_rows', lead_gap.get('missing_pike13_match_rows', 0))}",
         f"Missing Dialpad match rows: {lead_gap.get('missing_dialpad_match_rows', 0)}",
         f"Targeted Dialpad not wired rows: {lead_gap.get('targeted_dialpad_not_wired_rows', 0)}",
         "Gap categories: "

@@ -6,7 +6,9 @@ from collections import Counter
 GAP_CATEGORIES = (
     "ready_for_review",
     "missing_hubspot_contact",
-    "missing_pike13_match",
+    "hubspot_only_unworked",
+    "hubspot_only_with_outreach",
+    "scheduled_trial_missing_pike13",
     "missing_first_visit",
     "missing_conversion_signal",
     "missing_dialpad_match",
@@ -21,7 +23,7 @@ EXCLUDED_STAGE_MARKERS = ("closed lost", "not a lead", "enrolled")
 DIAGNOSTIC_AREAS = (
     "ready",
     "source_coverage",
-    "identity",
+    "funnel_state",
     "outcome",
     "conversion",
     "communication",
@@ -39,6 +41,18 @@ def is_excluded_stage(stage):
     return any(marker in lowered for marker in EXCLUDED_STAGE_MARKERS)
 
 
+def is_trial_expected(row):
+    stage = str(row.get("stage") or "").strip().lower()
+    return (
+        "scheduled trial" in stage
+        or "trial/tour" in stage
+        or "trial" in stage
+        or "tour" in stage
+        or boolish(row.get("hubspot_trial_date_flag"))
+        or boolish(row.get("hubspot_scheduled_trial_stage_date_flag"))
+    )
+
+
 def boolish(value):
     return bool(value) and str(value).strip().lower() not in {"0", "false", "none", "null", ""}
 
@@ -49,7 +63,11 @@ def classify_gap(row):
     if not boolish(row.get("trusted_contact_flag")):
         return "missing_hubspot_contact"
     if not boolish(row.get("pike13_match_flag")):
-        return "missing_pike13_match"
+        if is_trial_expected(row):
+            return "scheduled_trial_missing_pike13"
+        if boolish(row.get("outreach_evidence_flag")):
+            return "hubspot_only_with_outreach"
+        return "hubspot_only_unworked"
     if not boolish(row.get("first_visit_flag")):
         return "missing_first_visit"
     if not boolish(row.get("conversion_signal_flag")):
@@ -65,7 +83,9 @@ def diagnostic_area_for_gap(gap_category):
     return {
         "ready_for_review": "ready",
         "missing_hubspot_contact": "source_coverage",
-        "missing_pike13_match": "identity",
+        "hubspot_only_unworked": "communication",
+        "hubspot_only_with_outreach": "funnel_state",
+        "scheduled_trial_missing_pike13": "outcome",
         "missing_first_visit": "outcome",
         "missing_conversion_signal": "conversion",
         "missing_dialpad_match": "communication",
@@ -166,6 +186,27 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                     THEN 1 ELSE 0 END) AS targeted_found_rows
             FROM dialpad_target_searches
             GROUP BY deal_id
+        ),
+        hubspot_task_activity AS (
+            SELECT
+                deal_id,
+                COUNT(*) AS task_activity_rows
+            FROM (
+                SELECT deal_id
+                FROM hubspot_tasks
+                WHERE COALESCE(deal_id, '') != ''
+                  AND (
+                    COALESCE(due_date, '') != ''
+                    OR COALESCE(completed_at, '') != ''
+                    OR COALESCE(status, '') != ''
+                  )
+                UNION ALL
+                SELECT deal_id
+                FROM hubspot_activities
+                WHERE COALESCE(deal_id, '') != ''
+                  AND COALESCE(activity_time, '') != ''
+            )
+            GROUP BY deal_id
         )
         SELECT
             d.deal_id,
@@ -182,13 +223,25 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             CASE WHEN COALESCE(SUM(cs.conversion_rows), 0) > 0 THEN 1 ELSE 0 END AS conversion_signal_flag,
             CASE WHEN COALESCE(MAX(dd.communication_rows), 0) > 0 THEN 1 ELSE 0 END AS dialpad_match_flag,
             CASE WHEN COALESCE(MAX(t.targeted_found_rows), 0) > 0 THEN 1 ELSE 0 END AS targeted_dialpad_found_flag,
+            CASE WHEN COALESCE(d.last_activity_date, '') != '' THEN 1 ELSE 0 END AS hubspot_last_activity_flag,
+            CASE WHEN COALESCE(d.last_contacted, '') != '' THEN 1 ELSE 0 END AS hubspot_last_contacted_flag,
+            CASE WHEN COALESCE(d.trial_date, '') != '' THEN 1 ELSE 0 END AS hubspot_trial_date_flag,
+            CASE WHEN COALESCE(d.date_entered_scheduled_trial_stage, '') != '' THEN 1 ELSE 0 END AS hubspot_scheduled_trial_stage_date_flag,
+            CASE WHEN COALESCE(MAX(hta.task_activity_rows), 0) > 0 THEN 1 ELSE 0 END AS hubspot_task_activity_flag,
+            CASE WHEN COALESCE(MAX(dd.communication_rows), 0) > 0
+                   OR COALESCE(MAX(t.targeted_found_rows), 0) > 0
+                   OR COALESCE(d.last_activity_date, '') != ''
+                   OR COALESCE(d.last_contacted, '') != ''
+                   OR COALESCE(MAX(hta.task_activity_rows), 0) > 0
+                 THEN 1 ELSE 0 END AS outreach_evidence_flag,
             COUNT(DISTINCT dc.contact_id) AS trusted_contact_count,
             COUNT(DISTINCT pm.person_id) AS pike13_match_count,
             COALESCE(SUM(fv.first_visit_rows), 0) AS first_visit_rows,
             COALESCE(SUM(fv.attendance_outcome_rows), 0) AS attendance_outcome_rows,
             COALESCE(SUM(cs.conversion_rows), 0) AS conversion_signal_rows,
             COALESCE(MAX(dd.communication_rows), 0) AS dialpad_communication_rows,
-            COALESCE(MAX(t.targeted_found_rows), 0) AS targeted_dialpad_found_rows
+            COALESCE(MAX(t.targeted_found_rows), 0) AS targeted_dialpad_found_rows,
+            COALESCE(MAX(hta.task_activity_rows), 0) AS hubspot_task_activity_rows
         FROM hubspot_deals d
         LEFT JOIN deal_contacts dc ON dc.deal_id = d.deal_id
         LEFT JOIN pike13_match pm ON pm.deal_id = d.deal_id
@@ -196,6 +249,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
         LEFT JOIN conversion_signals cs ON cs.person_id = pm.person_id
         LEFT JOIN dialpad_direct dd ON dd.deal_id = d.deal_id
         LEFT JOIN targeted t ON t.deal_id = d.deal_id
+        LEFT JOIN hubspot_task_activity hta ON hta.deal_id = d.deal_id
         WHERE (:school = '' OR COALESCE(d.school, '') = :school)
           AND (
             :start_date = ''
@@ -259,10 +313,15 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                 "attendance_outcome_found": boolish(data.get("attendance_outcome_flag")),
                 "conversion_signal_found": boolish(data.get("conversion_signal_flag")),
                 "dialpad_match_found": boolish(data.get("dialpad_match_flag")),
+                "outreach_evidence_found": boolish(data.get("outreach_evidence_flag")),
+                "trial_expected": is_trial_expected(data),
                 "targeted_dialpad_found_not_wired": (
                     boolish(data.get("targeted_dialpad_found_flag"))
                     and not boolish(data.get("dialpad_match_flag"))
                 ),
+                "hubspot_last_activity_found": boolish(data.get("hubspot_last_activity_flag")),
+                "hubspot_last_contacted_found": boolish(data.get("hubspot_last_contacted_flag")),
+                "hubspot_task_activity_found": boolish(data.get("hubspot_task_activity_flag")),
                 "excluded_stage": boolish(data.get("excluded_stage_flag")),
                 "trusted_contact_count": _safe_int(data.get("trusted_contact_count")),
                 "pike13_match_count": _safe_int(data.get("pike13_match_count")),
@@ -271,6 +330,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                 "conversion_signal_rows": _safe_int(data.get("conversion_signal_rows")),
                 "dialpad_communication_rows": _safe_int(data.get("dialpad_communication_rows")),
                 "targeted_dialpad_found_rows": _safe_int(data.get("targeted_dialpad_found_rows")),
+                "hubspot_task_activity_rows": _safe_int(data.get("hubspot_task_activity_rows")),
             }
         )
     return result
@@ -298,7 +358,10 @@ def summarize_gap_rows(rows, readiness=None):
     return {
         "rows_reviewed": len(rows),
         "ready_for_review_rows": by_gap.get("ready_for_review", 0),
-        "missing_pike13_match_rows": by_gap.get("missing_pike13_match", 0),
+        "missing_pike13_match_rows": by_gap.get("scheduled_trial_missing_pike13", 0),
+        "hubspot_only_unworked_rows": by_gap.get("hubspot_only_unworked", 0),
+        "hubspot_only_with_outreach_rows": by_gap.get("hubspot_only_with_outreach", 0),
+        "scheduled_trial_missing_pike13_rows": by_gap.get("scheduled_trial_missing_pike13", 0),
         "missing_dialpad_match_rows": by_gap.get("missing_dialpad_match", 0),
         "targeted_dialpad_not_wired_rows": by_gap.get("targeted_dialpad_not_wired", 0),
         "by_gap_category": {category: by_gap.get(category, 0) for category in GAP_CATEGORIES},
@@ -328,7 +391,9 @@ def render_gap_markdown(report, school=""):
         "",
         f"- Rows reviewed: {summary['rows_reviewed']}",
         f"- Ready for review: {summary['ready_for_review_rows']}",
-        f"- Missing Pike13 match: {summary['missing_pike13_match_rows']}",
+        f"- HubSpot-only unworked: {summary['hubspot_only_unworked_rows']}",
+        f"- HubSpot-only with outreach: {summary['hubspot_only_with_outreach_rows']}",
+        f"- Scheduled trial missing Pike13: {summary['scheduled_trial_missing_pike13_rows']}",
         f"- Missing Dialpad match: {summary['missing_dialpad_match_rows']}",
         f"- Targeted Dialpad not wired: {summary['targeted_dialpad_not_wired_rows']}",
         "",
@@ -348,18 +413,20 @@ def render_gap_markdown(report, school=""):
             "",
             "## Rows",
             "",
-            "| Lead | School | Stage | Gap | HubSpot Contact | Pike13 Match | First Visit | Attendance | Conversion | Dialpad | Targeted Evidence |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Lead | School | Stage | Gap | HubSpot Contact | Outreach | Trial Expected | Pike13 Match | First Visit | Attendance | Conversion | Dialpad | Targeted Evidence |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in rows:
         lines.append(
-            "| {lead_ref} | {school} | {stage} | {gap} | {contact} | {pike13} | {first_visit} | {attendance} | {conversion} | {dialpad} | {targeted} |".format(
+            "| {lead_ref} | {school} | {stage} | {gap} | {contact} | {outreach} | {trial_expected} | {pike13} | {first_visit} | {attendance} | {conversion} | {dialpad} | {targeted} |".format(
                 lead_ref=row["lead_ref"],
                 school=clean_cell(row["school"]),
                 stage=clean_cell(row["stage"]),
                 gap=row["gap_category"],
                 contact=yes_no(row["hubspot_contact_complete"]),
+                outreach=yes_no(row["outreach_evidence_found"]),
+                trial_expected=yes_no(row["trial_expected"]),
                 pike13=yes_no(row["pike13_match_found"]),
                 first_visit=yes_no(row["pike13_first_visit_found"]),
                 attendance=yes_no(row["attendance_outcome_found"]),

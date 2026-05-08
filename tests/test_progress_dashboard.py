@@ -199,11 +199,16 @@ def fake_report():
             "rows_reviewed": 10,
             "ready_for_review_rows": 3,
             "missing_pike13_match_rows": 2,
+            "hubspot_only_unworked_rows": 1,
+            "hubspot_only_with_outreach_rows": 5,
+            "scheduled_trial_missing_pike13_rows": 2,
             "missing_dialpad_match_rows": 1,
             "targeted_dialpad_not_wired_rows": 4,
             "by_gap_category": {
                 "ready_for_review": 3,
-                "missing_pike13_match": 2,
+                "hubspot_only_unworked": 1,
+                "hubspot_only_with_outreach": 5,
+                "scheduled_trial_missing_pike13": 2,
                 "missing_dialpad_match": 1,
                 "targeted_dialpad_not_wired": 4,
             },
@@ -256,7 +261,9 @@ class ProgressDashboardTests(unittest.TestCase):
         self.assertIn("### Lead Gap - READY", markdown)
         self.assertIn("Gap rows reviewed: 10", markdown)
         self.assertIn("Ready-for-review rows: 3", markdown)
-        self.assertIn("Missing Pike13 match rows: 2", markdown)
+        self.assertIn("HubSpot-only unworked rows: 1", markdown)
+        self.assertIn("HubSpot-only with outreach rows: 5", markdown)
+        self.assertIn("Scheduled trial missing Pike13 rows: 2", markdown)
         self.assertIn("Missing Dialpad match rows: 1", markdown)
         self.assertIn("Targeted Dialpad not wired rows: 4", markdown)
         self.assertIn("## Future AI Readiness", markdown)
