@@ -18,6 +18,17 @@ GAP_CATEGORIES = (
 EXCLUDED_STAGE_MARKERS = ("closed lost", "not a lead", "enrolled")
 
 
+DIAGNOSTIC_AREAS = (
+    "ready",
+    "source_coverage",
+    "identity",
+    "outcome",
+    "conversion",
+    "communication",
+    "excluded",
+)
+
+
 def lead_ref(deal_id):
     digest = hashlib.sha256(str(deal_id or "").encode("utf-8")).hexdigest()
     return f"lead_{digest[:10]}"
@@ -50,12 +61,25 @@ def classify_gap(row):
     return "ready_for_review"
 
 
+def diagnostic_area_for_gap(gap_category):
+    return {
+        "ready_for_review": "ready",
+        "missing_hubspot_contact": "source_coverage",
+        "missing_pike13_match": "identity",
+        "missing_first_visit": "outcome",
+        "missing_conversion_signal": "conversion",
+        "missing_dialpad_match": "communication",
+        "targeted_dialpad_not_wired": "communication",
+        "excluded_stage": "excluded",
+    }.get(gap_category, "source_coverage")
+
+
 def _safe_int(value):
     return int(value or 0)
 
 
-def fetch_gap_rows(conn, school="", limit=500):
-    params = {"school": school or "", "limit": limit}
+def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
+    params = {"school": school or "", "limit": limit, "start_date": start_date or "", "end_date": end_date or ""}
     rows = conn.execute(
         """
         WITH deal_contacts AS (
@@ -173,6 +197,34 @@ def fetch_gap_rows(conn, school="", limit=500):
         LEFT JOIN dialpad_direct dd ON dd.deal_id = d.deal_id
         LEFT JOIN targeted t ON t.deal_id = d.deal_id
         WHERE (:school = '' OR COALESCE(d.school, '') = :school)
+          AND (
+            :start_date = ''
+            OR :end_date = ''
+            OR date(COALESCE(
+                NULLIF(d.trial_date, ''),
+                NULLIF(d.date_entered_scheduled_trial_stage, ''),
+                NULLIF(d.last_activity_date, ''),
+                NULLIF(d.last_contacted, ''),
+                NULLIF(d.create_date, ''),
+                NULLIF(d.updated_at, '')
+            )) BETWEEN date(:start_date) AND date(:end_date)
+            OR EXISTS (
+                SELECT 1
+                FROM pike13_match pm_window
+                JOIN pike13_visits pv_window ON pv_window.person_id = pm_window.person_id
+                WHERE pm_window.deal_id = d.deal_id
+                  AND date(pv_window.starts_at) BETWEEN date(:start_date) AND date(:end_date)
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM deal_contacts dc_window
+                JOIN vw_dialpad_communications comms_window
+                  ON comms_window.phone_normalized = dc_window.phone_normalized
+                WHERE dc_window.deal_id = d.deal_id
+                  AND COALESCE(dc_window.phone_normalized, '') != ''
+                  AND date(comms_window.event_at) BETWEEN date(:start_date) AND date(:end_date)
+            )
+          )
         GROUP BY d.deal_id
         ORDER BY
             excluded_stage_flag,
@@ -192,6 +244,7 @@ def fetch_gap_rows(conn, school="", limit=500):
     for index, row in enumerate(rows, start=1):
         data = dict(row)
         gap_category = classify_gap(data)
+        diagnostic_area = diagnostic_area_for_gap(gap_category)
         result.append(
             {
                 "row": index,
@@ -199,6 +252,7 @@ def fetch_gap_rows(conn, school="", limit=500):
                 "school": data.get("school") or "unknown",
                 "stage": data.get("stage") or "unknown",
                 "gap_category": gap_category,
+                "diagnostic_area": diagnostic_area,
                 "hubspot_contact_complete": boolish(data.get("trusted_contact_flag")),
                 "pike13_match_found": boolish(data.get("pike13_match_flag")),
                 "pike13_first_visit_found": boolish(data.get("first_visit_flag")),
@@ -238,6 +292,7 @@ def source_readiness(conn):
 
 def summarize_gap_rows(rows, readiness=None):
     by_gap = Counter(row["gap_category"] for row in rows)
+    by_diagnostic_area = Counter(row.get("diagnostic_area") or diagnostic_area_for_gap(row["gap_category"]) for row in rows)
     by_school = Counter(row["school"] for row in rows)
     by_stage = Counter(row["stage"] for row in rows)
     return {
@@ -247,16 +302,17 @@ def summarize_gap_rows(rows, readiness=None):
         "missing_dialpad_match_rows": by_gap.get("missing_dialpad_match", 0),
         "targeted_dialpad_not_wired_rows": by_gap.get("targeted_dialpad_not_wired", 0),
         "by_gap_category": {category: by_gap.get(category, 0) for category in GAP_CATEGORIES},
+        "by_diagnostic_area": {area: by_diagnostic_area.get(area, 0) for area in DIAGNOSTIC_AREAS},
         "by_school": dict(sorted(by_school.items())),
         "by_stage": dict(sorted(by_stage.items())),
         "source_readiness": readiness or {},
     }
 
 
-def build_gap_report(conn, school="", limit=500):
-    rows = fetch_gap_rows(conn, school, limit)
+def build_gap_report(conn, school="", limit=500, start_date=None, end_date=None):
+    rows = fetch_gap_rows(conn, school, limit, start_date=start_date, end_date=end_date)
     summary = summarize_gap_rows(rows, source_readiness(conn))
-    return {"summary": summary, "rows": rows}
+    return {"summary": summary, "rows": rows, "window_start": start_date or "", "window_end": end_date or ""}
 
 
 def render_gap_markdown(report, school=""):
@@ -266,6 +322,7 @@ def render_gap_markdown(report, school=""):
         "# Lead Intelligence Gap Report",
         "",
         f"School filter: {school or 'all'}",
+        f"Window: {report.get('window_start') or 'all'} to {report.get('window_end') or 'all'}",
         "",
         "## Summary",
         "",
@@ -280,6 +337,9 @@ def render_gap_markdown(report, school=""):
     ]
     for category, count in summary["by_gap_category"].items():
         lines.append(f"- {category}: {count}")
+    lines.extend(["", "## Diagnostic Areas", ""])
+    for area, count in summary.get("by_diagnostic_area", {}).items():
+        lines.append(f"- {area}: {count}")
     lines.extend(["", "## Source Readiness", ""])
     for source, count in summary["source_readiness"].items():
         lines.append(f"- {source}: {count}")

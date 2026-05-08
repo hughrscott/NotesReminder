@@ -224,10 +224,39 @@ class LeadGapReportTests(unittest.TestCase):
         self.assertIn("excluded_stage", categories)
         self.assertEqual(summary["ready_for_review_rows"], 1)
         self.assertEqual(summary["targeted_dialpad_not_wired_rows"], 1)
+        self.assertEqual(summary["by_diagnostic_area"]["identity"], 1)
+        self.assertEqual(summary["by_diagnostic_area"]["communication"], 1)
         self.assertIn("Lead Intelligence Gap Report", markdown)
+        self.assertIn("Diagnostic Areas", markdown)
         self.assertNotIn("Lead deal-ready", markdown)
         self.assertNotIn("7135550001", markdown)
         self.assertNotIn("redacted", markdown)
+
+    def test_gap_report_can_filter_to_a_date_window(self):
+        conn = open_db()
+        insert_deal(conn, "deal-window", pike13_person_id="person-window")
+        insert_trusted_contact(conn, "contact-window", "deal-window", "7135550101")
+        insert_pike13_person(conn, "person-window", phone="7135550101")
+        insert_first_visit(conn, "person-window", conversion=True)
+        insert_dialpad_sms(conn, "7135550101")
+
+        insert_deal(conn, "deal-old", pike13_person_id="person-old")
+        conn.execute("UPDATE hubspot_deals SET create_date = '2026-03-01', updated_at = '2026-03-01' WHERE deal_id = 'deal-old'")
+        insert_trusted_contact(conn, "contact-old", "deal-old", "7135550102")
+        insert_pike13_person(conn, "person-old", phone="7135550102")
+
+        refresh_identity_matches(conn)
+        rows = fetch_gap_rows(
+            conn,
+            "West University Place",
+            20,
+            start_date="2026-04-27",
+            end_date="2026-05-03",
+        )
+        lead_refs = {row["lead_ref"] for row in rows}
+
+        self.assertIn(next(row["lead_ref"] for row in rows if row["gap_category"] == "ready_for_review"), lead_refs)
+        self.assertEqual(len(rows), 1)
 
 
 if __name__ == "__main__":
