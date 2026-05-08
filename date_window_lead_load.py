@@ -27,6 +27,7 @@ SOURCE_LABELS = {
     "hubspot": "HubSpot",
     "pike13": "Pike13",
     "dialpad": "Dialpad",
+    "school_email": "School email",
     "dialpad_daily_intake": "Dialpad daily intake",
     "dialpad_voice": "Dialpad voice",
     "dialpad_sms": "Dialpad SMS",
@@ -200,6 +201,19 @@ def summarize_window_counts(conn, start_date, end_date, school):
                 params,
             ),
             "coverage_basis": "communication event_at after source load",
+        },
+        "school_email": {
+            "rows_in_window": scalar(
+                conn,
+                """
+                SELECT COUNT(*)
+                FROM school_email_messages
+                WHERE date(message_at) BETWEEN date(:start) AND date(:end)
+                  AND (:school = '' OR COALESCE(school, '') = :school)
+                """,
+                params,
+            ),
+            "coverage_basis": "school Gmail message_at after email source load",
         },
         "notes": {
             "rows_in_window": scalar(

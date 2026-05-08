@@ -128,6 +128,26 @@ def build_source_steps(args):
         if args.headless:
             sms_command.append("--headless")
         steps.append(("dialpad_sms", sms_command))
+    if not args.skip_email:
+        command = [
+            py,
+            "scripts/extract_school_emails.py",
+            "--db",
+            db,
+            "--profile-dir",
+            args.sso_profile_dir,
+            "--start-date",
+            args.start_date,
+            "--end-date",
+            args.end_date,
+            "--limit-per-query",
+            str(args.email_limit_per_query),
+        ]
+        for mailbox in args.email_mailbox:
+            command.extend(["--mailbox", mailbox])
+        if args.headless:
+            command.append("--headless")
+        steps.append(("school_email", command))
     if not args.skip_call_reviews:
         command = [
             py,
@@ -165,6 +185,7 @@ def main():
     parser.add_argument("--hubspot-profile-dir", default="browser_profiles/hubspot")
     parser.add_argument("--pike13-profile-dir", default="browser_profiles/pike13")
     parser.add_argument("--dialpad-profile-dir", default="browser_profiles/dialpad")
+    parser.add_argument("--sso-profile-dir", default="browser_profiles/sor_okta")
     parser.add_argument("--hubspot-limit", type=int, default=100)
     parser.add_argument("--hubspot-detail-limit", type=int, default=100)
     parser.add_argument("--pike13-limit", type=int, default=500)
@@ -172,6 +193,12 @@ def main():
     parser.add_argument("--dialpad-voice-limit", type=int, default=75)
     parser.add_argument("--dialpad-sms-limit", type=int, default=50)
     parser.add_argument("--call-review-limit", type=int, default=150)
+    parser.add_argument("--email-limit-per-query", type=int, default=50)
+    parser.add_argument(
+        "--email-mailbox",
+        action="append",
+        default=["westu@schoolofrock.com", "theheights@schoolofrock.com"],
+    )
     parser.add_argument("--source-timeout-seconds", type=int, default=900)
     parser.add_argument("--call-review-timeout-seconds", type=int, default=300)
     parser.add_argument("--gap-limit", type=int, default=500)
@@ -181,6 +208,7 @@ def main():
     parser.add_argument("--skip-hubspot", action="store_true")
     parser.add_argument("--skip-pike13", action="store_true")
     parser.add_argument("--skip-dialpad", action="store_true")
+    parser.add_argument("--skip-email", action="store_true")
     parser.add_argument("--skip-call-reviews", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

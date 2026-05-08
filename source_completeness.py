@@ -271,6 +271,29 @@ def refresh_identity_matches(conn):
             )
             inserted += conn.total_changes - before
 
+        for message_id, in conn.execute(
+            """
+            SELECT message_id
+            FROM school_email_messages
+            WHERE external_email_normalized = ?
+            """,
+            (email,),
+        ).fetchall():
+            before = conn.total_changes
+            upsert_identity_match(
+                conn,
+                "hubspot",
+                "hubspot_contacts",
+                contact_id,
+                "school_email",
+                "school_email_messages",
+                message_id,
+                "email_exact",
+                0.95,
+                f"Exact normalized email match: {email}",
+            )
+            inserted += conn.total_changes - before
+
     for contact_id, phone in conn.execute(
         f"""
         SELECT contact_id, phone_normalized

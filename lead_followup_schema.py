@@ -246,6 +246,30 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS school_email_messages (
+                message_id TEXT PRIMARY KEY,
+                thread_id TEXT,
+                school_mailbox TEXT NOT NULL,
+                school TEXT,
+                direction TEXT,
+                message_at TEXT,
+                from_email TEXT,
+                from_email_normalized TEXT,
+                to_emails TEXT,
+                to_emails_normalized TEXT,
+                cc_emails TEXT,
+                cc_emails_normalized TEXT,
+                external_email_normalized TEXT,
+                subject TEXT,
+                snippet TEXT,
+                body TEXT,
+                source_url TEXT,
+                raw_text TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS dialpad_route_discoveries (
                 route_id TEXT PRIMARY KEY,
                 run_id INTEGER,
@@ -421,6 +445,9 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_target_searches_deal ON dialpad_target_searches(deal_id)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_outcome ON dialpad_target_searches(outcome)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_hash ON dialpad_target_searches(target_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_school_email_message_at ON school_email_messages(message_at)",
+            "CREATE INDEX IF NOT EXISTS idx_school_email_external ON school_email_messages(external_email_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_school_email_mailbox ON school_email_messages(school_mailbox)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_run ON dialpad_route_discoveries(run_id)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_status ON dialpad_route_discoveries(status)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_route ON dialpad_route_discoveries(route_name)",
@@ -449,6 +476,7 @@ def _create_views(conn):
             "DROP VIEW IF EXISTS vw_unmatched_dialpad_inbound",
             "DROP VIEW IF EXISTS vw_dialpad_daily_intake",
             "DROP VIEW IF EXISTS vw_dialpad_communications",
+            "DROP VIEW IF EXISTS vw_school_email_communications",
             "DROP VIEW IF EXISTS vw_pike13_lesson_visits",
             "DROP VIEW IF EXISTS vw_stale_leads",
             "DROP VIEW IF EXISTS vw_no_show_followup",
@@ -575,6 +603,26 @@ def _create_views(conn):
                 END,
                 COALESCE(phone_normalized, event_id)
             FROM dialpad_voice_events
+            """,
+            """
+            CREATE VIEW vw_school_email_communications AS
+            SELECT
+                'school_email_messages' AS source_table,
+                message_id AS communication_id,
+                'email' AS channel,
+                'email' AS event_type,
+                LOWER(COALESCE(direction, 'unknown')) AS direction,
+                message_at AS event_at,
+                external_email_normalized,
+                school,
+                school_mailbox,
+                subject,
+                snippet,
+                body,
+                source_url,
+                CASE WHEN LOWER(COALESCE(direction, '')) = 'inbound' THEN 1 ELSE 0 END AS is_inbound_needing_followup,
+                COALESCE(external_email_normalized, message_id) AS followup_key
+            FROM school_email_messages
             """,
             """
             CREATE VIEW vw_dialpad_daily_intake AS
@@ -770,6 +818,22 @@ def _create_views(conn):
                 COALESCE(summary, body, ''),
                 source_url
             FROM vw_dialpad_communications
+            UNION ALL
+            SELECT
+                'email',
+                channel || ':' || event_type,
+                communication_id,
+                NULL,
+                NULL,
+                NULL,
+                event_at,
+                school,
+                school_mailbox,
+                external_email_normalized,
+                COALESCE(subject, direction, event_type),
+                COALESCE(snippet, ''),
+                source_url
+            FROM vw_school_email_communications
             UNION ALL
             SELECT
                 'pike13',
@@ -1020,6 +1084,46 @@ def upsert_identity_match(
             evidence,
             utc_now_iso(),
         ),
+    )
+
+
+def upsert_school_email_message(conn, row):
+    conn.execute(
+        """
+        INSERT INTO school_email_messages (
+            message_id, thread_id, school_mailbox, school, direction, message_at,
+            from_email, from_email_normalized, to_emails, to_emails_normalized,
+            cc_emails, cc_emails_normalized, external_email_normalized, subject,
+            snippet, body, source_url, raw_text, raw_json, updated_at
+        )
+        VALUES (
+            :message_id, :thread_id, :school_mailbox, :school, :direction, :message_at,
+            :from_email, :from_email_normalized, :to_emails, :to_emails_normalized,
+            :cc_emails, :cc_emails_normalized, :external_email_normalized, :subject,
+            :snippet, :body, :source_url, :raw_text, :raw_json, :updated_at
+        )
+        ON CONFLICT(message_id) DO UPDATE SET
+            thread_id = COALESCE(excluded.thread_id, school_email_messages.thread_id),
+            school_mailbox = excluded.school_mailbox,
+            school = COALESCE(excluded.school, school_email_messages.school),
+            direction = COALESCE(excluded.direction, school_email_messages.direction),
+            message_at = COALESCE(excluded.message_at, school_email_messages.message_at),
+            from_email = COALESCE(excluded.from_email, school_email_messages.from_email),
+            from_email_normalized = COALESCE(excluded.from_email_normalized, school_email_messages.from_email_normalized),
+            to_emails = COALESCE(excluded.to_emails, school_email_messages.to_emails),
+            to_emails_normalized = COALESCE(excluded.to_emails_normalized, school_email_messages.to_emails_normalized),
+            cc_emails = COALESCE(excluded.cc_emails, school_email_messages.cc_emails),
+            cc_emails_normalized = COALESCE(excluded.cc_emails_normalized, school_email_messages.cc_emails_normalized),
+            external_email_normalized = COALESCE(excluded.external_email_normalized, school_email_messages.external_email_normalized),
+            subject = COALESCE(excluded.subject, school_email_messages.subject),
+            snippet = COALESCE(excluded.snippet, school_email_messages.snippet),
+            body = COALESCE(excluded.body, school_email_messages.body),
+            source_url = COALESCE(excluded.source_url, school_email_messages.source_url),
+            raw_text = COALESCE(excluded.raw_text, school_email_messages.raw_text),
+            raw_json = COALESCE(excluded.raw_json, school_email_messages.raw_json),
+            updated_at = excluded.updated_at
+        """,
+        row,
     )
 
 

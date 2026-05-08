@@ -122,6 +122,20 @@ def insert_first_visit(conn, person_id, conversion=True):
         )
 
 
+def insert_trial_outcome_visit(conn, person_id):
+    conn.execute(
+        """
+        INSERT INTO pike13_visits (
+            visit_id, person_id, service, starts_at, status, first_visit_flag,
+            no_show_flag, school, updated_at
+        )
+        VALUES (?, ?, 'Adult Band Trial', '2026-04-25T13:30:00', 'No Show',
+                0, 1, 'West U', '2026-05-07T00:00:00+00:00')
+        """,
+        (f"trial-outcome-{person_id}", person_id),
+    )
+
+
 def insert_dialpad_sms(conn, phone):
     conn.execute(
         """
@@ -272,6 +286,20 @@ class LeadGapReportTests(unittest.TestCase):
         rows = fetch_gap_rows(conn, "West University Place", 20)
         self.assertEqual(rows[0]["gap_category"], "hubspot_only_with_outreach")
         self.assertTrue(rows[0]["outreach_evidence_found"])
+
+    def test_trial_service_outcome_counts_as_first_visit_evidence(self):
+        conn = open_db()
+        insert_deal(conn, "deal-trial-outcome", pike13_person_id="person-trial-outcome")
+        insert_trusted_contact(conn, "contact-trial-outcome", "deal-trial-outcome", "7135550112")
+        insert_pike13_person(conn, "person-trial-outcome", phone="7135550112")
+        insert_trial_outcome_visit(conn, "person-trial-outcome")
+        insert_dialpad_sms(conn, "7135550112")
+
+        rows = fetch_gap_rows(conn, "West University Place", 20)
+
+        self.assertTrue(rows[0]["pike13_first_visit_found"])
+        self.assertTrue(rows[0]["attendance_outcome_found"])
+        self.assertEqual(rows[0]["gap_category"], "missing_conversion_signal")
 
     def test_gap_report_can_filter_to_a_date_window(self):
         conn = open_db()

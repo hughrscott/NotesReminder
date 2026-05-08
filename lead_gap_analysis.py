@@ -149,6 +149,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                     THEN 1 ELSE 0 END) AS attendance_outcome_rows
             FROM pike13_visits
             WHERE COALESCE(first_visit_flag, 0) = 1
+               OR LOWER(COALESCE(service, '')) LIKE '%trial%'
             GROUP BY person_id
         ),
         conversion_signals AS (
@@ -173,6 +174,17 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             JOIN vw_dialpad_communications comms
               ON comms.phone_normalized = dc.phone_normalized
             WHERE COALESCE(dc.phone_normalized, '') != ''
+            GROUP BY dc.deal_id
+        ),
+        email_direct AS (
+            SELECT
+                dc.deal_id,
+                COUNT(*) AS email_rows
+            FROM deal_contacts dc
+            JOIN hubspot_contacts hc ON hc.contact_id = dc.contact_id
+            JOIN vw_school_email_communications emails
+              ON emails.external_email_normalized = hc.email_normalized
+            WHERE COALESCE(hc.email_normalized, '') != ''
             GROUP BY dc.deal_id
         ),
         targeted AS (
@@ -222,6 +234,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             CASE WHEN COALESCE(SUM(fv.attendance_outcome_rows), 0) > 0 THEN 1 ELSE 0 END AS attendance_outcome_flag,
             CASE WHEN COALESCE(SUM(cs.conversion_rows), 0) > 0 THEN 1 ELSE 0 END AS conversion_signal_flag,
             CASE WHEN COALESCE(MAX(dd.communication_rows), 0) > 0 THEN 1 ELSE 0 END AS dialpad_match_flag,
+            CASE WHEN COALESCE(MAX(ed.email_rows), 0) > 0 THEN 1 ELSE 0 END AS email_match_flag,
             CASE WHEN COALESCE(MAX(t.targeted_found_rows), 0) > 0 THEN 1 ELSE 0 END AS targeted_dialpad_found_flag,
             CASE WHEN COALESCE(d.last_activity_date, '') != '' THEN 1 ELSE 0 END AS hubspot_last_activity_flag,
             CASE WHEN COALESCE(d.last_contacted, '') != '' THEN 1 ELSE 0 END AS hubspot_last_contacted_flag,
@@ -229,6 +242,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             CASE WHEN COALESCE(d.date_entered_scheduled_trial_stage, '') != '' THEN 1 ELSE 0 END AS hubspot_scheduled_trial_stage_date_flag,
             CASE WHEN COALESCE(MAX(hta.task_activity_rows), 0) > 0 THEN 1 ELSE 0 END AS hubspot_task_activity_flag,
             CASE WHEN COALESCE(MAX(dd.communication_rows), 0) > 0
+                   OR COALESCE(MAX(ed.email_rows), 0) > 0
                    OR COALESCE(MAX(t.targeted_found_rows), 0) > 0
                    OR COALESCE(d.last_activity_date, '') != ''
                    OR COALESCE(d.last_contacted, '') != ''
@@ -240,6 +254,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             COALESCE(SUM(fv.attendance_outcome_rows), 0) AS attendance_outcome_rows,
             COALESCE(SUM(cs.conversion_rows), 0) AS conversion_signal_rows,
             COALESCE(MAX(dd.communication_rows), 0) AS dialpad_communication_rows,
+            COALESCE(MAX(ed.email_rows), 0) AS email_communication_rows,
             COALESCE(MAX(t.targeted_found_rows), 0) AS targeted_dialpad_found_rows,
             COALESCE(MAX(hta.task_activity_rows), 0) AS hubspot_task_activity_rows
         FROM hubspot_deals d
@@ -248,6 +263,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
         LEFT JOIN first_visits fv ON fv.person_id = pm.person_id
         LEFT JOIN conversion_signals cs ON cs.person_id = pm.person_id
         LEFT JOIN dialpad_direct dd ON dd.deal_id = d.deal_id
+        LEFT JOIN email_direct ed ON ed.deal_id = d.deal_id
         LEFT JOIN targeted t ON t.deal_id = d.deal_id
         LEFT JOIN hubspot_task_activity hta ON hta.deal_id = d.deal_id
         WHERE (:school = '' OR COALESCE(d.school, '') = :school)
@@ -313,6 +329,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                 "attendance_outcome_found": boolish(data.get("attendance_outcome_flag")),
                 "conversion_signal_found": boolish(data.get("conversion_signal_flag")),
                 "dialpad_match_found": boolish(data.get("dialpad_match_flag")),
+                "email_match_found": boolish(data.get("email_match_flag")),
                 "outreach_evidence_found": boolish(data.get("outreach_evidence_flag")),
                 "trial_expected": is_trial_expected(data),
                 "targeted_dialpad_found_not_wired": (
@@ -329,6 +346,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
                 "attendance_outcome_rows": _safe_int(data.get("attendance_outcome_rows")),
                 "conversion_signal_rows": _safe_int(data.get("conversion_signal_rows")),
                 "dialpad_communication_rows": _safe_int(data.get("dialpad_communication_rows")),
+                "email_communication_rows": _safe_int(data.get("email_communication_rows")),
                 "targeted_dialpad_found_rows": _safe_int(data.get("targeted_dialpad_found_rows")),
                 "hubspot_task_activity_rows": _safe_int(data.get("hubspot_task_activity_rows")),
             }
@@ -346,6 +364,7 @@ def source_readiness(conn):
         ).fetchone()[0],
         "pike13_plans_passes": conn.execute("SELECT COUNT(*) FROM pike13_plans_passes").fetchone()[0],
         "dialpad_communications": conn.execute("SELECT COUNT(*) FROM vw_dialpad_communications").fetchone()[0],
+        "school_email_messages": conn.execute("SELECT COUNT(*) FROM school_email_messages").fetchone()[0],
         "dialpad_target_searches": conn.execute("SELECT COUNT(*) FROM dialpad_target_searches").fetchone()[0],
     }
 
@@ -413,13 +432,13 @@ def render_gap_markdown(report, school=""):
             "",
             "## Rows",
             "",
-            "| Lead | School | Stage | Gap | HubSpot Contact | Outreach | Trial Expected | Pike13 Match | First Visit | Attendance | Conversion | Dialpad | Targeted Evidence |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Lead | School | Stage | Gap | HubSpot Contact | Outreach | Trial Expected | Pike13 Match | First Visit | Attendance | Conversion | Email | Dialpad | Targeted Evidence |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in rows:
         lines.append(
-            "| {lead_ref} | {school} | {stage} | {gap} | {contact} | {outreach} | {trial_expected} | {pike13} | {first_visit} | {attendance} | {conversion} | {dialpad} | {targeted} |".format(
+            "| {lead_ref} | {school} | {stage} | {gap} | {contact} | {outreach} | {trial_expected} | {pike13} | {first_visit} | {attendance} | {conversion} | {email} | {dialpad} | {targeted} |".format(
                 lead_ref=row["lead_ref"],
                 school=clean_cell(row["school"]),
                 stage=clean_cell(row["stage"]),
@@ -431,6 +450,7 @@ def render_gap_markdown(report, school=""):
                 first_visit=yes_no(row["pike13_first_visit_found"]),
                 attendance=yes_no(row["attendance_outcome_found"]),
                 conversion=yes_no(row["conversion_signal_found"]),
+                email=yes_no(row["email_match_found"]),
                 dialpad=yes_no(row["dialpad_match_found"]),
                 targeted=yes_no(row["targeted_dialpad_found_not_wired"]),
             )
