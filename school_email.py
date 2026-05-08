@@ -128,11 +128,12 @@ def delay_bucket(hours):
     return "4_plus_days"
 
 
-def gmail_query(mailbox, direction, start_date, end_date):
+def gmail_query(mailbox, direction, start_date, end_date, query_term=""):
     after = start_date.replace("-", "/")
     before = (date.fromisoformat(end_date) + timedelta(days=1)).isoformat().replace("-", "/")
     side = "to" if direction == "inbound" else "from"
-    return f"{side}:({mailbox}) after:{after} before:{before}"
+    prefix = f"{query_term.strip()} " if query_term else ""
+    return f"{prefix}{side}:({mailbox}) after:{after} before:{before}".strip()
 
 
 def communication_label(row):

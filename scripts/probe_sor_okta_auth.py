@@ -44,7 +44,7 @@ def classify_url(url, body_text=""):
     return "unknown"
 
 
-def run_probe(profile_dir, headless=True, interactive_login=False, login_timeout=300, chrome_channel=False):
+def run_probe(profile_dir, headless=True, interactive_login=False, login_timeout=300, chrome_channel=False, probe_timeout=45):
     launch_kwargs = {
         "headless": headless and not interactive_login,
         "viewport": {"width": 1440, "height": 1000},
@@ -66,8 +66,10 @@ def run_probe(profile_dir, headless=True, interactive_login=False, login_timeout
                     pass
             for name, url in PROBES.items():
                 page = context.new_page()
+                page.set_default_timeout(probe_timeout * 1000)
+                page.set_default_navigation_timeout(probe_timeout * 1000)
                 try:
-                    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                    page.goto(url, wait_until="domcontentloaded", timeout=probe_timeout * 1000)
                     try:
                         page.wait_for_load_state("networkidle", timeout=15000)
                     except PlaywrightTimeoutError:
@@ -94,6 +96,7 @@ def main():
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--interactive-login", action="store_true")
     parser.add_argument("--login-timeout", type=int, default=300)
+    parser.add_argument("--probe-timeout", type=int, default=45)
     parser.add_argument("--chrome-channel", action="store_true")
     args = parser.parse_args()
 
@@ -111,6 +114,7 @@ def main():
             interactive_login=args.interactive_login,
             login_timeout=args.login_timeout,
             chrome_channel=args.chrome_channel,
+            probe_timeout=args.probe_timeout,
         )
         status = "success" if all(item["status"] == "authenticated" for item in results.values()) else "partial"
         if conn:

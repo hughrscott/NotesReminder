@@ -117,6 +117,7 @@ class SchoolEmailTests(unittest.TestCase):
         )
         self.assertTrue(parse_gmail_datetime("Apr 22, 2026, 11:05 AM").startswith("2026-04-22T11:05:00"))
         self.assertIn("before:2026/05/01", gmail_query("westu@schoolofrock.com", "inbound", "2026-04-22", "2026-04-30"))
+        self.assertTrue(gmail_query("westu@schoolofrock.com", "inbound", "2026-04-22", "2026-04-30", "maira").startswith("maira "))
 
     def test_email_identity_match_and_sanitized_trial_timeline(self):
         conn = open_db()

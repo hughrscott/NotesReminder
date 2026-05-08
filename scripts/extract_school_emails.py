@@ -81,6 +81,7 @@ def parse_open_message(page, row_meta, school_mailbox, forced_direction, now_yea
         () => {
           const text = document.body ? document.body.innerText : "";
           const mailtos = Array.from(document.querySelectorAll('a[href^="mailto:"]')).map(a => a.href.replace(/^mailto:/, '').split('?')[0]);
+          const attrEmails = Array.from(document.querySelectorAll('[email], [data-hovercard-id]')).flatMap(e => [e.getAttribute('email'), e.getAttribute('data-hovercard-id')]).filter(Boolean);
           const subject = document.querySelector('h2')?.innerText || document.querySelector('[data-thread-perm-id] h2')?.innerText || "";
           const dates = Array.from(document.querySelectorAll('span.g3, span[title]')).map(e => e.getAttribute('title') || e.innerText).filter(Boolean);
           const message = document.querySelector('[data-legacy-message-id]');
@@ -88,6 +89,7 @@ def parse_open_message(page, row_meta, school_mailbox, forced_direction, now_yea
           return {
             text,
             mailtos,
+            attrEmails,
             subject,
             dates,
             messageId: message ? message.getAttribute('data-legacy-message-id') : null,
@@ -98,7 +100,7 @@ def parse_open_message(page, row_meta, school_mailbox, forced_direction, now_yea
         """
     )
     raw_text = data.get("text") or row_meta.get("text") or ""
-    emails = normalize_email_list(data.get("mailtos") or raw_text)
+    emails = normalize_email_list((data.get("attrEmails") or []) + (data.get("mailtos") or []) + [raw_text])
     mailbox = normalize_email(school_mailbox)
     from_email = mailbox if forced_direction == "outbound" else None
     to_emails = [mailbox] if forced_direction == "inbound" else []
@@ -109,11 +111,11 @@ def parse_open_message(page, row_meta, school_mailbox, forced_direction, now_yea
     external_email = external_email_for_message(from_email, to_emails)
     direction = classify_direction(from_email, to_emails, mailbox) if from_email or to_emails else forced_direction
     message_at = None
-    for date_text in data.get("dates") or []:
+    for date_text in reversed(data.get("dates") or []):
         message_at = parse_gmail_datetime(date_text, now_year=now_year)
         if message_at:
             break
-    subject = clean_subject(data.get("subject") or row_meta.get("text") or "")
+    subject = clean_subject(extract_subject(raw_text) or data.get("subject") or row_meta.get("text") or "")
     message_id = data.get("messageId") or row_meta.get("legacy_message_id")
     thread_id = data.get("threadId") or row_meta.get("legacy_thread_id")
     if not message_id:
@@ -155,6 +157,17 @@ def clean_subject(value):
     return text[:240]
 
 
+def extract_subject(raw_text):
+    lines = [line.strip() for line in str(raw_text or "").splitlines() if line.strip()]
+    for index, line in enumerate(lines):
+        if line == "In new window" and index + 1 < len(lines):
+            return lines[index + 1]
+    for line in lines:
+        if line.lower().startswith(("re:", "fwd:", "fw:")):
+            return line
+    return ""
+
+
 def clean_snippet(value):
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     return text[:500]
@@ -185,17 +198,21 @@ def run_extraction(args):
             )
             try:
                 page = context.pages[0] if context.pages else context.new_page()
+                page.set_default_timeout(args.query_timeout * 1000)
+                page.set_default_navigation_timeout(args.query_timeout * 1000)
                 for mailbox in args.mailbox:
                     for direction in ("inbound", "outbound"):
-                        query = gmail_query(mailbox, direction, args.start_date, args.end_date)
+                        query = gmail_query(mailbox, direction, args.start_date, args.end_date, args.query_term)
                         url = gmail_search_url(query)
-                        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        print(f"Searching Gmail mailbox={mailbox} direction={direction}", flush=True)
+                        page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
                         wait_for_gmail(page, args.interactive_login, args.login_timeout)
                         try:
-                            page.wait_for_load_state("networkidle", timeout=15000)
+                            page.wait_for_load_state("networkidle", timeout=min(args.query_timeout, 15) * 1000)
                         except PlaywrightTimeoutError:
                             pass
                         rows = visible_message_rows(page, args.limit_per_query)
+                        print(f"Found visible Gmail rows: {len(rows)}", flush=True)
                         metadata["queries"].append({"mailbox": mailbox, "direction": direction, "rows": len(rows)})
                         for row_meta in rows:
                             rows_seen += 1
@@ -234,6 +251,8 @@ def main():
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--mailbox", action="append", choices=sorted(SCHOOL_MAILBOXES), default=[])
     parser.add_argument("--limit-per-query", type=int, default=50)
+    parser.add_argument("--query-timeout", type=int, default=45)
+    parser.add_argument("--query-term", default="")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--interactive-login", action="store_true")
     parser.add_argument("--login-timeout", type=int, default=300)
