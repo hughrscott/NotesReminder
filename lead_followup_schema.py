@@ -223,6 +223,42 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS recording_downloads (
+                call_id TEXT PRIMARY KEY,
+                recording_url TEXT,
+                file_path TEXT,
+                status TEXT,
+                error_message TEXT,
+                downloaded_at TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS recording_transcripts (
+                call_id TEXT PRIMARY KEY,
+                recording_url TEXT,
+                recording_duration TEXT,
+                s3_bucket TEXT,
+                s3_key TEXT,
+                transcript_bucket TEXT,
+                transcript_key TEXT,
+                transcript_uri TEXT,
+                transcript_text TEXT,
+                transcript_provider TEXT,
+                transcript_model TEXT,
+                transcript_status TEXT,
+                error_message TEXT,
+                intent TEXT,
+                sentiment TEXT,
+                outcome TEXT,
+                action_items TEXT,
+                urgency TEXT,
+                topic TEXT,
+                summary TEXT,
+                created_at TEXT,
+                completed_at TEXT
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS dialpad_target_searches (
                 search_id TEXT PRIMARY KEY,
                 run_id INTEGER,
@@ -420,6 +456,39 @@ def ensure_lead_followup_schema(conn):
     _add_column_if_missing(conn, "pike13_plans_passes", "payer_name", "TEXT")
     _add_column_if_missing(conn, "pike13_plans_passes", "next_invoice_at", "TEXT")
     _add_column_if_missing(conn, "pike13_plans_passes", "terms_accepted_flag", "INTEGER")
+    _add_column_if_missing(conn, "recording_downloads", "voice_event_id", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "source_url", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "event_at", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "phone_normalized", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "contact_name", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "school", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "duration", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "file_sha256", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "file_size_bytes", "INTEGER")
+    _add_column_if_missing(conn, "recording_downloads", "content_type", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "transcription_status", "TEXT")
+    _add_column_if_missing(conn, "recording_downloads", "updated_at", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "recording_duration", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "recording_url", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "s3_bucket", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "s3_key", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_bucket", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_key", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_uri", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_text", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_provider", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_model", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "transcript_status", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "error_message", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "intent", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "sentiment", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "outcome", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "action_items", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "urgency", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "topic", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "summary", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "created_at", "TEXT")
+    _add_column_if_missing(conn, "recording_transcripts", "completed_at", "TEXT")
     _execute_many(
         conn,
         [
@@ -441,6 +510,10 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_url ON dialpad_call_reviews(call_review_url)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_call_id ON dialpad_call_reviews(call_id)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_status ON dialpad_call_reviews(extraction_status)",
+            "CREATE INDEX IF NOT EXISTS idx_recording_downloads_status ON recording_downloads(status)",
+            "CREATE INDEX IF NOT EXISTS idx_recording_downloads_voice_event ON recording_downloads(voice_event_id)",
+            "CREATE INDEX IF NOT EXISTS idx_recording_downloads_transcription ON recording_downloads(transcription_status)",
+            "CREATE INDEX IF NOT EXISTS idx_recording_transcripts_status ON recording_transcripts(transcript_status)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_run ON dialpad_target_searches(run_id)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_deal ON dialpad_target_searches(deal_id)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_outcome ON dialpad_target_searches(outcome)",

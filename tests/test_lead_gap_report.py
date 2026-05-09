@@ -301,6 +301,28 @@ class LeadGapReportTests(unittest.TestCase):
         self.assertTrue(rows[0]["attendance_outcome_found"])
         self.assertEqual(rows[0]["gap_category"], "missing_conversion_signal")
 
+    def test_fuzzy_name_school_identity_resolves_minor_pike13_spelling_difference(self):
+        conn = open_db()
+        insert_deal(conn, "deal-kareem", stage="Scheduled Trial/Tour")
+        conn.execute(
+            """
+            UPDATE hubspot_deals
+            SET deal_name = 'Kareem Sudoun | West University Place'
+            WHERE deal_id = 'deal-kareem'
+            """
+        )
+        insert_trusted_contact(conn, "contact-kareem", "deal-kareem", "7135550199")
+        insert_pike13_person(conn, "person-kareem", phone=None, email=None)
+        conn.execute("UPDATE pike13_people SET full_name = 'Kareem Sadoun' WHERE person_id = 'person-kareem'")
+        insert_first_visit(conn, "person-kareem", conversion=False)
+
+        refresh_identity_matches(conn)
+        rows = fetch_gap_rows(conn, "West University Place", 20)
+
+        self.assertTrue(rows[0]["pike13_match_found"])
+        self.assertTrue(rows[0]["pike13_first_visit_found"])
+        self.assertEqual(rows[0]["gap_category"], "missing_conversion_signal")
+
     def test_gap_report_can_filter_to_a_date_window(self):
         conn = open_db()
         insert_deal(conn, "deal-window", pike13_person_id="person-window")

@@ -1,6 +1,8 @@
 import argparse
+import difflib
 import json
 import sqlite3
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -11,6 +13,46 @@ from lead_gap_analysis import build_gap_report
 DEFAULT_WINDOW_DAYS = 7
 DEFAULT_PIKE13_LOOKAHEAD_DAYS = 30
 STALE_RUNNING_RUN_HOURS = 6
+SCHOOL_ALIASES = {
+    "west university place": {"west university place", "west u", "westu"},
+    "west u": {"west university place", "west u", "westu"},
+    "westu": {"west university place", "west u", "westu"},
+    "the heights": {"the heights", "heights"},
+    "heights": {"the heights", "heights"},
+}
+
+
+def canonical_school_tokens(value):
+    normalized = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    return SCHOOL_ALIASES.get(normalized, {normalized} if normalized else set())
+
+
+def schools_match(left, right):
+    left_tokens = canonical_school_tokens(left)
+    right_tokens = canonical_school_tokens(right)
+    return bool(left_tokens and right_tokens and left_tokens.intersection(right_tokens))
+
+
+def name_tokens(value):
+    return re.findall(r"[a-z0-9]+", str(value or "").lower())
+
+
+def name_match_confidence(left, right):
+    left_tokens = name_tokens(left)
+    right_tokens = name_tokens(right)
+    if not left_tokens or not right_tokens:
+        return 0
+    if left_tokens == right_tokens:
+        return 0.70
+    if left_tokens[0] != right_tokens[0]:
+        return 0
+    left_last = left_tokens[-1]
+    right_last = right_tokens[-1]
+    last_ratio = difflib.SequenceMatcher(None, left_last, right_last).ratio()
+    full_ratio = difflib.SequenceMatcher(None, " ".join(left_tokens), " ".join(right_tokens)).ratio()
+    if last_ratio >= 0.82 and full_ratio >= 0.86:
+        return 0.66
+    return 0
 
 
 def utc_now():
@@ -350,7 +392,9 @@ def refresh_identity_matches(conn):
               AND school IS NOT NULL AND school != ''
             """
         ).fetchall():
-            if lead_name == (full_name or "").strip().lower() and school_l in (person_school or "").lower():
+            confidence = name_match_confidence(lead_name, full_name)
+            if confidence and schools_match(school_l, person_school):
+                match_type = "name_school_exact" if confidence >= 0.70 else "name_school_fuzzy"
                 before = conn.total_changes
                 upsert_identity_match(
                     conn,
@@ -360,9 +404,9 @@ def refresh_identity_matches(conn):
                     "pike13",
                     "pike13_people",
                     person_id,
-                    "name_school_exact",
-                    0.70,
-                    f"Exact name plus school match: {lead_name} / {school}",
+                    match_type,
+                    confidence,
+                    f"Name plus school match: {lead_name} / {full_name} / {school}",
                 )
                 inserted += conn.total_changes - before
 
@@ -953,9 +997,28 @@ def dialpad_section(conn, window_start):
             """
         ).fetchall()
     }
+    recording_download_rows = count(conn, "SELECT COUNT(*) FROM recording_downloads")
+    recording_download_success_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM recording_downloads
+        WHERE status IN ('success', 'skipped_existing')
+          AND COALESCE(file_path, '') != ''
+        """,
+    )
+    recording_download_pending_transcription_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM recording_downloads
+        WHERE transcription_status = 'pending'
+        """,
+    )
     latest_sms_import_run = import_run_summary(conn, "dialpad_sms")
     latest_voice_import_run = import_run_summary(conn, "dialpad_voice")
     latest_call_review_import_run = import_run_summary(conn, "dialpad_call_reviews")
+    latest_recording_download_import_run = import_run_summary(conn, "dialpad_recording_downloads")
     latest_daily_intake_import_run = import_run_summary(conn, "dialpad_daily_intake")
     target_search = dialpad_target_search_summary(conn)
     route_discovery = dialpad_route_discovery_summary(conn)
@@ -1039,6 +1102,9 @@ def dialpad_section(conn, window_start):
         "call_review_action_item_rows": call_review_action_item_rows,
         "call_review_audio_rows": call_review_audio_rows,
         "call_review_status_counts": call_review_status_counts,
+        "recording_download_rows": recording_download_rows,
+        "recording_download_success_rows": recording_download_success_rows,
+        "recording_download_pending_transcription_rows": recording_download_pending_transcription_rows,
         "sms_extraction_sources": sms_extraction_sources,
         "sms_direction_sources": sms_direction_sources,
         "sms_inferred_direction_rows": sms_inferred_direction_rows,
@@ -1055,6 +1121,7 @@ def dialpad_section(conn, window_start):
         "latest_sms_import_run": latest_sms_import_run,
         "latest_voice_import_run": latest_voice_import_run,
         "latest_call_review_import_run": latest_call_review_import_run,
+        "latest_recording_download_import_run": latest_recording_download_import_run,
         "latest_daily_intake_import_run": latest_daily_intake_import_run,
         "daily_intake": daily_intake,
         "target_search": target_search,

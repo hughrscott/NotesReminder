@@ -166,6 +166,85 @@ class SchoolEmailTests(unittest.TestCase):
         self.assertNotIn("lead@example.com", markdown)
         self.assertNotIn("Private body", markdown)
 
+    def test_trial_followup_uses_name_search_when_contact_keys_are_missing(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, school, updated_at
+            )
+            VALUES ('person-name-only', 'Private Student', 'West U', '2026-05-01T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_visits (
+                visit_id, person_id, service, starts_at, status, school, updated_at
+            )
+            VALUES ('visit-name-only', 'person-name-only', 'Trial - Guitar',
+                    '2026-04-25T13:30:00', 'Complete', 'West U', '2026-05-01T00:00:00+00:00')
+            """
+        )
+        upsert_school_email_message(
+            conn,
+            {
+                "message_id": "email-name-only",
+                "thread_id": "thread-name-only",
+                "school_mailbox": "westu@schoolofrock.com",
+                "school": "West University Place",
+                "direction": "outbound",
+                "message_at": "2026-04-24T10:00:00",
+                "from_email": "westu@schoolofrock.com",
+                "from_email_normalized": "westu@schoolofrock.com",
+                "to_emails": "[]",
+                "to_emails_normalized": "[]",
+                "cc_emails": "[]",
+                "cc_emails_normalized": "[]",
+                "external_email_normalized": "",
+                "subject": "Follow-Up for Private Student",
+                "snippet": "Private snippet",
+                "body": "Private body",
+                "source_url": "https://mail.google.com/private",
+                "raw_text": "Follow-Up for Private Student",
+                "raw_json": "{}",
+                "updated_at": utc_now_iso(),
+            },
+        )
+
+        report = build_trial_followup_report(conn, "2026-04-22", "2026-04-30", "West U")
+        markdown = render_trial_followup_markdown(report)
+
+        self.assertEqual(report["rows"][0]["identity_status"], "name_search_only")
+        self.assertTrue(report["rows"][0]["pre_trial_outreach_found"])
+        self.assertTrue(report["rows"][0]["name_search_used"])
+        self.assertIn("Identity Coverage", markdown)
+        self.assertNotIn("Private Student", markdown)
+
+    def test_trial_followup_marks_identity_limited_no_outreach(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, school, updated_at
+            )
+            VALUES ('person-limited', 'West U', '2026-05-01T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_visits (
+                visit_id, person_id, service, starts_at, status, school, updated_at
+            )
+            VALUES ('visit-limited', 'person-limited', 'Trial - Guitar',
+                    '2026-04-25T13:30:00', 'Complete', 'West U', '2026-05-01T00:00:00+00:00')
+            """
+        )
+
+        report = build_trial_followup_report(conn, "2026-04-22", "2026-04-30", "West U")
+
+        self.assertEqual(report["rows"][0]["identity_status"], "insufficient_identity")
+        self.assertEqual(report["rows"][0]["followup_status"], "no_pre_trial_outreach_identity_limited")
+
 
 if __name__ == "__main__":
     unittest.main()
