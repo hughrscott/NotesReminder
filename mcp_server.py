@@ -9,10 +9,22 @@ from mcp.server.fastmcp import FastMCP
 
 from import_call_data import run_import
 from lead_followup_schema import ensure_lead_followup_schema
+from lead_operating_dashboard import (
+    build_exception_queue,
+    build_snapshot,
+    lead_evidence_timeline as build_lead_evidence_timeline,
+)
 from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
+DEFAULT_LEAD_DB_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "outputs",
+    "lead_intelligence",
+    "lead_intelligence_working.db",
+)
 DB_PATH = os.getenv("REMINDERS_DB_PATH", DEFAULT_DB_PATH)
+LEAD_DB_PATH = os.getenv("LEAD_INTELLIGENCE_DB_PATH", DEFAULT_LEAD_DB_PATH)
 S3_BUCKET = os.getenv("REMINDERS_S3_BUCKET", "notesreminder-db")
 S3_KEY = os.getenv("REMINDERS_S3_KEY", "reminders.db")
 MAX_ROWS_DEFAULT = int(os.getenv("REMINDERS_MAX_ROWS", "200"))
@@ -25,12 +37,16 @@ def _download_db():
     s3.download_file(S3_BUCKET, S3_KEY, DB_PATH)
 
 
-def _connect():
-    if not os.path.exists(DB_PATH):
-        raise FileNotFoundError(f"{DB_PATH} not found. Run sync_db_from_s3 first.")
-    conn = sqlite3.connect(DB_PATH)
+def _connect(db_path=DB_PATH):
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"{db_path} not found.")
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _connect_lead():
+    return _connect(LEAD_DB_PATH)
 
 
 def _rows_as_json(columns, rows, max_rows):
@@ -50,8 +66,6 @@ def _rows_as_json(columns, rows, max_rows):
 def _query_rows(sql, params=None, max_rows=MAX_ROWS_DEFAULT):
     conn = _connect()
     try:
-        ensure_lead_followup_schema(conn)
-        conn.commit()
         cursor = conn.execute(sql, params or {})
         rows = cursor.fetchmany(max_rows)
         columns = [col[0] for col in cursor.description] if cursor.description else []
@@ -73,12 +87,19 @@ def sync_db_from_s3() -> str:
 @mcp.tool()
 def db_status() -> str:
     """Return basic info about the local SQLite file."""
-    if not os.path.exists(DB_PATH):
-        return f"{DB_PATH} not found."
-    stat = os.stat(DB_PATH)
-    timestamp = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
-    size_kb = stat.st_size / 1024.0
-    return f"{DB_PATH} exists ({size_kb:.1f} KB, mtime {timestamp})."
+    statuses = {}
+    for label, path in (("reminders", DB_PATH), ("lead_intelligence", LEAD_DB_PATH)):
+        if not os.path.exists(path):
+            statuses[label] = {"path": path, "exists": False}
+            continue
+        stat = os.stat(path)
+        statuses[label] = {
+            "path": path,
+            "exists": True,
+            "size_kb": round(stat.st_size / 1024.0, 1),
+            "mtime": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+        }
+    return json.dumps(statuses, indent=2)
 
 
 @mcp.tool()
@@ -168,6 +189,67 @@ def source_completeness(window_days: int = 7, pike13_lookahead_days: int = 30) -
     finally:
         conn.close()
     return json.dumps(report, indent=2, default=str)
+
+
+@mcp.tool()
+def daily_snapshot(as_of: str = "", school: str = "West U", limit: int = 50) -> str:
+    """Return the sanitized daily lead operating dashboard snapshot for yesterday/today."""
+    conn = _connect_lead()
+    try:
+        snapshot = build_snapshot(conn, "daily", as_of=as_of or None, school=school, limit=limit)
+    finally:
+        conn.close()
+    return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def weekly_snapshot(as_of: str = "", school: str = "West U", limit: int = 50) -> str:
+    """Return the sanitized weekly lead operating dashboard snapshot for the prior closed Monday-Sunday week."""
+    conn = _connect_lead()
+    try:
+        snapshot = build_snapshot(conn, "weekly", as_of=as_of or None, school=school, limit=limit)
+    finally:
+        conn.close()
+    return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def monthly_snapshot(as_of: str = "", school: str = "West U", limit: int = 50) -> str:
+    """Return the sanitized monthly lead operating dashboard snapshot."""
+    conn = _connect_lead()
+    try:
+        snapshot = build_snapshot(conn, "monthly", as_of=as_of or None, school=school, limit=limit)
+    finally:
+        conn.close()
+    return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def exception_queue(start_date: str, end_date: str, school: str = "West U", limit: int = 50) -> str:
+    """Return sanitized lead/trial follow-up exceptions for a date window."""
+    conn = _connect_lead()
+    try:
+        queue = build_exception_queue(conn, start_date, end_date, school, limit)
+    finally:
+        conn.close()
+    return json.dumps(queue, indent=2, default=str)
+
+
+@mcp.tool()
+def lead_evidence_timeline(
+    search: str,
+    start_date: str = "",
+    end_date: str = "",
+    limit: int = 100,
+    include_sensitive: bool = False,
+) -> str:
+    """Return a cross-system lead evidence timeline. Broad results are sanitized unless include_sensitive is true."""
+    conn = _connect_lead()
+    try:
+        timeline = build_lead_evidence_timeline(conn, search, start_date, end_date, limit, include_sensitive)
+    finally:
+        conn.close()
+    return json.dumps(timeline, indent=2, default=str)
 
 
 @mcp.tool()
