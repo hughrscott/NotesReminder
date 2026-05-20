@@ -1,5 +1,6 @@
 import argparse
 import sqlite3
+import re
 
 
 def format_school_label(school_code):
@@ -20,6 +21,41 @@ def split_students(value):
         return []
     parts = [p.strip() for p in value.split(",")]
     return [p for p in parts if p]
+
+
+def quote_identifier(value):
+    return '"' + value.replace('"', '""') + '"'
+
+
+def table_columns(conn, table):
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({quote_identifier(table)})")}
+
+
+def add_column_if_missing(conn, table, column, definition):
+    if column not in table_columns(conn, table):
+        conn.execute(
+            f"ALTER TABLE {quote_identifier(table)} "
+            f"ADD COLUMN {quote_identifier(column)} {definition}"
+        )
+
+
+def is_reportable_lesson(lesson_type, students, instructor=None):
+    lesson_type = (lesson_type or "").lower()
+    if "admin" in lesson_type or "meeting" in lesson_type:
+        return False
+    if students and isinstance(students, str) and "," in students:
+        return False
+    if instructor:
+        instructor_clean = instructor.strip().lower()
+        if not re.search(r"[a-zA-Z]", instructor_clean):
+            return False
+        if (
+            "admin" in instructor_clean
+            or "trial" in instructor_clean
+            or "rookies" in instructor_clean
+        ):
+            return False
+    return True
 
 
 def ensure_reporting_tables(conn):
@@ -65,7 +101,8 @@ def ensure_reporting_tables(conn):
             location TEXT,
             students_raw TEXT,
             lesson_is_group INTEGER,
-            lesson_student_count INTEGER
+            lesson_student_count INTEGER,
+            lesson_is_reportable INTEGER
         )
         """
     )
@@ -85,7 +122,13 @@ def ensure_reporting_tables(conn):
             lesson_id TEXT PRIMARY KEY,
             note_completed INTEGER,
             notes_text TEXT,
-            note_timestamp TEXT
+            note_timestamp TEXT,
+            note_score REAL,
+            note_score_explanation TEXT,
+            note_score_model TEXT,
+            note_score_version TEXT,
+            note_score_updated_at TEXT,
+            note_score_hash TEXT
         )
         """
     )
@@ -97,6 +140,68 @@ def ensure_reporting_tables(conn):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS call_logs (
+            call_id TEXT PRIMARY KEY,
+            external_number TEXT,
+            date_started TEXT,
+            direction TEXT,
+            category TEXT,
+            name TEXT,
+            school_code TEXT,
+            school_name TEXT,
+            voicemail_transcript TEXT,
+            voicemail_recording_url TEXT,
+            recording_url TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS call_client_matches (
+            match_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            call_id TEXT,
+            client_id TEXT,
+            match_type TEXT,
+            confidence REAL,
+            match_value TEXT,
+            matched_on TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recording_transcripts (
+            call_id TEXT PRIMARY KEY,
+            recording_url TEXT,
+            transcript_text TEXT,
+            outcome TEXT,
+            summary TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pike13_clients (
+            "Client" TEXT,
+            "Client ID" TEXT,
+            "Client Home Location" TEXT,
+            "Last Completed Visit Date" TEXT,
+            "Completed Visits" TEXT,
+            "Future Visits" TEXT,
+            "Current Passes/Plans" TEXT,
+            "Has Plan on Hold?" TEXT
+        )
+        """
+    )
+    add_column_if_missing(conn, "lessons", "lesson_is_reportable", "INTEGER")
+    add_column_if_missing(conn, "lesson_notes", "note_score", "REAL")
+    add_column_if_missing(conn, "lesson_notes", "note_score_explanation", "TEXT")
+    add_column_if_missing(conn, "lesson_notes", "note_score_model", "TEXT")
+    add_column_if_missing(conn, "lesson_notes", "note_score_version", "TEXT")
+    add_column_if_missing(conn, "lesson_notes", "note_score_updated_at", "TEXT")
+    add_column_if_missing(conn, "lesson_notes", "note_score_hash", "TEXT")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS lesson_note_scores_history (
@@ -123,6 +228,9 @@ def ensure_reporting_tables(conn):
         "CREATE INDEX IF NOT EXISTS idx_lessons_school_date ON lessons(school_id, lesson_date)"
     )
     conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lessons_instructor_date ON lessons(instructor_id, lesson_date)"
+    )
+    conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lesson_students_student ON lesson_students(student_id)"
     )
     conn.execute(
@@ -132,6 +240,169 @@ def ensure_reporting_tables(conn):
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lesson_note_scores_history_scored_at "
         "ON lesson_note_scores_history(scored_at)"
+    )
+    create_reporting_views(conn)
+
+
+def create_reporting_views(conn):
+    for view_name in [
+        "vw_missing_notes_by_instructor",
+        "vw_note_completion_rate",
+        "vw_missing_notes_by_school_day",
+        "vw_note_quality_league_table",
+        "vw_callback_speed",
+        "vw_churn_candidates",
+    ]:
+        conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+
+    conn.execute(
+        """
+        CREATE VIEW vw_missing_notes_by_instructor AS
+        SELECT
+            s.school_code,
+            s.school_name,
+            i.instructor_name,
+            COUNT(*) AS total_reportable_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_notes,
+            ROUND(
+                100.0 * SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END)
+                / NULLIF(COUNT(*), 0),
+                1
+            ) AS completion_rate,
+            MAX(l.lesson_date) AS latest_lesson_date
+        FROM lessons l
+        JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN instructors i ON i.instructor_id = l.instructor_id
+        LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
+        WHERE COALESCE(l.lesson_is_reportable, 0) = 1
+        GROUP BY s.school_code, s.school_name, i.instructor_name
+        HAVING missing_notes > 0
+        """
+    )
+    conn.execute(
+        """
+        CREATE VIEW vw_note_completion_rate AS
+        SELECT
+            s.school_code,
+            s.school_name,
+            i.instructor_name,
+            COUNT(*) AS total_reportable_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_notes,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes,
+            ROUND(
+                100.0 * SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END)
+                / NULLIF(COUNT(*), 0),
+                1
+            ) AS completion_rate
+        FROM lessons l
+        JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN instructors i ON i.instructor_id = l.instructor_id
+        LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
+        WHERE COALESCE(l.lesson_is_reportable, 0) = 1
+        GROUP BY s.school_code, s.school_name, i.instructor_name
+        """
+    )
+    conn.execute(
+        """
+        CREATE VIEW vw_missing_notes_by_school_day AS
+        SELECT
+            s.school_code,
+            s.school_name,
+            l.lesson_date,
+            COUNT(*) AS total_reportable_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_notes
+        FROM lessons l
+        JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
+        WHERE COALESCE(l.lesson_is_reportable, 0) = 1
+        GROUP BY s.school_code, s.school_name, l.lesson_date
+        """
+    )
+    conn.execute(
+        """
+        CREATE VIEW vw_note_quality_league_table AS
+        SELECT
+            s.school_code,
+            s.school_name,
+            i.instructor_name,
+            substr(l.lesson_date, 1, 7) AS score_month,
+            COUNT(*) AS total_reportable_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS lessons_with_notes,
+            SUM(CASE WHEN n.note_score IS NOT NULL THEN 1 ELSE 0 END) AS scored_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes,
+            ROUND(
+                100.0 * SUM(
+                    CASE
+                        WHEN n.note_score IS NOT NULL THEN n.note_score / 10.0
+                        ELSE 0
+                    END
+                ) / NULLIF(COUNT(*), 0),
+                1
+            ) AS league_score
+        FROM lessons l
+        JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN instructors i ON i.instructor_id = l.instructor_id
+        LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
+        WHERE COALESCE(l.lesson_is_reportable, 0) = 1
+        GROUP BY s.school_code, s.school_name, i.instructor_name, substr(l.lesson_date, 1, 7)
+        """
+    )
+    conn.execute(
+        """
+        CREATE VIEW vw_callback_speed AS
+        SELECT
+            inbound.call_id AS inbound_call_id,
+            inbound.school_code,
+            inbound.school_name,
+            inbound.external_number,
+            inbound.date_started AS inbound_at,
+            (
+                SELECT MIN(outbound.date_started)
+                FROM call_logs outbound
+                WHERE outbound.external_number = inbound.external_number
+                  AND LOWER(COALESCE(outbound.direction, '')) = 'outbound'
+                  AND outbound.date_started > inbound.date_started
+            ) AS next_outbound_at,
+            ROUND(
+                24.0 * (
+                    julianday((
+                        SELECT MIN(outbound.date_started)
+                        FROM call_logs outbound
+                        WHERE outbound.external_number = inbound.external_number
+                          AND LOWER(COALESCE(outbound.direction, '')) = 'outbound'
+                          AND outbound.date_started > inbound.date_started
+                    )) - julianday(inbound.date_started)
+                ),
+                2
+            ) AS callback_hours,
+            inbound.category,
+            inbound.voicemail_transcript
+        FROM call_logs inbound
+        WHERE LOWER(COALESCE(inbound.direction, '')) = 'inbound'
+          AND (
+              LOWER(COALESCE(inbound.category, '')) LIKE '%miss%'
+              OR COALESCE(inbound.voicemail_transcript, '') != ''
+          )
+        """
+    )
+    conn.execute(
+        """
+        CREATE VIEW vw_churn_candidates AS
+        SELECT
+            "Client ID" AS client_id,
+            "Client" AS client_name,
+            "Client Home Location" AS school_name,
+            "Last Completed Visit Date" AS last_completed_visit_date,
+            CAST(NULLIF("Completed Visits", '') AS INTEGER) AS completed_visits,
+            CAST(NULLIF("Future Visits", '') AS INTEGER) AS future_visits,
+            "Current Passes/Plans" AS current_passes_plans,
+            "Has Plan on Hold?" AS has_plan_on_hold
+        FROM pike13_clients
+        WHERE COALESCE(CAST(NULLIF("Future Visits", '') AS INTEGER), 0) = 0
+          AND COALESCE("Current Passes/Plans", '') = ''
+        """
     )
 
 
@@ -222,7 +493,13 @@ def backfill_reporting(conn):
             attendance_status,
             note_completed,
             notes_text,
-            note_timestamp
+            note_timestamp,
+            note_score,
+            note_score_explanation,
+            note_score_model,
+            note_score_version,
+            note_score_updated_at,
+            note_score_hash
         FROM reminders
         """
     ).fetchall()
@@ -242,6 +519,12 @@ def backfill_reporting(conn):
             note_completed,
             notes_text,
             note_timestamp,
+            note_score,
+            note_score_explanation,
+            note_score_model,
+            note_score_version,
+            note_score_updated_at,
+            note_score_hash,
         ) = row
 
         if not lesson_id:
@@ -253,6 +536,9 @@ def backfill_reporting(conn):
         student_list = split_students(students_raw)
         student_count = len(student_list)
         lesson_is_group = 1 if student_count > 1 else 0
+        lesson_is_reportable = 1 if is_reportable_lesson(
+            lesson_type, students_raw, instructor_name
+        ) else 0
 
         conn.execute(
             """
@@ -267,8 +553,9 @@ def backfill_reporting(conn):
                 location,
                 students_raw,
                 lesson_is_group,
-                lesson_student_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                lesson_student_count,
+                lesson_is_reportable
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 lesson_id,
@@ -282,6 +569,7 @@ def backfill_reporting(conn):
                 students_raw,
                 lesson_is_group,
                 student_count,
+                lesson_is_reportable,
             ),
         )
 
@@ -291,10 +579,27 @@ def backfill_reporting(conn):
                 lesson_id,
                 note_completed,
                 notes_text,
-                note_timestamp
-            ) VALUES (?, ?, ?, ?)
+                note_timestamp,
+                note_score,
+                note_score_explanation,
+                note_score_model,
+                note_score_version,
+                note_score_updated_at,
+                note_score_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (lesson_id, note_completed, notes_text, note_timestamp),
+            (
+                lesson_id,
+                note_completed,
+                notes_text,
+                note_timestamp,
+                note_score,
+                note_score_explanation,
+                note_score_model,
+                note_score_version,
+                note_score_updated_at,
+                note_score_hash,
+            ),
         )
 
         conn.execute(

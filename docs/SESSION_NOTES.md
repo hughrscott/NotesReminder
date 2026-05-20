@@ -39,6 +39,33 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - MCP daily/weekly/monthly dashboard baseline comparison: matched lead working DB
 - Source-completeness report on the unified copy still shows the pre-existing Dialpad readiness blocker, so Phase 7 is reconciled but production promotion should wait for the explicit promotion decision.
 - MCP remains split-DB by default. After the unified DB is promoted, set `NOTESREMINDER_UNIFIED_DB=1` so lead dashboard tools read from `reminders.db`.
+- Before final Phase 7 production promotion, Hugh needs to approve replacing local `reminders.db` and uploading the reconciled unified DB to `s3://notesreminder-db/reminders.db`. The old production DB backup must remain preserved for rollback.
+
+## 2026-05-20 Phase 8 Business-Friendly Reporting Schema
+
+- Phase 7 was tagged as `phase-7-promotion-pending-20260520`; production DB promotion remains pending Hugh approval.
+- Created local DB backup before additive reporting schema changes:
+  - `outputs/db_backups/reminders.db.20260520-141259.before-phase-8-reporting-schema.bak`
+- Extended `build_reporting_schema.py` with idempotent schema upgrades and views:
+  - `vw_missing_notes_by_instructor`
+  - `vw_note_completion_rate`
+  - `vw_missing_notes_by_school_day`
+  - `vw_note_quality_league_table`
+  - `vw_callback_speed`
+  - `vw_churn_candidates`
+- Added `lesson_notes` note-score fields and `lessons.lesson_is_reportable` using the current private reportable lesson filter. Group lessons remain excluded from note-quality and missing-note league tables.
+- Ran `build_reporting_schema.py --db reminders.db` twice successfully.
+- Reconciliation:
+  - `distinct_reminder_lessons = 16979`
+  - `lessons = 16979`
+  - `lesson_notes = 16979`
+  - `lesson_attendance = 16979`
+  - West U May 2026 note-quality view matched direct calculation: `486` reportable lessons, `56.4` league score.
+  - The Heights May 2026 note-quality view matched direct calculation: `339` reportable lessons, `41.8` league score.
+  - May 19 daily parity matched legacy filter for both schools.
+- Validation:
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - `venv/bin/python -m pytest`: `93 passed`
 
 ## Current State
 

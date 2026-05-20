@@ -261,7 +261,7 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 - `scripts/migrate_lead_intel_to_production.py` : Build and reconcile a unified production DB copy from `reminders.db` plus lead-intelligence tables.
 - `import_call_data.py` : Import Dialpad + Pike13 client CSVs, build call matches, and refresh `call_logs`.
 - `generate_call_reports.py` : Write voicemail/missed-call CSVs from call data.
-- `build_reporting_schema.py` : Create/backfill reporting tables (`lessons`, `lesson_students`, etc.).
+- `build_reporting_schema.py` : Create/backfill reporting tables and views (`lessons`, `lesson_students`, `vw_note_quality_league_table`, etc.).
 - `transcribe_recordings.py` : Download recordings, transcribe with AWS, store in `recording_transcripts`.
 - `download_recordings_playwright.py` : Download Dialpad recordings via a logged-in browser session.
 - `transcribe_recordings_whisper.py` : Transcribe local recordings with Whisper (CPU).
@@ -421,6 +421,19 @@ for name in ['lessons','lesson_students','lesson_notes','lesson_attendance','sch
 conn.close()
 PY
 ```
+
+Phase 8 reporting views:
+
+- `vw_missing_notes_by_instructor`
+- `vw_note_completion_rate`
+- `vw_missing_notes_by_school_day`
+- `vw_note_quality_league_table`
+- `vw_callback_speed`
+- `vw_churn_candidates`
+
+These views use the same private reportable lesson filter as the current notes
+email logic; group lessons remain excluded from instructor note-quality and
+missing-note league tables.
 
 After `transcribe_recordings.py`, confirm transcript coverage:
 
