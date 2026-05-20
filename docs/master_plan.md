@@ -334,17 +334,20 @@ Required tests:
 - Production notes run against unified DB.
 
 Backup requirement:
-- Local DB backup.
-- S3 DB backup.
-- Lead working DB backup.
+- Timestamped local backup of the current production `reminders.db`.
+- Timestamped S3 backup of the current production `reminders.db`.
+- Timestamped local backup of the lead working DB.
+- Preserve the old production DB backups after promotion; do not delete or overwrite them during cleanup.
 
 Rollback path:
-- Restore `reminders.db` from the Phase 7 backup.
+- Restore `reminders.db` from the preserved Phase 7 production backup.
+- If the unified DB was uploaded to the production S3 key, re-upload the preserved Phase 7 production backup to that key.
 - Restore MCP server code from the previous commit.
 - Leave lead working DB untouched until promotion is approved.
 
 Promotion rule:
 - Unified DB becomes production only after dry-run counts, MCP checks, notes run, and Hugh approval pass.
+- Promotion is a replace-with-backup operation, not a destructive delete of the old DB.
 
 Approval:
 - Hugh approval required before uploading unified DB to the production S3 key.

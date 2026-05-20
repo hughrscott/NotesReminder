@@ -113,6 +113,18 @@ promoted to `reminders.db`, set `NOTESREMINDER_UNIFIED_DB=1` for MCP tools so
 lead dashboards read from the main DB. Do not upload the unified DB to S3 until
 an S3 backup has been created and reviewed.
 
+Promotion must preserve the old production DB. Treat promotion as a
+replace-with-backup operation:
+
+1. Keep the timestamped local backup of the pre-promotion `reminders.db` in
+   `outputs/db_backups/`.
+2. Keep the timestamped S3 backup under `s3://notesreminder-db/backups/`.
+3. Replace local `reminders.db` with the reconciled unified copy.
+4. Upload the reconciled unified copy to the production S3 key only after the
+   local replacement validates.
+5. If rollback is needed, copy the preserved backup back to `reminders.db` and
+   re-upload that same backup to the production S3 key.
+
 2) Import Dialpad + Pike13 clients (updates call tables + matches):
 
 ```bash
@@ -153,6 +165,7 @@ Production merge gate:
 - Pike13 rich outcomes have a clear readiness status.
 - Local backups exist for both the production DB and lead working DB before any merge attempt.
 - An S3 backup exists before any DB upload.
+- The old production DB backup remains preserved after promotion for rollback.
 - A unified copy reconciles with no source-row gaps, no production-owned table count changes, and `PRAGMA integrity_check = ok`.
 - We explicitly approve uploading the unified DB to the production S3 key.
 

@@ -10,6 +10,10 @@ Last updated: 2026-05-20
 - Created S3 backup copy with boto3 after loading `.env` credentials:
   - `s3://notesreminder-db/backups/reminders.db.20260520-140002.before-phase-7-unified-db.bak`
   - size: `73,457,664` bytes
+- Promotion rollback rule:
+  - Do not delete or overwrite the old production DB backup after promotion.
+  - If rollback is needed, restore `outputs/db_backups/reminders.db.20260520-140002.before-phase-7-unified-db.bak` to local `reminders.db`.
+  - If the unified DB has been uploaded to S3, re-upload the preserved backup to `s3://notesreminder-db/reminders.db`.
 - Added copy-first migration/reconciliation command:
 
 ```bash
