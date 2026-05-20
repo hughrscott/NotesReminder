@@ -326,3 +326,47 @@ Rollback path:
 Phase status:
 
 - Phase 3 is complete.
+
+## 2026-05-20 Phase 4: Data Dictionary And Business Rules
+
+Goal:
+
+- Define table/view meaning, source ownership, sensitivity, freshness expectations, and business rules for note-quality scoring.
+
+Changes made:
+
+- Added `docs/data_dictionary.md`.
+- Documented production `reminders.db` tables.
+- Documented shadow lead-intelligence tables/views.
+- Documented derived reporting schema targets.
+- Documented future identity, journey, raw capture, and QuickBooks objects.
+- Formalized reportable-lesson filtering.
+- Formalized note-quality league scoring.
+- Recorded current business decisions:
+  - group/multi-student lessons are excluded from league-table scoring for now
+  - raw customer/source content may live in production `reminders.db`
+  - broad dashboards/reports remain sanitized by default
+
+Gate result:
+
+- Known May MTD league-score reproduction:
+  - The Heights: `338` reportable lessons, `197` with notes, `141` missing, `score_sum=141.60`, `league_score=41.9`, `4.19/10`
+  - West U: `486` reportable lessons, `397` with notes, `89` missing, `score_sum=273.90`, `league_score=56.4`, `5.64/10`
+- Production schema dictionary coverage check:
+  - current production tables: `call_client_matches`, `call_logs`, `dialpad_calls`, `dialpad_daily_stats`, `dialpad_recordings`, `dialpad_user_stats`, `dialpad_voicemails`, `pike13_clients`, `recording_downloads`, `recording_transcripts`, `reminders`
+  - missing from `docs/data_dictionary.md`: `none`
+- Required test command:
+
+```bash
+venv/bin/python -m pytest
+```
+
+- Result: `85 passed`
+
+Rollback path:
+
+- Revert `docs/data_dictionary.md` and this session-note update.
+
+Phase status:
+
+- Phase 4 is complete.
