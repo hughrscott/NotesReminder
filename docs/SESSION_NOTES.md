@@ -150,3 +150,129 @@ Leave these untracked files alone unless the user confirms they are intentional:
 
 - `package.json`
 - `package-lock.json`
+
+## 2026-05-20 Plan Consolidation And Execution Start
+
+Canonical plan/refactor document:
+
+- `docs/master_plan.md`
+- `PLAN.md`, `refactor.md`, and `docs/notesreminder_end_state_roadmap.md` were removed so there is one planning document.
+- The merged plan was tightened with phase gates, execution modes, rollback paths, a test-harness phase, package-skeleton phase, data-dictionary phase, and formal business-rule gates.
+- The merged plan now has `22` numbered phases: Phase 0 through Phase 21.
+
+Phase 1 pre-flight baseline:
+
+- SQLite integrity check:
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"` -> `ok`
+- Current production DB freshness:
+  - `theheights-sor`: `MAX(last_checked)=2026-05-20`, `MAX(lesson_date)=2026-05-19`, `6868` reminder rows
+  - `westu-sor`: `MAX(last_checked)=2026-05-20`, `MAX(lesson_date)=2026-05-19`, `10111` reminder rows
+- Latest outstanding daily send evidence:
+  - `logs/outstanding-daily-send-20260520-121549.log`
+  - `logs/outstanding-daily-send-resume-20260520-122552.log`
+  - `logs/theheights-2026-05-17-check-20260520-124018.log`
+- Phase 1 backups:
+  - local: `outputs/db_backups/reminders.db.20260520-130607.phase-1-preflight.bak`
+  - S3: `s3://notesreminder-db/backups/reminders-phase-1-preflight-20260520-130607.db`
+
+Test baseline:
+
+- Installed `pytest` into `venv` because the project venv had app dependencies but no test runner.
+- Global Python test run is not a valid baseline on this machine:
+  - without `PYTHONPATH=.`: collection fails because repo modules are not importable
+  - with `PYTHONPATH=.`: collection reaches `82` items but fails on global Python package issues (`rpds` architecture mismatch, pandas/numpy import issue)
+- Valid venv active-suite baseline:
+  - `PYTHONPATH=. venv/bin/python -m pytest tests`
+  - result: `85 passed`
+- Full repo run with venv:
+  - `PYTHONPATH=. venv/bin/python -m pytest`
+  - result: `85 passed`, `1 failed`
+  - failure is archived legacy async test: `archive/legacy/zzz_delete/test_attendance.py::test_attendance_detection`
+  - likely needs either `pytest-asyncio` or exclusion from normal test collection; not part of active `tests/` suite.
+
+MCP surface inventory from `mcp_server.py`:
+
+- `sync_db_from_s3` -> `reminders.db`
+- `db_status` -> `reminders.db` and `outputs/lead_intelligence/lead_intelligence_working.db`
+- `list_tables` -> `reminders.db`
+- `describe_table` -> `reminders.db`
+- `query_sql` -> `reminders.db`
+- `import_call_data` -> caller-provided DB, default `reminders.db`
+- `initialize_lead_followup_schema` -> `reminders.db`
+- `source_completeness` -> `reminders.db`
+- `daily_snapshot` -> lead working DB
+- `weekly_snapshot` -> lead working DB
+- `monthly_snapshot` -> lead working DB
+- `exception_queue` -> lead working DB
+- `lead_evidence_timeline` -> lead working DB
+- `stale_leads` -> `reminders.db`
+- `lead_timeline` -> `reminders.db`
+- `unanswered_messages` -> `reminders.db`
+- `unanswered_communications` -> `reminders.db`
+- `no_show_followup` -> `reminders.db`
+- `lead_conversion_path` -> `reminders.db`
+
+Immediate execution implication:
+
+- Phase 1 is partially complete: backups, DB integrity, freshness checks, MCP inventory, and active test baseline are done.
+- Before Phase 4 single-DB migration work, decide whether to clean up/exclude `archive/legacy/zzz_delete/test_attendance.py` or add async test support.
+- Hugh decision on note-quality league tables:
+  - Use the existing reportable-lesson filter for now.
+  - Do not include group lessons or multi-student lessons in league-table scoring.
+  - Revisit later if a separate group-lesson league view becomes useful.
+- Hugh decision on league-table delivery:
+  - Keep league tables in dashboards/MCP for now.
+  - Do not add them to recurring emails yet.
+  - Revisit email delivery after the dashboard version is accepted.
+- Hugh decision on scheduling:
+  - Target local `launchd`/cron first, using the existing Pike13 browser profile/MFA path.
+  - Keep GitHub Actions for tests and non-authenticated jobs.
+  - Revisit GitHub Actions production notes runs only if Pike13 auth becomes reliably non-interactive.
+- Hugh decision on production DB merge gate:
+  - Merge lead working DB data into production `reminders.db` only after the first management dashboards reconcile against source counts and are accepted.
+  - Dialpad proof or Pike13 outcome hardening alone is not enough to promote the lead working DB into production.
+- Hugh decision on raw customer/source content:
+  - Store raw customer/source content in the main production `reminders.db` for now.
+  - Keep broad dashboards and reports sanitized.
+  - Revisit moving sensitive raw text to a separate archive/store later if needed.
+- Hugh decision on repository layout:
+  - Keep the large existing-file migration late in the plan.
+  - Create the package skeleton early.
+  - Put new code in the package layout going forward so the repo root does not get messier.
+
+## 2026-05-20 Phase 2: Test Harness And Developer Environment
+
+Goal:
+
+- Make test execution repeatable before using tests as migration gates.
+
+Changes made:
+
+- Added `pytest.ini`:
+  - `testpaths = tests`
+  - `pythonpath = .`
+- Added `requirements-dev.txt`:
+  - includes runtime requirements via `-r requirements.txt`
+  - adds `pytest>=9.0,<10`
+- Updated `README.md` with development dependency installation and the canonical test command.
+- Updated `docs/data_pipeline.md` with the test baseline and pytest configuration behavior.
+
+Gate result:
+
+- Required test command:
+
+```bash
+venv/bin/python -m pytest
+```
+
+- Result: `85 passed`
+- Normal pytest collection now uses `tests/` only and excludes archived legacy tests under `archive/`.
+- Repo-root imports are handled by `pytest.ini`; `PYTHONPATH=.` is no longer required for the normal test command.
+
+Rollback path:
+
+- Revert `pytest.ini`, `requirements-dev.txt`, and the docs updates.
+
+Phase status:
+
+- Phase 2 is complete.

@@ -54,6 +54,7 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 ## Start here
 1) Copy `.env.example` to `.env` and fill in credentials.
 2) Install deps: `pip install -r requirements.txt` and `playwright install`.
+   For local development and tests, use `pip install -r requirements-dev.txt`.
 3) Run a daily scrape: `python run_daily.py --school westu-sor --start-date YYYY-MM-DD --end-date YYYY-MM-DD --to you@example.com`.
 4) Import calls/clients: `python3 import_call_data.py --clients ClientList/your_clients.csv --dialpad-dir "Call Log" --db reminders.db`.
 5) Build reporting tables: `python3 build_reporting_schema.py --db reminders.db`.
@@ -137,11 +138,21 @@ This repo automates “missing lesson notes” reminders for School of Rock loca
 ## Session Notes
 Use `docs/SESSION_NOTES.md` to resume the latest state and next steps.
 
+## Tests
+Install the development requirements, then run the active test suite from the repo root:
+
+```bash
+python -m pytest
+```
+
+`pytest.ini` limits normal collection to `tests/` and adds the repo root to the import path. Archived legacy tests under `archive/` are not part of the normal baseline.
+
 ## Running a Report
 Install dependencies once:
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dev.txt  # optional, for tests
 playwright install
 ```
 

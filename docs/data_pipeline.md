@@ -25,11 +25,21 @@ This project keeps the production lesson-note database (`reminders.db`) synced t
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dev.txt  # optional, for local tests
 playwright install
 ```
 
 Optional for transcription:
 - Set `TRANSCRIBE_BUCKET` to the S3 bucket used for temporary audio + transcripts.
+
+## Test baseline
+Run the active test suite from the repo root with the project environment:
+
+```bash
+python -m pytest
+```
+
+`pytest.ini` sets `testpaths = tests` and `pythonpath = .`, so normal collection excludes archived legacy tests and root-level modules import consistently.
 
 ## Pipeline order
 1) Daily/weekly scrape (updates notes + attendance):
