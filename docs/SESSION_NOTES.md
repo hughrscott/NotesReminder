@@ -435,3 +435,52 @@ Rollback path:
 Phase status:
 
 - Phase 5 is complete.
+
+## 2026-05-20 Phase 6: Code Checkpoint And Git Hygiene
+
+Goal:
+
+- Preserve a clean rollback path before structural changes.
+
+Checkpoint state before Phase 6:
+
+- Phase 2 committed and tagged:
+  - commit `a136ade`
+  - tag `phase-2-test-harness-20260520`
+- Phase 3 committed and tagged:
+  - commit `9d501a6`
+  - tag `phase-3-package-skeleton-20260520`
+- Phase 4 committed and tagged:
+  - commit `34f4dff`
+  - tag `phase-4-data-dictionary-20260520`
+- Phase 5 committed and tagged:
+  - commit `19fac01`
+  - tag `phase-5-notes-health-20260520`
+
+Gate checks:
+
+```bash
+venv/bin/python -m pytest
+```
+
+- Result: `88 passed`
+
+```bash
+venv/bin/python run_daily.py --help
+```
+
+- Result: command help rendered successfully, confirming the production notes entry point still imports and starts.
+
+```bash
+git status --short
+```
+
+- Result before this note: only unrelated untracked `package.json` and `package-lock.json` remained.
+
+Rollback path:
+
+- Revert the phase commits or check out one of the phase tags.
+
+Phase status:
+
+- Phase 6 gate checks passed.
