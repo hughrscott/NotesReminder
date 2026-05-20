@@ -44,6 +44,20 @@ python -m pytest
 
 `pytest.ini` sets `testpaths = tests` and `pythonpath = .`, so normal collection excludes archived legacy tests and root-level modules import consistently.
 
+## Notes pipeline health
+Generate a small health dashboard before or after production notes runs:
+
+```bash
+python scripts/notes_pipeline_health.py --db reminders.db --lookback-days 7
+```
+
+The default outputs are:
+
+- `outputs/progress/notes_pipeline_health.json`
+- `outputs/progress/notes_pipeline_health.md`
+
+The dashboard shows latest lesson coverage, latest `last_checked`, reportable/missing-note counts, and local email-delivery evidence from `logs/`.
+
 ## Pipeline order
 1) Daily/weekly scrape (updates notes + attendance):
 

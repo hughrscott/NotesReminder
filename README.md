@@ -30,6 +30,7 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 - `scripts/rebuild_recording_downloads.py` : rebuild `recording_downloads` from local `recordings/` files
 - `analyze_transcripts_openai.py` : tag transcripts with intent/sentiment/topic/outcome via OpenAI
 - `download_recordings_playwright.py` : download Dialpad recordings using a logged-in browser session
+- `scripts/notes_pipeline_health.py` : generate the notes pipeline health dashboard
 - `scripts/` : shell wrappers for the above and an end-to-end `update_all.sh`
 - `docs/data_pipeline.md` : pipeline order, scheduling, sanity checks
 

@@ -370,3 +370,68 @@ Rollback path:
 Phase status:
 
 - Phase 4 is complete.
+
+## 2026-05-20 Phase 5: Keep Production Notes Running
+
+Goal:
+
+- Make daily and weekly notes emails easier to monitor while larger work continues.
+
+Changes made:
+
+- Added read-only notes pipeline health package module:
+  - `notesreminder/reports/notes_pipeline_health.py`
+- Added script shim:
+  - `scripts/notes_pipeline_health.py`
+- Added tests:
+  - `tests/test_notes_pipeline_health.py`
+- Updated `README.md` and `docs/data_pipeline.md` with the health dashboard command.
+
+Health dashboard command:
+
+```bash
+venv/bin/python scripts/notes_pipeline_health.py --db reminders.db --as-of 2026-05-20 --lookback-days 7
+```
+
+Generated local outputs:
+
+- `outputs/progress/notes_pipeline_health.json`
+- `outputs/progress/notes_pipeline_health.md`
+
+Gate result:
+
+- Live health dashboard status: `ready`
+- Window: `2026-05-13` to `2026-05-19`
+- West U:
+  - latest lesson: `2026-05-19`
+  - last checked: `2026-05-20`
+  - reportable lessons in window: `162`
+  - missing notes in window: `33`
+- The Heights:
+  - latest lesson: `2026-05-19`
+  - last checked: `2026-05-20`
+  - reportable lessons in window: `147`
+  - missing notes in window: `80`
+- `2026-05-17` shows no DB rows and no email evidence for both schools; this matches the manual check that there were no lessons that day.
+
+Tests:
+
+```bash
+venv/bin/python -m pytest tests/test_notes_pipeline_health.py
+```
+
+- Result: `3 passed`
+
+```bash
+venv/bin/python -m pytest
+```
+
+- Result: `88 passed`
+
+Rollback path:
+
+- Revert `notesreminder/reports/notes_pipeline_health.py`, `scripts/notes_pipeline_health.py`, `tests/test_notes_pipeline_health.py`, and the README/data-pipeline/session-note updates.
+
+Phase status:
+
+- Phase 5 is complete.
