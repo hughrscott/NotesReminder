@@ -92,6 +92,27 @@ python3 scripts/rebuild_lead_working_db.py \
   --output outputs/lead_intelligence/lead_intelligence_working.db
 ```
 
+Phase 7 single-DB reconciliation is copy-first. Before replacing or uploading
+`reminders.db`, create local backups of the production notes DB and lead working
+DB, then generate a unified copy and verify the reconciliation report:
+
+```bash
+python3 scripts/migrate_lead_intel_to_production.py \
+  --production-db reminders.db \
+  --lead-db outputs/lead_intelligence/lead_intelligence_working.db \
+  --output outputs/lead_intelligence/unified_reminders_phase7.db \
+  --json
+```
+
+Run the same command a second time with the unified copy as both `--production-db`
+and `--output` to prove idempotency. The command preserves production-owned
+lesson/call tables, replaces lead-owned tables from the lead DB, merges shared
+recording tables by primary key, and blocks if table counts or source-row
+coverage do not reconcile. After the copy-mode gate passes and the unified DB is
+promoted to `reminders.db`, set `NOTESREMINDER_UNIFIED_DB=1` for MCP tools so
+lead dashboards read from the main DB. Do not upload the unified DB to S3 until
+an S3 backup has been created and reviewed.
+
 2) Import Dialpad + Pike13 clients (updates call tables + matches):
 
 ```bash
@@ -130,8 +151,10 @@ Production merge gate:
 - Dialpad daily intake is repeatable.
 - Lead reports are useful and sanitized.
 - Pike13 rich outcomes have a clear readiness status.
-- A backup exists before any DB upload.
-- We explicitly decide whether to upload one merged DB or a separate lead-intelligence S3 key.
+- Local backups exist for both the production DB and lead working DB before any merge attempt.
+- An S3 backup exists before any DB upload.
+- A unified copy reconciles with no source-row gaps, no production-owned table count changes, and `PRAGMA integrity_check = ok`.
+- We explicitly approve uploading the unified DB to the production S3 key.
 
 ## Lead intelligence progress dashboard
 
@@ -222,6 +245,7 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 - `backfill.py` : Multi-school historical scrape (no email by default).
 - `scripts/run_notes_local_mfa.sh` : Local two-school production notes runner for Pike13 MFA periods.
 - `scripts/rebuild_lead_working_db.py` : Rebuild ignored local lead working DB from production notes plus additive lead tables.
+- `scripts/migrate_lead_intel_to_production.py` : Build and reconcile a unified production DB copy from `reminders.db` plus lead-intelligence tables.
 - `import_call_data.py` : Import Dialpad + Pike13 client CSVs, build call matches, and refresh `call_logs`.
 - `generate_call_reports.py` : Write voicemail/missed-call CSVs from call data.
 - `build_reporting_schema.py` : Create/backfill reporting tables (`lessons`, `lesson_students`, etc.).

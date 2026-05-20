@@ -24,7 +24,11 @@ DEFAULT_LEAD_DB_PATH = os.path.join(
     "lead_intelligence_working.db",
 )
 DB_PATH = os.getenv("REMINDERS_DB_PATH", DEFAULT_DB_PATH)
-LEAD_DB_PATH = os.getenv("LEAD_INTELLIGENCE_DB_PATH", DEFAULT_LEAD_DB_PATH)
+USE_UNIFIED_DB = os.getenv("NOTESREMINDER_UNIFIED_DB", "").lower() in {"1", "true", "yes"}
+LEAD_DB_PATH = os.getenv(
+    "LEAD_INTELLIGENCE_DB_PATH",
+    DB_PATH if USE_UNIFIED_DB else DEFAULT_LEAD_DB_PATH,
+)
 S3_BUCKET = os.getenv("REMINDERS_S3_BUCKET", "notesreminder-db")
 S3_KEY = os.getenv("REMINDERS_S3_KEY", "reminders.db")
 MAX_ROWS_DEFAULT = int(os.getenv("REMINDERS_MAX_ROWS", "200"))

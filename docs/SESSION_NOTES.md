@@ -1,6 +1,40 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-05-02
+Last updated: 2026-05-20
+
+## 2026-05-20 Phase 7 Copy-Mode Reconciliation
+
+- Created local SQLite backups before Phase 7 work:
+  - `outputs/db_backups/reminders.db.20260520-140002.before-phase-7-unified-db.bak`
+  - `outputs/db_backups/lead_intelligence_working.db.20260520-140002.before-phase-7-unified-db.bak`
+- Created S3 backup copy with boto3 after loading `.env` credentials:
+  - `s3://notesreminder-db/backups/reminders.db.20260520-140002.before-phase-7-unified-db.bak`
+  - size: `73,457,664` bytes
+- Added copy-first migration/reconciliation command:
+
+```bash
+venv/bin/python scripts/migrate_lead_intel_to_production.py \
+  --production-db reminders.db \
+  --lead-db outputs/lead_intelligence/lead_intelligence_working.db \
+  --output outputs/lead_intelligence/unified_reminders_phase7.db \
+  --json
+```
+
+- Real copy-mode reconciliation result:
+  - Status: `ready`
+  - Integrity: `ok`
+  - Production-owned table count changes: none
+  - Missing source rows: 0 for every copied/merged lead table
+  - Shared recording tables merged to `recording_downloads = 4249` and `recording_transcripts = 4248`
+- Idempotency check passed by running the same migration again against `outputs/lead_intelligence/unified_reminders_phase7.db`.
+- Test and validation results:
+  - `venv/bin/python -m pytest`: `92 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - `sqlite3 outputs/lead_intelligence/unified_reminders_phase7.db "PRAGMA integrity_check;"`: `ok`
+  - Notes health on unified copy: `ready`
+  - MCP daily/weekly/monthly dashboard baseline comparison: matched lead working DB
+- Source-completeness report on the unified copy still shows the pre-existing Dialpad readiness blocker, so Phase 7 is reconciled but production promotion should wait for the explicit promotion decision.
+- MCP remains split-DB by default. After the unified DB is promoted, set `NOTESREMINDER_UNIFIED_DB=1` so lead dashboard tools read from `reminders.db`.
 
 ## Current State
 
