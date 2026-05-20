@@ -33,6 +33,19 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 - `scripts/` : shell wrappers for the above and an end-to-end `update_all.sh`
 - `docs/data_pipeline.md` : pipeline order, scheduling, sanity checks
 
+## Code organization
+New code should be added under the `notesreminder/` package:
+
+- `notesreminder/extractors/` for source extraction modules.
+- `notesreminder/schema/` for schema and migration helpers.
+- `notesreminder/reports/` for dashboards, scorecards, and reports.
+- `notesreminder/transcription/` for recording and transcript work.
+- `notesreminder/orchestration/` for pipeline runners.
+- `notesreminder/mcp/` for MCP server/tool helpers.
+- `notesreminder/lib/` for shared utilities.
+
+Existing root-level scripts remain as production entry points until the later repository layout migration.
+
 ## Pipeline architecture
 1) Notes pipeline (daily + backfill)
    - `run_daily.py` (scrape + DB update + email + S3 sync)

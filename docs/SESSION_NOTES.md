@@ -276,3 +276,53 @@ Rollback path:
 Phase status:
 
 - Phase 2 is complete.
+
+## 2026-05-20 Phase 3: Package Skeleton
+
+Goal:
+
+- Create the future package shape early so new work lands in the right place without moving old production files yet.
+
+Changes made:
+
+- Added package skeleton:
+  - `notesreminder/`
+  - `notesreminder/extractors/`
+  - `notesreminder/schema/`
+  - `notesreminder/reports/`
+  - `notesreminder/transcription/`
+  - `notesreminder/orchestration/`
+  - `notesreminder/mcp/`
+  - `notesreminder/lib/`
+- Added minimal `__init__.py` files to each package directory.
+- Updated `README.md` and `docs/data_pipeline.md` to state that new code should go under `notesreminder/`, while existing root-level production entry points remain until the later layout migration.
+
+Gate result:
+
+- Existing production entry-point import smoke:
+
+```bash
+venv/bin/python - <<'PY'
+import run_daily
+import backfill
+import mcp_server
+print('entry point imports ok')
+PY
+```
+
+- Result: `entry point imports ok`
+- Required test command:
+
+```bash
+venv/bin/python -m pytest
+```
+
+- Result: `85 passed`
+
+Rollback path:
+
+- Remove the `notesreminder/` package skeleton and revert the README/data-pipeline documentation updates.
+
+Phase status:
+
+- Phase 3 is complete.

@@ -18,6 +18,9 @@ This project keeps the production lesson-note database (`reminders.db`) synced t
 - `reminders.db` : Local SQLite database (synced to S3)
 - `outputs/lead_intelligence/lead_intelligence_working.db` : Local lead proof DB seeded from production notes plus additive lead tables
 - `screenshots/` : Playwright screenshots for debugging Pike13 scraping
+- `notesreminder/` : Package skeleton for new source, schema, report, orchestration, MCP, transcription, and shared utility modules
+
+New code should go under `notesreminder/`. Existing root-level production entry points stay in place until the later repository layout migration.
 
 ## Environment setup
 1) Copy `.env.example` to `.env` and fill in credentials.
