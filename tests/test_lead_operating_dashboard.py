@@ -268,21 +268,15 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(mcp_snapshot["funnel_counts"], direct_snapshot["funnel_counts"])
         self.assertEqual(mcp_snapshot["communications"], direct_snapshot["communications"])
 
-    def test_mcp_can_default_lead_tools_to_unified_db(self):
-        original_unified = os.environ.get("NOTESREMINDER_UNIFIED_DB")
+    def test_mcp_defaults_lead_tools_to_main_db(self):
         original_db = os.environ.get("REMINDERS_DB_PATH")
         original_lead = os.environ.get("LEAD_INTELLIGENCE_DB_PATH")
         try:
-            os.environ["NOTESREMINDER_UNIFIED_DB"] = "1"
             os.environ["REMINDERS_DB_PATH"] = "/tmp/unified-reminders.db"
             os.environ.pop("LEAD_INTELLIGENCE_DB_PATH", None)
             importlib.reload(mcp_server)
             self.assertEqual(mcp_server.LEAD_DB_PATH, "/tmp/unified-reminders.db")
         finally:
-            if original_unified is None:
-                os.environ.pop("NOTESREMINDER_UNIFIED_DB", None)
-            else:
-                os.environ["NOTESREMINDER_UNIFIED_DB"] = original_unified
             if original_db is None:
                 os.environ.pop("REMINDERS_DB_PATH", None)
             else:

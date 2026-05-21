@@ -38,7 +38,7 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - Notes health on unified copy: `ready`
   - MCP daily/weekly/monthly dashboard baseline comparison: matched lead working DB
 - Source-completeness report on the unified copy still shows the pre-existing Dialpad readiness blocker, so Phase 7 is reconciled but production promotion should wait for the explicit promotion decision.
-- MCP remains split-DB by default. After the unified DB is promoted, set `NOTESREMINDER_UNIFIED_DB=1` so lead dashboard tools read from `reminders.db`.
+- MCP now defaults lead dashboard tools to `reminders.db` after promotion. Use `LEAD_INTELLIGENCE_DB_PATH` only to point MCP at a separate staging DB.
 - Before final Phase 7 production promotion, Hugh needs to approve replacing local `reminders.db` and uploading the reconciled unified DB to `s3://notesreminder-db/reminders.db`. The old production DB backup must remain preserved for rollback.
 
 ## 2026-05-20 Phase 8 Business-Friendly Reporting Schema
@@ -84,6 +84,31 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - `venv/bin/python -m pytest`: `93 passed`
 - Promotion candidate for the actual DB replacement should be the daily-tested DB with reporting rebuilt:
   - `outputs/lead_intelligence/unified_reminders_phase7_daily_test.db`
+
+## 2026-05-21 Unified DB Promotion
+
+- Created fresh rollback backups immediately before promotion:
+  - local: `outputs/db_backups/reminders.db.20260521-141611.before-unified-db-promotion.bak`
+  - S3: `s3://notesreminder-db/backups/reminders.db.20260521-141611.before-unified-db-promotion.bak`
+- Replaced local `reminders.db` with the daily-tested unified DB candidate.
+- Ran local-only notes checker against promoted local `reminders.db` for 2026-05-20 before S3 upload:
+  - West U: 35 schedule lessons processed, no email, no S3 sync.
+  - The Heights: 30 schedule lessons processed, no email, no S3 sync.
+- Rebuilt reporting schema after the May 20 local-only notes check.
+- Promotion validation:
+  - `PRAGMA integrity_check`: `ok`
+  - `notes_pipeline_health.py --as-of 2026-05-21`: `ready`
+  - `venv/bin/python -m pytest`: `93 passed`
+  - `reminders = 17042`
+  - `lessons = 17042`
+  - `hubspot_deals = 25`
+  - May 20 West U rows: `34`, notes: `23`, missing: `11`
+  - May 20 The Heights rows: `29`, notes: `12`, missing: `17`
+- Uploaded promoted `reminders.db` to `s3://notesreminder-db/reminders.db`.
+  - local size: `89,931,776`
+  - S3 size: `89,931,776`
+  - S3 last modified: `2026-05-21T19:22:49+00:00`
+- MCP lead dashboard tools now default to `reminders.db`; `LEAD_INTELLIGENCE_DB_PATH` remains available for staging overrides.
 
 ## Current State
 

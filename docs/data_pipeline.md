@@ -129,9 +129,10 @@ and `--output` to prove idempotency. The command preserves production-owned
 lesson/call tables, replaces lead-owned tables from the lead DB, merges shared
 recording tables by primary key, and blocks if table counts or source-row
 coverage do not reconcile. After the copy-mode gate passes and the unified DB is
-promoted to `reminders.db`, set `NOTESREMINDER_UNIFIED_DB=1` for MCP tools so
-lead dashboards read from the main DB. Do not upload the unified DB to S3 until
-an S3 backup has been created and reviewed.
+promoted to `reminders.db`, MCP lead dashboard tools read from the main DB by
+default. Use `LEAD_INTELLIGENCE_DB_PATH` only when you intentionally need to
+point MCP at a separate staging DB. Do not upload the unified DB to S3 until an
+S3 backup has been created and reviewed.
 
 Promotion must preserve the old production DB. Treat promotion as a
 replace-with-backup operation:
