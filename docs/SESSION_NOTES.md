@@ -687,3 +687,71 @@ Rollback path:
 Phase status:
 
 - Phase 9 source-intake gate passed. Stop before first-value/report-wiring work unless continuing into the next phase.
+
+## 2026-05-21 Phase 10: 30-Day Controlled Backfill Proof
+
+Goal:
+
+- Widen the trusted source-intake proof from 7 days to 30 days without corrupting production notes or trusted current data.
+
+Backups:
+
+- Local pre-window backup:
+  - `outputs/db_backups/reminders.db.20260521T204048Z.before-phase-10-30day-backfill.bak`
+- S3 pre-window backup:
+  - `s3://notesreminder-db/backups/reminders.db.20260521T204048Z.before-phase-10-30day-backfill.bak`
+  - S3 size: `90,320,896` bytes
+- The first S3 upload attempt failed because the shell had not loaded `.env`; the retry after loading `.env` succeeded.
+
+Source refresh proof:
+
+- 30-day window: `2026-04-21` to `2026-05-21`
+- West U bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, school email, and Dialpad call reviews.
+- The Heights bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, school email, and Dialpad call reviews.
+
+30-day source counts:
+
+- West U:
+  - HubSpot rows: `13`
+  - Pike13 first-visit rows: `24`
+  - Dialpad communication rows: `565`
+  - School email rows: `101`
+  - Notes/reminders rows: `839`
+- The Heights:
+  - HubSpot rows: `12`
+  - Pike13 first-visit rows: `24`
+  - Dialpad communication rows: `694`
+  - School email rows: `3`
+  - Notes/reminders rows: `839`
+
+Gate results:
+
+- 30-day source completeness: `overall_status=ready`
+  - HubSpot: `ready`
+  - Dialpad: `ready`
+  - Pike13: `ready`
+  - Dialpad daily intake tagged rows: `567`
+  - Recent voice rows: `759`
+- Progress dashboard, 30-day window: `Overall status: READY`
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows after cleanup: `0`
+- Reporting schema rebuild: passed
+- Notes pipeline health after the widening and local no-email notes smoke runs: `ready`
+- Local no-email production notes smoke:
+  - West U, `2026-05-20`: passed with `--skip-s3-sync`
+  - The Heights, `2026-05-20`: passed with `--skip-s3-sync`
+- Full test suite: `97 passed`
+
+Known remaining next action:
+
+- Do not widen beyond the 30-day proof without Hugh approval. The next controlled backfill target in the master plan is April 1, 2026 forward.
+- First-value/report wiring is still partial because row-level Conversation History call-review URLs need to be matched into lead-attention communications.
+
+Rollback path:
+
+- Restore `reminders.db` from `outputs/db_backups/reminders.db.20260521T204048Z.before-phase-10-30day-backfill.bak`.
+- If the widened DB had been uploaded to the production S3 key, re-upload the S3 backup above to `s3://notesreminder-db/reminders.db`.
+
+Phase status:
+
+- Phase 10 30-day proof gate passed. Stop here for Hugh approval before April 1, 2026 forward or January 1, 2025 forward backfill.
