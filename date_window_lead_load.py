@@ -51,11 +51,13 @@ def validate_window(start_date, end_date):
     return start, end
 
 
-def validate_target_db(db_path, root=ROOT):
+def validate_target_db(db_path, root=ROOT, allow_production=False):
     resolved = Path(db_path).expanduser().resolve()
     production = (Path(root) / "reminders.db").resolve()
-    if resolved == production:
+    if resolved == production and not allow_production:
         raise ValueError("Refusing to run a lead-intelligence window load against production reminders.db")
+    if resolved == production:
+        return resolved
     expected = (Path(root) / "outputs" / "lead_intelligence" / "lead_intelligence_working.db").resolve()
     if resolved != expected:
         raise ValueError(f"Date-window loads are restricted to {expected}")

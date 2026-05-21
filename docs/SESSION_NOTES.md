@@ -624,3 +624,66 @@ venv/bin/python -m pytest tests/test_dialpad_call_reviews.py tests/test_dialpad_
 Rollback path:
 
 - Revert `scripts/extract_dialpad_voice.py`, `scripts/extract_dialpad_call_reviews.py`, the Dialpad extractor tests, and the documentation updates from this checkpoint.
+
+## 2026-05-21 Phase 9: Current Source Intake
+
+Goal:
+
+- Refresh and validate current HubSpot, Pike13, Dialpad, Gmail/school-email, and notes evidence in the canonical `reminders.db` without changing production notes email behavior.
+
+Backup:
+
+- Local pre-refresh DB backup:
+  - `outputs/db_backups/reminders.db.20260521T201111Z.before-phase-9-source-refresh.bak`
+- The date-window runner also created:
+  - `reminders.date-window-backup-20260521T201121Z.db`
+
+Changes made:
+
+- Updated `scripts/run_date_window_lead_load.py` and `scripts/extract_school_emails.py` with explicit `--allow-production-db` support for the Phase 7 single-DB operating model.
+- Fixed date-window email mailbox argument handling so passing a single mailbox does not also keep the default mailbox list.
+- Updated Dialpad source-readiness logic so route-level Call Review link visibility plus stored call-review transcript/recap evidence satisfies source intake readiness, while first-value report wiring remains partial until row-level Conversation History call-review URL capture is improved.
+- Updated `docs/data_pipeline.md` to describe `reminders.db` as the current lead-refresh target after Phase 7.
+
+Source refresh proof:
+
+- West U bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, Dialpad call reviews, and a direct West U school-email proof.
+- The Heights bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, Dialpad call reviews, and school-email search.
+- The Heights school-email search returned `0` visible rows for the proof window; this is recorded as a successful zero-row search rather than an auth failure.
+- One timed-out school-email attempt and two stale historical `running` import rows were marked `error` with superseding-run notes.
+
+Gate results:
+
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows after cleanup: `0`
+- Source completeness, 7-day window: `overall_status=ready`
+  - HubSpot: `ready`
+  - Dialpad: `ready`
+  - Pike13: `ready`
+- Date-window report, West U (`2026-05-14` to `2026-05-21`):
+  - HubSpot rows: `0`
+  - Pike13 first-visit rows: `5`
+  - Dialpad communication rows: `128`
+  - School email rows: `5`
+  - Notes/reminders rows: `191`
+- Date-window report, The Heights (`2026-05-14` to `2026-05-21`):
+  - HubSpot rows: `0`
+  - Pike13 first-visit rows: `5`
+  - Dialpad communication rows: `146`
+  - School email rows: `0`
+  - Notes/reminders rows: `191`
+- Progress dashboard: `Overall status: READY`
+- Full test suite: `97 passed`
+
+Known remaining next action:
+
+- First-value report remains `partial` because row-level Conversation History call-review URLs are not yet wired into lead-attention communications, even though Call Review pages and transcript/recap extraction are proven.
+
+Rollback path:
+
+- Restore `reminders.db` from `outputs/db_backups/reminders.db.20260521T201111Z.before-phase-9-source-refresh.bak` if the source-refresh DB changes need to be rolled back.
+- Revert this phase's code/docs changes if the single-DB source-refresh behavior needs to be disabled.
+
+Phase status:
+
+- Phase 9 source-intake gate passed. Stop before first-value/report-wiring work unless continuing into the next phase.

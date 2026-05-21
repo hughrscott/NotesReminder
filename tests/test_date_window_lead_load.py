@@ -2,6 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
 
 from date_window_lead_load import (
@@ -13,6 +14,7 @@ from date_window_lead_load import (
     validate_window,
 )
 from lead_followup_schema import ensure_lead_followup_schema
+from scripts.run_date_window_lead_load import build_source_steps
 
 
 class DateWindowLeadLoadTests(unittest.TestCase):
@@ -32,6 +34,33 @@ class DateWindowLeadLoadTests(unittest.TestCase):
 
         expected = root / "outputs" / "lead_intelligence" / "lead_intelligence_working.db"
         self.assertEqual(validate_target_db(expected, root=root), expected.resolve())
+
+    def test_validate_target_db_allows_production_when_explicit(self):
+        root = Path("/tmp/notes-reminder-test")
+        production = root / "reminders.db"
+        self.assertEqual(validate_target_db(production, root=root, allow_production=True), production.resolve())
+
+    def test_date_window_runner_passes_production_flag_to_email_extractor(self):
+        args = Namespace(
+            db="reminders.db",
+            skip_hubspot=True,
+            skip_pike13=True,
+            skip_dialpad=True,
+            skip_email=False,
+            skip_call_reviews=True,
+            sso_profile_dir="browser_profiles/sor_okta",
+            start_date="2026-05-14",
+            end_date="2026-05-21",
+            email_limit_per_query=20,
+            email_mailbox=["westu@schoolofrock.com"],
+            headless=True,
+            allow_production_db=True,
+        )
+        steps = build_source_steps(args)
+        self.assertEqual(steps[0][0], "school_email")
+        self.assertIn("--allow-production-db", steps[0][1])
+        self.assertEqual(steps[0][1].count("--mailbox"), 1)
+        self.assertIn("westu@schoolofrock.com", steps[0][1])
 
     def test_date_window_report_is_sanitized_and_counts_sources(self):
         with tempfile.TemporaryDirectory() as tmp:

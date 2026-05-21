@@ -163,19 +163,19 @@ replace-with-backup operation:
 
 ## Lead refresh safety checklist
 
-Use this checklist before uploading any DB that has been touched by local authenticated lead refresh work. During the split-DB phase, lead refresh and reporting should use `outputs/lead_intelligence/lead_intelligence_working.db`, not production `reminders.db`.
+Use this checklist before uploading any DB that has been touched by local authenticated lead refresh work. After the Phase 7 single-DB promotion, authenticated lead refresh writes to the canonical local `reminders.db` in shadow mode, with a local DB backup created before broad source refreshes. Do not upload a lead-refreshed DB to S3 until the gate checks pass.
 
 1. Pull the latest Git state and confirm no unexpected tracked files are dirty.
 2. Verify or download the latest S3 `reminders.db`.
 3. Create a local backup of `reminders.db`.
-4. Rebuild the lead working DB from production notes plus the latest lead table source.
-5. Run the local authenticated HubSpot/Dialpad/Pike13 refresh scripts against the lead working DB.
-6. Run `python3 scripts/source_completeness_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
-7. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db outputs/lead_intelligence/lead_intelligence_working.db --window-days 7 --pike13-lookahead-days 30`.
-8. Generate the lead-attention report with `python3 scripts/lead_attention_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --school "West U" --window-days 7`.
+4. Run the local authenticated HubSpot/Dialpad/Pike13/Gmail refresh scripts against `reminders.db`.
+5. Run `python3 scripts/source_completeness_report.py --db reminders.db --window-days 7 --pike13-lookahead-days 30 --pretty`.
+6. Generate the visible progress dashboard with `python3 scripts/progress_dashboard.py --db reminders.db --window-days 7 --pike13-lookahead-days 30`.
+7. Generate the lead-attention report with `python3 scripts/lead_attention_report.py --db reminders.db --school "West U" --window-days 7`.
+8. Run `sqlite3 reminders.db "PRAGMA integrity_check;"`.
 9. Validate that existing `reminders` row counts and note-score columns are still intact.
 10. Confirm browser profiles, screenshots, raw discovery evidence, local DB backups, and customer-data exports are uncommitted.
-11. Upload/sync a lead-mutated DB only after the production merge gate is explicitly reviewed.
+11. Upload/sync a lead-refreshed DB only after the source gate is green.
 
 Production merge gate:
 
@@ -196,7 +196,7 @@ Generate a sanitized Markdown dashboard after each local lead refresh:
 
 ```bash
 python3 scripts/progress_dashboard.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --window-days 7 \
   --pike13-lookahead-days 30
 ```
@@ -208,11 +208,11 @@ Pike13 is split into two readiness tracks:
 - Existing lesson visits/notes from `reminders`, used for note-quality and current-student operations.
 - Rich lead outcomes from authenticated Pike13 extraction, used for trial attendance, no-shows, memberships/plans, and conversion attribution.
 
-Run the West U linked-lead Pike13 outcome proof against the local lead working DB. Use the repo venv for headed MFA login on this machine:
+Run the West U linked-lead Pike13 outcome proof against `reminders.db`. Use the repo venv for headed MFA login on this machine:
 
 ```bash
 venv/bin/python scripts/extract_pike13_leads.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --profile-dir browser_profiles/pike13 \
   --base-url https://westu-sor.pike13.com \
   --school "West U" \
@@ -220,7 +220,7 @@ venv/bin/python scripts/extract_pike13_leads.py \
   --interactive-login
 ```
 
-If the browser pauses at the login checkpoint, complete Pike13 MFA manually, then press Enter in the terminal. Do not upload the lead working DB to production S3 after a blocked or interrupted Pike13 run.
+If the browser pauses at the login checkpoint, complete Pike13 MFA manually, then press Enter in the terminal. Do not upload `reminders.db` to production S3 after a blocked or interrupted Pike13 run.
 
 ## Dialpad daily intake and unmatched inbound
 
@@ -228,7 +228,7 @@ Daily Dialpad refresh uses Conversation History as the primary browser route. Th
 
 ```bash
 python3 scripts/extract_dialpad_daily_intake.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --school "West U" \
   --window-days 2 \
   --limit 100 \
@@ -242,7 +242,7 @@ Generate the sanitized unmatched inbound report:
 
 ```bash
 python3 scripts/unmatched_inbound_report.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --school "West U" \
   --window-days 2
 ```
@@ -255,7 +255,7 @@ After Dialpad Conversation History has loaded call-review URLs, ingest the trans
 
 ```bash
 python3 scripts/extract_dialpad_call_reviews.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --profile-dir browser_profiles/dialpad \
   --limit 25 \
   --interactive-login
@@ -269,7 +269,7 @@ Generate the first value report:
 
 ```bash
 python3 scripts/lead_attention_report.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
+  --db reminders.db \
   --school "West U" \
   --window-days 7
 ```

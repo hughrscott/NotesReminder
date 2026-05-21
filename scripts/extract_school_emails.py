@@ -175,7 +175,7 @@ def clean_snippet(value):
 
 def run_extraction(args):
     validate_window(args.start_date, args.end_date)
-    db_path = validate_target_db(args.db)
+    db_path = validate_target_db(args.db, allow_production=args.allow_production_db)
     conn = sqlite3.connect(db_path)
     ensure_lead_followup_schema(conn)
     run_id = start_import_run(
@@ -256,6 +256,11 @@ def main():
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--interactive-login", action="store_true")
     parser.add_argument("--login-timeout", type=int, default=300)
+    parser.add_argument(
+        "--allow-production-db",
+        action="store_true",
+        help="Allow this shadow-mode email refresh to target the canonical reminders.db after the Phase 7 single-DB promotion.",
+    )
     args = parser.parse_args()
     if not args.mailbox:
         args.mailbox = sorted(SCHOOL_MAILBOXES)

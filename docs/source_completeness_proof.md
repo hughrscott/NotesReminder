@@ -74,6 +74,7 @@ Latest live proof after interactive-login support:
 - Conversation History DOM proof on 2026-04-28 captured 25 dated call rows. 19 rows exposed stable `dialpad.com/callhistory/callreview/<id>` URLs and recording/play access. The call-review page exposes audio playback, recap/action items, and the transcript panel.
 - Call Review live proof on 2026-05-21 against `dialpad.com/callhistory/callreview/5646748416811008` confirmed the authenticated `browser_profiles/dialpad` route can capture recap, action items, audio availability, and transcript speaker turns without downloading audio.
 - Remaining Dialpad work before broad backfill: run the call-review extractor across recent call-review URLs, keep the call-review URL as the access pointer, and download/self-transcribe audio only when the Dialpad transcript is missing or selected for QA.
+- Phase 9 current-window source proof on 2026-05-21 refreshed HubSpot, Pike13, Dialpad daily intake, Dialpad voice/SMS, Dialpad call reviews, and school email against the canonical `reminders.db`. Source completeness for the 7-day proof window is `ready`; first-value report wiring remains `partial` until row-level Conversation History call-review URLs are matched into lead-attention communications.
 
 Pike13 status now separates existing lesson visits from richer lead outcomes:
 

@@ -86,7 +86,7 @@ def build_source_steps(args):
             "--profile-dir",
             args.dialpad_profile_dir,
             "--school",
-            "West U",
+            args.dialpad_school,
             "--window-days",
             str(days),
             "--limit",
@@ -143,6 +143,8 @@ def build_source_steps(args):
             "--limit-per-query",
             str(args.email_limit_per_query),
         ]
+        if args.allow_production_db:
+            command.append("--allow-production-db")
         for mailbox in args.email_mailbox:
             command.extend(["--mailbox", mailbox])
         if args.headless:
@@ -182,6 +184,7 @@ def main():
     parser.add_argument("--school", default=DEFAULT_SCHOOL)
     parser.add_argument("--pike13-school", default=DEFAULT_PIKE13_SCHOOL)
     parser.add_argument("--pike13-base-url", default=DEFAULT_PIKE13_BASE_URL)
+    parser.add_argument("--dialpad-school", default="West U")
     parser.add_argument("--hubspot-profile-dir", default="browser_profiles/hubspot")
     parser.add_argument("--pike13-profile-dir", default="browser_profiles/pike13")
     parser.add_argument("--dialpad-profile-dir", default="browser_profiles/dialpad")
@@ -197,7 +200,7 @@ def main():
     parser.add_argument(
         "--email-mailbox",
         action="append",
-        default=["westu@schoolofrock.com", "theheights@schoolofrock.com"],
+        default=None,
     )
     parser.add_argument("--source-timeout-seconds", type=int, default=900)
     parser.add_argument("--call-review-timeout-seconds", type=int, default=300)
@@ -210,11 +213,18 @@ def main():
     parser.add_argument("--skip-dialpad", action="store_true")
     parser.add_argument("--skip-email", action="store_true")
     parser.add_argument("--skip-call-reviews", action="store_true")
+    parser.add_argument(
+        "--allow-production-db",
+        action="store_true",
+        help="Allow this shadow-mode source refresh to target the canonical reminders.db after the Phase 7 single-DB promotion.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if not args.email_mailbox:
+        args.email_mailbox = ["westu@schoolofrock.com", "theheights@schoolofrock.com"]
 
     validate_window(args.start_date, args.end_date)
-    db_path = validate_target_db(args.db)
+    db_path = validate_target_db(args.db, allow_production=args.allow_production_db)
     ensure_schema(db_path)
     backup_path = None if args.dry_run else backup_db(db_path)
 

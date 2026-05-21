@@ -630,6 +630,128 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertTrue(any("AI transcript actions" in blocker for blocker in dialpad["blockers"]))
         self.assertTrue(any("recording/play access" in blocker for blocker in dialpad["blockers"]))
 
+    def test_call_review_text_proof_satisfies_recording_transcript_readiness(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        voice_run_id = start_import_run(conn, "dialpad_voice", "extract_dialpad_voice.py", "2026-04-21")
+        finish_import_run(
+            conn,
+            voice_run_id,
+            "success",
+            rows_seen=1,
+            rows_inserted=1,
+            metadata={
+                "views": ["conversation_history", "recordings"],
+                "view_summaries": {
+                    "conversation_history": {
+                        "rows": 1,
+                        "ai_action_rows": 1,
+                        "recording_action_rows": 1,
+                        "recording_or_transcript_url_rows": 1,
+                    },
+                    "recordings": {
+                        "rows": 1,
+                        "availability": {"transcript_link_visible": False},
+                    },
+                },
+            },
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, direction, contact_name, event_at,
+                phone_normalized, school, department, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('conv-1', 'conversation_history', 'call', 'inbound',
+                    'M Sample', '2026-04-27T20:22:05', '7135551212', 'West U', 'WESTU',
+                    'https://dialpad.com/callhistory/callreview/call-1', 'raw row', ?, ?)
+            """,
+            (
+                json.dumps(
+                    {
+                        "extraction": "conversation_history_table",
+                        "source_timestamp_field": "event_at",
+                        "source_id_status": "visible",
+                        "recording_action_visible": True,
+                        "transcript_status": "call_review_visible",
+                    }
+                ),
+                now,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_call_reviews (
+                call_review_id, call_id, call_review_url, transcript_text, recap_text,
+                action_items_json, speaker_turns_json, transcript_available, recap_available,
+                action_items_available, audio_available, extraction_status, raw_json, updated_at
+            )
+            VALUES ('call-1', 'call-1', 'https://dialpad.com/callhistory/callreview/call-1',
+                    'Transcript text', 'Recap text', '[]', '[]', 1, 1, 0, 1,
+                    'success', '{}', ?)
+            """,
+            (now,),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertEqual(dialpad["call_review_transcript_rows"], 1)
+        self.assertFalse(any("recording proof" in blocker for blocker in dialpad["blockers"]))
+
+    def test_conversation_history_call_review_link_visibility_satisfies_access_readiness(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        run_id = start_import_run(conn, "dialpad_voice", "extract_dialpad_voice.py", "2026-04-21")
+        finish_import_run(
+            conn,
+            run_id,
+            "success",
+            rows_seen=1,
+            rows_inserted=1,
+            metadata={
+                "views": ["conversation_history"],
+                "view_summaries": {
+                    "conversation_history": {
+                        "rows": 1,
+                        "ai_action_rows": 0,
+                        "recording_action_rows": 0,
+                        "recording_or_transcript_url_rows": 0,
+                        "availability": {
+                            "call_review_link_visible": True,
+                            "transcript_link_visible": True,
+                        },
+                    }
+                },
+            },
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, direction, contact_name, event_at,
+                phone_normalized, school, department, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('conv-1', 'conversation_history', 'call', 'inbound',
+                    'M Sample', '2026-04-27T20:22:05', '7135551212', 'West U', 'WESTU',
+                    'https://dialpad.com/conversationhistory', 'raw row', ?, ?)
+            """,
+            (
+                json.dumps(
+                    {
+                        "extraction": "conversation_history_dom",
+                        "source_timestamp_field": "event_at",
+                        "source_id_status": "generated_hash",
+                        "transcript_status": "not_visible",
+                    }
+                ),
+                now,
+            ),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertTrue(dialpad["conversation_history_call_review_link_visible"])
+        self.assertFalse(any("Conversation History proof" in blocker for blocker in dialpad["blockers"]))
+
     def test_source_completeness_uses_existing_reminders_as_pike13_lesson_visits(self):
         conn = self.open_db()
         conn.execute(

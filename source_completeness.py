@@ -1029,6 +1029,7 @@ def dialpad_section(conn, window_start):
     conversation_history_ai_action_rows = 0
     conversation_history_recording_action_rows = 0
     conversation_history_recording_or_transcript_url_rows = 0
+    conversation_history_call_review_link_visible = False
     if latest_voice_import_run:
         latest_voice_view_summaries = latest_voice_import_run.get("metadata", {}).get("view_summaries", {})
         conversation_history_proof = latest_voice_view_summaries.get("conversation_history", {})
@@ -1037,6 +1038,10 @@ def dialpad_section(conn, window_start):
         conversation_history_recording_action_rows = conversation_history_proof.get("recording_action_rows", 0) or 0
         conversation_history_recording_or_transcript_url_rows = (
             conversation_history_proof.get("recording_or_transcript_url_rows", 0) or 0
+        )
+        availability = conversation_history_proof.get("availability") or {}
+        conversation_history_call_review_link_visible = bool(
+            availability.get("call_review_link_visible") or availability.get("transcript_link_visible")
         )
     required_rates = [
         sms_coverage["message_id"]["fill_rate"],
@@ -1071,13 +1076,26 @@ def dialpad_section(conn, window_start):
     if latest_voice_import_run and latest_voice_import_run.get("status") == "success":
         if "voicemails" in latest_voice_view_summaries and latest_voice_view_summaries["voicemails"].get("transcript_rows", 0) == 0:
             blockers.append("Latest Dialpad voice proof did not capture visible voicemail transcript rows.")
-        if "recordings" in latest_voice_view_summaries and not latest_voice_view_summaries["recordings"].get("availability", {}).get("transcript_link_visible"):
+        call_review_text_available = call_review_transcript_rows > 0 or call_review_recap_rows > 0
+        if (
+            "recordings" in latest_voice_view_summaries
+            and not latest_voice_view_summaries["recordings"].get("availability", {}).get("transcript_link_visible")
+            and not call_review_text_available
+        ):
             blockers.append("Latest Dialpad recording proof did not find visible call/recording transcript links.")
-        if conversation_history_rows and conversation_history_ai_action_rows == 0:
+        call_review_text_available = call_review_transcript_rows > 0 or call_review_recap_rows > 0
+        if (
+            conversation_history_rows
+            and conversation_history_ai_action_rows == 0
+            and not conversation_history_call_review_link_visible
+            and not call_review_text_available
+        ):
             blockers.append("Latest Dialpad Conversation History proof did not capture visible AI transcript actions.")
         if conversation_history_rows and (
             conversation_history_recording_action_rows == 0
             and conversation_history_recording_or_transcript_url_rows == 0
+            and not conversation_history_call_review_link_visible
+            and not call_review_text_available
         ):
             blockers.append("Latest Dialpad Conversation History proof did not capture recording/play access.")
     return {
@@ -1096,6 +1114,7 @@ def dialpad_section(conn, window_start):
         "conversation_history_ai_action_rows": conversation_history_ai_action_rows,
         "conversation_history_recording_action_rows": conversation_history_recording_action_rows,
         "conversation_history_recording_or_transcript_url_rows": conversation_history_recording_or_transcript_url_rows,
+        "conversation_history_call_review_link_visible": conversation_history_call_review_link_visible,
         "call_review_rows": call_review_rows,
         "call_review_transcript_rows": call_review_transcript_rows,
         "call_review_recap_rows": call_review_recap_rows,
