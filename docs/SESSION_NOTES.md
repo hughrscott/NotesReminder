@@ -67,6 +67,24 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
   - `venv/bin/python -m pytest`: `93 passed`
 
+## 2026-05-21 Unified DB Daily Notes Validation
+
+- Added a safe local-only daily runner path:
+  - `--db-path` selects the SQLite file to read/write.
+  - `--skip-s3-sync` skips both S3 download and S3 upload.
+- Created daily-test copy from the unified DB candidate:
+  - `outputs/lead_intelligence/unified_reminders_phase7_daily_test.db`
+- Ran local-only notes checker against the daily-test DB with `--no-email`, `--skip-note-scoring`, and `--skip-s3-sync`:
+  - West U, 2026-05-19: Pike13 login succeeded, 39 schedule lessons processed, no S3 upload.
+  - The Heights, 2026-05-19: Pike13 login succeeded, 41 schedule lessons processed, no S3 upload.
+- Post-run validation on the daily-test DB:
+  - `PRAGMA integrity_check`: `ok`
+  - `build_reporting_schema.py`: passed
+  - `notes_pipeline_health.py`: `ready`
+  - `venv/bin/python -m pytest`: `93 passed`
+- Promotion candidate for the actual DB replacement should be the daily-tested DB with reporting rebuilt:
+  - `outputs/lead_intelligence/unified_reminders_phase7_daily_test.db`
+
 ## Current State
 
 - `main` is synced to GitHub through `f2f9691`.

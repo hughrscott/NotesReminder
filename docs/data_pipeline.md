@@ -74,6 +74,26 @@ scripts/run_notes_local_mfa.sh --date YYYY-MM-DD
 
 The wrapper creates local and S3 backups, runs West U and The Heights with the normal recipients, sends the usual summary emails, and uploads the updated DB to S3. It uses `browser_profiles/pike13` by default. The GitHub Actions job still uses the non-interactive path and cannot satisfy a fresh MFA prompt by itself.
 
+For local-only validation against a staging or promotion-candidate DB, run
+`run_daily.py` with an explicit DB path and skip S3 sync:
+
+```bash
+venv/bin/python run_daily.py \
+  --school westu-sor \
+  --start-date YYYY-MM-DD \
+  --end-date YYYY-MM-DD \
+  --db-path outputs/lead_intelligence/unified_reminders_phase7_daily_test.db \
+  --skip-s3-sync \
+  --no-email \
+  --skip-note-scoring \
+  --pike13-profile-dir browser_profiles/pike13 \
+  --verbose
+```
+
+This path does not download from S3, does not upload to S3, and does not send
+email. Use it to prove the notes checker can read and update a candidate DB
+before promotion.
+
 After a successful production notes run, rebuild the local lead working DB so lead reports include the latest lesson-note evidence:
 
 ```bash

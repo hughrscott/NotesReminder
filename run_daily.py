@@ -38,6 +38,7 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
 S3_BUCKET = 'notesreminder-db'
 S3_KEY = 'reminders.db'
+DB_PATH = os.getenv("REMINDERS_DB_PATH", "reminders.db")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run daily notes reminder for a specific school.")
@@ -66,11 +67,15 @@ def parse_args():
                         help='Open a headed Pike13 browser and wait for manual login/MFA before scraping.')
     parser.add_argument('--login-timeout', type=int, default=300,
                         help='Seconds to wait for interactive Pike13 login/MFA.')
+    parser.add_argument('--db-path', default=DB_PATH,
+                        help='SQLite DB path to read/write (default: reminders.db).')
+    parser.add_argument('--skip-s3-sync', action='store_true',
+                        help='Do not download from or upload to S3. Use for local DB validation only.')
     return parser.parse_args()
 
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
     """Get all lessons from the database that don't have notes for a specific school."""
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     params = [school_subdomain]
@@ -98,7 +103,7 @@ def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
 
 def update_lesson_status(lesson_id, has_notes):
     """Update the note_completed status in the database."""
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -530,7 +535,7 @@ def download_db_from_s3(local_path, bucket, s3_key):
         print(f"⚠️ Could not download {s3_key} from s3://{bucket}: {e}")
 
 def ensure_location_column():
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(reminders)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -574,7 +579,7 @@ def ensure_location_column():
     conn.close()
 
 def ensure_unique_lesson_ids():
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM reminders WHERE lesson_id LIKE school || '-%'")
     prefixed_count = cursor.fetchone()[0]
@@ -587,7 +592,7 @@ def ensure_unique_lesson_ids():
     conn.close()
 
 def ensure_notes_columns():
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(reminders)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -600,7 +605,7 @@ def ensure_notes_columns():
 
 
 def ensure_note_score_columns():
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(reminders)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -620,7 +625,7 @@ def ensure_note_score_columns():
     conn.close()
 
 def ensure_pike13_column():
-    conn = sqlite3.connect('reminders.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(reminders)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -645,8 +650,9 @@ def should_skip_lesson(lesson_type, students, instructor=None):
 
 async def main():
     args = parse_args()
-    global VERBOSE
+    global VERBOSE, DB_PATH
     VERBOSE = args.verbose
+    DB_PATH = args.db_path
     school_subdomain = args.school
     if not args.no_email and not args.to:
         raise SystemExit("Missing --to recipients (or use --no-email to skip sending).")
@@ -656,12 +662,18 @@ async def main():
         log("Initializing fresh database...")
         from init_db import initialize_db
         initialize_db()
-        upload_db_to_s3('reminders.db', S3_BUCKET, S3_KEY)
-        log("Fresh database initialized and uploaded to S3")
+        if not args.skip_s3_sync:
+            upload_db_to_s3(DB_PATH, S3_BUCKET, S3_KEY)
+            log("Fresh database initialized and uploaded to S3")
+        else:
+            log("Fresh database initialized; skipped S3 upload")
         return
 
     # Download the latest DB from S3 (if it exists)
-    download_db_from_s3('reminders.db', S3_BUCKET, S3_KEY)
+    if not args.skip_s3_sync:
+        download_db_from_s3(DB_PATH, S3_BUCKET, S3_KEY)
+    else:
+        log(f"Skipping S3 download; using local DB at {DB_PATH}", force=True)
     ensure_location_column()
     ensure_notes_columns()
     ensure_note_score_columns()
@@ -759,7 +771,7 @@ async def main():
         note_score_explanation = None
 
         # Check if the lesson already exists in the database
-        conn = sqlite3.connect('reminders.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute(
             '''
@@ -1034,7 +1046,10 @@ async def main():
         log(f"✅ All lessons for {school_subdomain} (from {start_date} to {end_date}) have notes (or were filtered out)!")
 
     # At the end, upload the DB to S3
-    upload_db_to_s3('reminders.db', S3_BUCKET, S3_KEY)
+    if not args.skip_s3_sync:
+        upload_db_to_s3(DB_PATH, S3_BUCKET, S3_KEY)
+    else:
+        log(f"Skipping S3 upload; local DB validation completed at {DB_PATH}", force=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
