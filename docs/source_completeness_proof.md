@@ -72,7 +72,8 @@ Latest live proof after interactive-login support:
 - User-provided route update: call transcripts should be proven through Dialpad Conversation History at `https://dialpad.com/conversationhistory`, using a date filter plus either the row recording/play control or the Dialpad AI icon on the far right.
 - Transcript strategy: use Dialpad AI transcripts as the primary source when available, preserve recording URL/access evidence for every call where visible, and download/self-transcribe selectively for missing, important, or QA calls.
 - Conversation History DOM proof on 2026-04-28 captured 25 dated call rows. 19 rows exposed stable `dialpad.com/callhistory/callreview/<id>` URLs and recording/play access. The call-review page exposes audio playback, recap/action items, and the transcript panel.
-- Remaining Dialpad work before broad backfill: visit call-review URLs, capture transcript text plus recap/action items, and retain the call-review URL as the access pointer for later audio processing or download.
+- Call Review live proof on 2026-05-21 against `dialpad.com/callhistory/callreview/5646748416811008` confirmed the authenticated `browser_profiles/dialpad` route can capture recap, action items, audio availability, and transcript speaker turns without downloading audio.
+- Remaining Dialpad work before broad backfill: run the call-review extractor across recent call-review URLs, keep the call-review URL as the access pointer, and download/self-transcribe audio only when the Dialpad transcript is missing or selected for QA.
 
 Pike13 status now separates existing lesson visits from richer lead outcomes:
 

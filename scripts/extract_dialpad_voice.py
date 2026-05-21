@@ -279,6 +279,11 @@ def is_dialpad_app_page(url, text):
             "calls",
             "voicemails",
             "conversation history",
+            "call history / call review",
+            "call review",
+            "transcript search by keyword",
+            "recap",
+            "excerpts",
             "user & contact center",
         )
     )

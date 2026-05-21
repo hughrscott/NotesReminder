@@ -592,3 +592,35 @@ Rollback path:
 Phase status:
 
 - Phase 6 gate checks passed.
+
+## 2026-05-21 Dialpad Call Review Route Proof
+
+Goal:
+
+- Validate the Dialpad call-review page as the primary source for call recap, action items, transcript turns, and audio access evidence.
+
+Changes made:
+
+- Updated Dialpad authentication-page detection to recognize `/callhistory/callreview/<id>` pages.
+- Updated call-review transcript parsing for the current Dialpad layout where speaker, time, and transcript text can appear on separate lines.
+- Updated call-review extraction to read recap/action items before switching to the Transcript tab, then combine both views for parsing.
+- Updated Dialpad discovery/source-completeness documentation with the live route proof.
+
+Live proof:
+
+- URL tested: `https://dialpad.com/callhistory/callreview/5646748416811008`
+- Result: recap available, action items available, audio available, transcript available.
+- Parsed proof counts: `1` action item and `19` transcript speaker turns.
+- No call audio was downloaded.
+
+Tests:
+
+```bash
+venv/bin/python -m pytest tests/test_dialpad_call_reviews.py tests/test_dialpad_extractors.py
+```
+
+- Result: `15 passed`
+
+Rollback path:
+
+- Revert `scripts/extract_dialpad_voice.py`, `scripts/extract_dialpad_call_reviews.py`, the Dialpad extractor tests, and the documentation updates from this checkpoint.

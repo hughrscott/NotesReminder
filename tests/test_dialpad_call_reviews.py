@@ -55,11 +55,16 @@ class DialpadCallReviewTests(unittest.TestCase):
             Recap
             Caller asked about a trial lesson and next steps.
             Action Items
-            1. Follow up with lesson options.
+            1.
+            Follow up with lesson options.
             2. Confirm trial availability.
             Transcript
-            West U (Front Desk) 8:22 PM Thanks for calling.
-            Caller 8:23 PM I am interested in guitar lessons.
+            WU
+            West U (Front Desk) 8:22 PM
+            Thanks for calling.
+            Caller
+            8:23 PM
+            I am interested in guitar lessons.
             Call audio seek slider
             0:00/0:56
             """,
@@ -69,6 +74,8 @@ class DialpadCallReviewTests(unittest.TestCase):
         self.assertEqual(parsed["recap_text"], "Caller asked about a trial lesson and next steps.")
         self.assertEqual(json.loads(parsed["action_items_json"]), ["Follow up with lesson options.", "Confirm trial availability."])
         self.assertIn("Thanks for calling.", parsed["transcript_text"])
+        self.assertEqual(json.loads(parsed["speaker_turns_json"])[0]["speaker"], "West U (Front Desk)")
+        self.assertEqual(json.loads(parsed["speaker_turns_json"])[1]["speaker"], "Caller")
         self.assertEqual(parsed["transcript_available"], 1)
         self.assertEqual(parsed["recap_available"], 1)
         self.assertEqual(parsed["action_items_available"], 1)

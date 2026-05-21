@@ -44,23 +44,62 @@ def clean_lines(text):
 def parse_action_items(lines):
     items = []
     in_actions = False
+    pending_item = None
     for line in lines:
         lowered = line.lower()
         if lowered == "action items":
             in_actions = True
             continue
-        if in_actions and lowered in {"transcript", "excerpts", "comments", "recap"}:
+        if in_actions and lowered in {"transcript", "excerpts", "comments", "recap", "comment"}:
             break
-        if in_actions and re.match(r"^\d+[\).]\s+", line):
-            items.append(re.sub(r"^\d+[\).]\s+", "", line).strip())
-    return items
+        if not in_actions:
+            continue
+        numbered = re.match(r"^\d+[\).]\s*(?P<text>.*)$", line)
+        if numbered:
+            text = numbered.group("text").strip()
+            if text:
+                items.append(text)
+                pending_item = None
+            else:
+                pending_item = len(items)
+                items.append("")
+            continue
+        if pending_item is not None:
+            items[pending_item] = f"{items[pending_item]} {line}".strip()
+    return [item for item in items if item]
 
 
 def parse_transcript_turns(lines):
     turns = []
-    time_re = re.compile(r"^(?P<speaker>.+?)\s+(?P<time>\d{1,2}:\d{2}\s*[AP]M)\s+(?P<text>.+)$", re.IGNORECASE)
-    for line in lines:
-        match = time_re.match(line)
+    inline_time_re = re.compile(r"^(?P<speaker>.+?)\s+(?P<time>\d{1,2}:\d{2}\s*[AP]M)\s+(?P<text>.+)$", re.IGNORECASE)
+    speaker_time_re = re.compile(r"^(?P<speaker>.+?)\s+(?P<time>\d{1,2}:\d{2}\s*[AP]M)$", re.IGNORECASE)
+    time_only_re = re.compile(r"^\d{1,2}:\d{2}\s*[AP]M$", re.IGNORECASE)
+    stop_lines = {
+        "transcript",
+        "comments",
+        "recap",
+        "excerpts",
+        "comment",
+        "no comments",
+        "transcript search by keyword",
+        "powered by dialpad ai",
+        "show callers",
+        "save",
+    }
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        lowered = line.lower()
+        if (
+            lowered in stop_lines
+            or lowered.startswith("how accurate ")
+            or "call audio seek slider" in lowered
+            or re.search(r"^\d+:\d{2}/\d+:\d{2}$", line)
+            or re.fullmatch(r"[A-Z]{1,3}", line)
+        ):
+            index += 1
+            continue
+        match = inline_time_re.match(line)
         if match:
             turns.append(
                 {
@@ -69,10 +108,27 @@ def parse_transcript_turns(lines):
                     "text": match.group("text").strip(),
                 }
             )
+            index += 1
             continue
-        if turns and line.lower() not in {"transcript", "comments"}:
+        match = speaker_time_re.match(line)
+        if match:
+            turns.append(
+                {
+                    "speaker": match.group("speaker").strip(),
+                    "time": match.group("time").strip(),
+                    "text": "",
+                }
+            )
+            index += 1
+            continue
+        if index + 1 < len(lines) and time_only_re.match(lines[index + 1]):
+            turns.append({"speaker": line.strip(), "time": lines[index + 1].strip(), "text": ""})
+            index += 2
+            continue
+        if turns:
             turns[-1]["text"] = f"{turns[-1]['text']} {line}".strip()
-    return turns
+        index += 1
+    return [turn for turn in turns if turn["text"]]
 
 
 def parse_call_review_text(url, text):
@@ -182,6 +238,7 @@ def extract_call_review_page(page, target, interactive_login=False, login_timeou
     goto_call_review_with_retry(page, target["call_review_url"])
     wait_until_ready(page)
     wait_for_authenticated_page(page, target["call_review_url"], interactive_login, login_timeout)
+    recap_text = page.locator("body").inner_text(timeout=30000)
     transcript_button = page.get_by_text("Transcript", exact=True)
     if transcript_button.count():
         try:
@@ -189,7 +246,8 @@ def extract_call_review_page(page, target, interactive_login=False, login_timeou
             page.wait_for_timeout(1000)
         except PlaywrightTimeoutError:
             pass
-    text = page.locator("body").inner_text(timeout=30000)
+    transcript_text = page.locator("body").inner_text(timeout=30000)
+    text = f"{recap_text}\n{transcript_text}"
     parsed = parse_call_review_text(page.url, text)
     parsed.update(
         {

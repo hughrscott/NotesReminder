@@ -263,6 +263,8 @@ python3 scripts/extract_dialpad_call_reviews.py \
 
 The call-review URL remains the durable pointer for transcript and audio access. The extractor stores transcript/recap/action-item text in `dialpad_call_reviews`, but sanitized reports do not print that content.
 
+The 2026-05-21 live route proof confirmed the authenticated Dialpad profile can open a `/callhistory/callreview/<id>` page and extract recap, action-item, audio-availability, and transcript-turn evidence. The default operating model remains transcript/recap ingestion first, with audio download reserved for missing-transcript, important, or QA-selected calls.
+
 Generate the first value report:
 
 ```bash

@@ -98,6 +98,8 @@ class DialpadExtractorTests(unittest.TestCase):
         app_text = "Search Dialpad\nDepartments\nMessages\nCalls"
         self.assertTrue(is_sms_app_page("https://dialpad.com/app/history/messages", app_text))
         self.assertTrue(is_voice_app_page("https://dialpad.com/app/history/calls", app_text))
+        call_review_text = "CALL HISTORY / CALL REVIEW\nRecap\nTranscript\nExcerpts\nTranscript search by keyword"
+        self.assertTrue(is_voice_app_page("https://dialpad.com/callhistory/callreview/5646748416811008", call_review_text))
         self.assertFalse(is_sms_app_page("https://dialpad.okta.com", app_text))
 
     def test_sms_date_normalizer_handles_relative_and_short_dates(self):
