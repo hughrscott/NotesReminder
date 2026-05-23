@@ -34,7 +34,7 @@ Broad dashboards and reports should be sanitized by default even when raw conten
 
 ## Shadow Lead-Intelligence Tables
 
-These currently live in `outputs/lead_intelligence/lead_intelligence_working.db` during proof work. They should merge into production `reminders.db` only after the first management dashboards reconcile against source counts and are accepted.
+These now live in the promoted single `reminders.db` alongside production notes data. They remain marked `shadow` until their downstream dashboards are accepted for management decisions.
 
 | Object | Status | Purpose | Source | Primary Key | Natural Key | Freshness | Sensitive Fields |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -55,6 +55,9 @@ These currently live in `outputs/lead_intelligence/lead_intelligence_working.db`
 | `pike13_visits` | shadow | Pike13 visits/trials/attendance/no-shows. | Pike13 authenticated extractor and notes data. | visit ID or implementation-defined ID. | person ID, start time, service. | Pike13 lead/outcome refresh. | names, attendance details. |
 | `pike13_plans_passes` | shadow | Pike13 plans/passes/membership evidence. | Pike13 authenticated extractor. | plan/pass ID or implementation-defined ID. | person ID, plan/pass identifier, date range. | Pike13 lead/outcome refresh. | payer, membership/payment-adjacent details. |
 | `identity_matches` | shadow | Cross-system identity match evidence. | Lead schema/resolution scripts. | implementation-defined row id. | source/target IDs and match type. | Rebuilt with identity work. | names, emails, phones, match evidence. |
+| `persons` | shadow | Resolved real-person identity hub across HubSpot, Pike13, Dialpad, and school email. | deterministic identity resolver. | `person_id`. | exact email, exact phone, HubSpot/Pike13 IDs. | Person identity refresh. | names, emails, phones, source linkage. |
+| `person_identities` | shadow | Source IDs, emails, and phones linked to `persons`. | deterministic identity resolver. | `identity_id`. | person + identity type/value + source row. | Person identity refresh. | names, emails, phones, match evidence. |
+| `person_resolution_conflicts` | shadow | Duplicate/ambiguous identity groups needing review. | deterministic identity resolver. | `conflict_id`. | conflict type + person IDs. | Person identity refresh. | identity evidence. |
 | `communication_ai_insights` | shadow | AI analysis over communications. | LLM analysis scripts. | implementation-defined row id. | source event ID and model/version. | AI insight runs. | summaries, sentiment, action items, model output. |
 
 ## Shadow Lead-Intelligence Views
@@ -98,9 +101,6 @@ These are rebuildable reporting tables/views. They should be additive until prod
 
 | Object | Status | Purpose | Source | Primary Key / Natural Key | Sensitivity |
 | --- | --- | --- | --- | --- | --- |
-| `persons` | future | Resolved real-person identity hub. | identity resolver. | `person_id`. | medium. |
-| `person_identities` | future | Source IDs, emails, phones linked to `persons`. | identity resolver. | source system + identity type + value. | medium. |
-| `person_resolution_conflicts` | future | Ambiguous identity records needing review. | identity resolver. | conflict ID. | medium. |
 | `vw_person_journey` | future/derived | Chronological event stream for a person. | all source tables. | person ID + event timestamp + source ID. | medium/high. |
 | `raw_captures` | future | Index of raw HTML/JSON captures saved to disk. | extractors. | capture ID / SHA-256. | high. |
 | `qb_customers` | future | QuickBooks customer records. | QuickBooks. | QB customer ID. | medium. |

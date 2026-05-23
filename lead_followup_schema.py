@@ -425,6 +425,49 @@ def ensure_lead_followup_schema(conn):
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS persons (
+                person_id TEXT PRIMARY KEY,
+                display_name TEXT,
+                primary_email TEXT,
+                primary_phone TEXT,
+                school TEXT,
+                resolution_status TEXT NOT NULL,
+                source_count INTEGER DEFAULT 0,
+                identity_count INTEGER DEFAULT 0,
+                raw_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS person_identities (
+                identity_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id TEXT NOT NULL,
+                identity_type TEXT NOT NULL,
+                identity_value TEXT NOT NULL,
+                source_system TEXT NOT NULL,
+                source_table TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                evidence TEXT,
+                created_at TEXT NOT NULL,
+                UNIQUE(person_id, identity_type, identity_value, source_table, source_id),
+                FOREIGN KEY(person_id) REFERENCES persons(person_id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS person_resolution_conflicts (
+                conflict_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conflict_type TEXT NOT NULL,
+                source_table TEXT,
+                source_id TEXT,
+                person_ids_json TEXT,
+                evidence_json TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS communication_ai_insights (
                 insight_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_table TEXT NOT NULL,
@@ -453,9 +496,17 @@ def ensure_lead_followup_schema(conn):
     _add_column_if_missing(conn, "pike13_visits", "checked_in_flag", "INTEGER DEFAULT 0")
     _add_column_if_missing(conn, "pike13_visits", "enrolled_flag", "INTEGER DEFAULT 0")
     _add_column_if_missing(conn, "pike13_visits", "terms_accepted_flag", "INTEGER")
+    _add_column_if_missing(conn, "pike13_visits", "person_identity_id", "TEXT")
     _add_column_if_missing(conn, "pike13_plans_passes", "payer_name", "TEXT")
     _add_column_if_missing(conn, "pike13_plans_passes", "next_invoice_at", "TEXT")
     _add_column_if_missing(conn, "pike13_plans_passes", "terms_accepted_flag", "INTEGER")
+    _add_column_if_missing(conn, "pike13_plans_passes", "person_identity_id", "TEXT")
+    _add_column_if_missing(conn, "hubspot_deals", "person_id", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "person_id", "TEXT")
+    _add_column_if_missing(conn, "pike13_people", "person_identity_id", "TEXT")
+    _add_column_if_missing(conn, "dialpad_sms_threads", "person_id", "TEXT")
+    _add_column_if_missing(conn, "dialpad_voice_events", "person_id", "TEXT")
+    _add_column_if_missing(conn, "school_email_messages", "person_id", "TEXT")
     _add_column_if_missing(conn, "recording_downloads", "voice_event_id", "TEXT")
     _add_column_if_missing(conn, "recording_downloads", "source_url", "TEXT")
     _add_column_if_missing(conn, "recording_downloads", "event_at", "TEXT")
@@ -529,9 +580,22 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_source_route_discoveries_route ON source_route_discoveries(source, route_name)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_email ON pike13_people(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_people_phone ON pike13_people(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_person ON hubspot_deals(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_person ON hubspot_contacts(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_people_person_identity ON pike13_people(person_identity_id)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_time ON pike13_visits(person_id, starts_at)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_visits_person_identity ON pike13_visits(person_identity_id)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_visits_time ON pike13_visits(starts_at)",
             "CREATE INDEX IF NOT EXISTS idx_pike13_plans_person_dates ON pike13_plans_passes(person_id, starts_at, ends_at)",
+            "CREATE INDEX IF NOT EXISTS idx_pike13_plans_person_identity ON pike13_plans_passes(person_identity_id)",
+            "CREATE INDEX IF NOT EXISTS idx_dialpad_sms_threads_person ON dialpad_sms_threads(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_dialpad_voice_events_person ON dialpad_voice_events(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_school_email_person ON school_email_messages(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_persons_email ON persons(primary_email)",
+            "CREATE INDEX IF NOT EXISTS idx_persons_phone ON persons(primary_phone)",
+            "CREATE INDEX IF NOT EXISTS idx_person_identities_lookup ON person_identities(identity_type, identity_value)",
+            "CREATE INDEX IF NOT EXISTS idx_person_identities_person ON person_identities(person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_person_conflicts_status ON person_resolution_conflicts(status)",
             "CREATE INDEX IF NOT EXISTS idx_comm_ai_source ON communication_ai_insights(source_table, source_id)",
             "CREATE INDEX IF NOT EXISTS idx_source_import_runs_source_status ON source_import_runs(source, status, started_at)",
         ],

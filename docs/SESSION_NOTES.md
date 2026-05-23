@@ -118,9 +118,9 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - `PRAGMA integrity_check`: `ok`
   - running source imports: `0`
   - notes pipeline health: `ready`
-  - source completeness/dashboard: source intake `ready`; first-value report still `partial`
+  - source completeness/dashboard: source intake `ready`; first-value report `ready`
 - Phase 10 has passed the 30-day proof and the April 1, 2026 forward proof. Do not widen to January 1, 2025 forward without explicit Hugh approval.
-- Dialpad source access is working through Conversation History and Call Review pages. The remaining Dialpad/reporting task is row-level Conversation History call-review URL matching into lead-attention communications, not basic Dialpad access.
+- Dialpad source access is working through Conversation History and Call Review pages. First-value reporting now counts stored Conversation History call-review URLs and is ready for limited proof.
 - School-email extraction now supports Okta username/password from `.env`, sends the Okta Verify push, and pauses for Hugh approval. The durable authenticated state is the browser profile session, not a permanent HTTP header.
 
 ## May 1 Production Notes Run
@@ -806,3 +806,90 @@ Rollback path:
 Phase status:
 
 - First-value report wiring gate passed.
+
+## 2026-05-23 Phase 11: Person Identity Layer
+
+Goal:
+
+- Introduce a deterministic `persons` identity hub across HubSpot, Pike13, Dialpad, and school-email source rows.
+
+Backup:
+
+- Local post-refresh backup:
+  - `outputs/db_backups/reminders.db.20260523T184457Z.phase-11-person-identity-post-refresh.bak`
+- S3 post-refresh backup:
+  - `s3://notesreminder-db/backups/reminders.db.20260523T184457Z.phase-11-person-identity-post-refresh.bak`
+- Note: the first live identity refresh ran before this backup was taken. The operation is additive/rebuildable and can be rolled back by clearing the new person identity tables/columns or restoring the backup above.
+
+Changes made:
+
+- Added person identity schema:
+  - `persons`
+  - `person_identities`
+  - `person_resolution_conflicts`
+- Added nullable source links:
+  - `hubspot_deals.person_id`
+  - `hubspot_contacts.person_id`
+  - `pike13_people.person_identity_id`
+  - `pike13_visits.person_identity_id`
+  - `pike13_plans_passes.person_identity_id`
+  - `dialpad_sms_threads.person_id`
+  - `dialpad_voice_events.person_id`
+  - `school_email_messages.person_id`
+- Added deterministic resolver:
+  - exact normalized email
+  - exact normalized phone
+  - HubSpot contact/deal IDs
+  - Pike13 person IDs
+  - Dialpad phone rows
+  - school-email external addresses
+- Added `scripts/refresh_person_identities.py`.
+- Added MCP tools:
+  - `refresh_person_identity_layer`
+  - `person_search`
+  - `person_details`
+- Updated data dictionary and pipeline docs.
+
+Live refresh result:
+
+- `persons`: `235`
+- `person_identities`: `956`
+- linked source rows: `480`
+- conflicts for review: `7`
+  - `multiple_hubspot_contact`: `5`
+  - `multiple_pike13_person`: `2`
+- Person source-link coverage:
+  - HubSpot contacts: `29/29`
+  - HubSpot deals: `25/25`
+  - Pike13 people: `106/106`
+  - Dialpad SMS threads: `5/6`
+  - Dialpad voice events: `224/1297`
+  - School email messages: `91/128`
+- Placeholder Dialpad names such as `Loading` are excluded from person display-name selection.
+
+Gate checks run so far:
+
+- `venv/bin/python -m pytest tests/test_person_identity.py`: `3 passed`
+- `venv/bin/python -m pytest tests/test_person_identity.py tests/test_lead_followup_schema.py`: `20 passed`
+- MCP `person_search` smoke returned resolved person rows.
+- Full test suite: `102 passed`
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows: `0`
+- Identity idempotency rerun returned the same live summary:
+  - `persons=235`
+  - `person_identities=956`
+  - `conflicts=7`
+  - `linked_sources=480`
+- Orphan `person_identities`: `0`
+
+Known remaining next action:
+
+- Review the `7` conflict rows before using person identity for management conclusions.
+
+Rollback path:
+
+- Restore the backup above, or clear `persons`, `person_identities`, and `person_resolution_conflicts` and null the source `person_id`/`person_identity_id` columns.
+
+Phase status:
+
+- Phase 11 gate passed.

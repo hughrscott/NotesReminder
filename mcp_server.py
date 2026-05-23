@@ -14,6 +14,11 @@ from lead_operating_dashboard import (
     build_snapshot,
     lead_evidence_timeline as build_lead_evidence_timeline,
 )
+from notesreminder.lib.person_identity import (
+    person_details as build_person_details,
+    person_search as build_person_search,
+    refresh_person_identities,
+)
 from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
@@ -244,6 +249,47 @@ def lead_evidence_timeline(
     finally:
         conn.close()
     return json.dumps(timeline, indent=2, default=str)
+
+
+@mcp.tool()
+def refresh_person_identity_layer() -> str:
+    """Rebuild deterministic persons and person_identities from exact source identifiers."""
+    conn = _connect()
+    try:
+        summary = refresh_person_identities(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return json.dumps(summary, indent=2, default=str)
+
+
+@mcp.tool()
+def person_search(query: str, limit: int = 20) -> str:
+    """Search resolved persons by person ID, name, email, phone, or school."""
+    if not query or not query.strip():
+        raise ValueError("query is required.")
+    conn = _connect()
+    try:
+        rows = build_person_search(conn, query, limit)
+    finally:
+        conn.close()
+    return json.dumps({"rows": rows, "row_count": len(rows)}, indent=2, default=str)
+
+
+@mcp.tool()
+def person_details(person_id: str) -> str:
+    """Return source identities and conflicts for a resolved person."""
+    if not person_id or not person_id.strip():
+        raise ValueError("person_id is required.")
+    conn = _connect()
+    try:
+        details = build_person_details(conn, person_id.strip())
+    finally:
+        conn.close()
+    if details is None:
+        return json.dumps({"person_id": person_id, "found": False}, indent=2)
+    details["found"] = True
+    return json.dumps(details, indent=2, default=str)
 
 
 @mcp.tool()

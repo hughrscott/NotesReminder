@@ -276,6 +276,24 @@ python3 scripts/lead_attention_report.py \
 
 The default output is `outputs/progress/lead_attention_report.md`. It shows deal IDs, stages, owners, risk reasons, matched communication counts, call-review transcript/recap availability, and source URLs. It intentionally excludes customer names, phone numbers, SMS bodies, transcripts, transcript summaries, raw lesson notes, and call summaries.
 
+## Person identity layer
+
+Refresh deterministic person identities after source refreshes when cross-source person lookup or journey work is needed:
+
+```bash
+python3 scripts/refresh_person_identities.py \
+  --db reminders.db \
+  --json
+```
+
+The resolver links exact normalized email, exact normalized phone, HubSpot contact/deal IDs, Pike13 person IDs, Dialpad phone rows, and school-email addresses into `persons` and `person_identities`. Duplicate source identities are written to `person_resolution_conflicts` for review instead of being hidden.
+
+MCP tools:
+
+- `refresh_person_identity_layer`
+- `person_search(query, limit)`
+- `person_details(person_id)`
+
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.
 - `backfill.py` : Multi-school historical scrape (no email by default).
@@ -297,6 +315,7 @@ The default output is `outputs/progress/lead_attention_report.md`. It shows deal
 - `scripts/extract_dialpad_call_reviews.py` : Ingest Dialpad call-review transcripts, recaps, action items, and access diagnostics.
 - `scripts/unmatched_inbound_report.py` : Generate the sanitized unmatched inbound Dialpad report.
 - `scripts/discover_pike13_routes.py` : Probe Pike13 routes and record sanitized route-capability diagnostics.
+- `scripts/refresh_person_identities.py` : Rebuild deterministic `persons`, `person_identities`, and conflict rows.
 - `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
