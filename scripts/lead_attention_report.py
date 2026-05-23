@@ -164,6 +164,7 @@ def communication_evidence(conn, phones, lead_start):
         FROM vw_dialpad_communications c
         LEFT JOIN dialpad_call_reviews cr
           ON cr.call_review_url = c.source_url
+          OR c.source_url LIKE cr.call_review_url || '%'
           OR cr.voice_event_id = c.communication_id
           OR cr.call_id = c.communication_id
         WHERE c.phone_normalized IN ({placeholders})

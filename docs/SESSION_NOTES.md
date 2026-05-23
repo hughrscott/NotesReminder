@@ -178,10 +178,7 @@ scripts/run_notes_local_mfa.sh --date 2026-05-01
 ## Next Steps
 
 1. Stop before any January 1, 2025 forward backfill until Hugh explicitly approves that widening.
-2. Next phase should address the first-value/report-wiring gap:
-   - match Conversation History rows to lead-attention communications
-   - persist row-level call-review URLs where visible
-   - prove first-value report readiness with named test cases and sanitized dashboard output
+2. Execute Phase 11: Person Identity Layer.
 3. Keep using `reminders.db` as the single production database unless a later raw-data archive decision changes that.
 4. Preserve pre-proof backups for rollback.
 
@@ -768,3 +765,44 @@ Rollback path:
 Phase status:
 
 - Phase 10 April 1 proof gate passed. Stop before January 1, 2025 forward backfill unless Hugh approves the next widening.
+
+## 2026-05-23 First-Value Report Wiring Gate
+
+Goal:
+
+- Resolve the Phase 10 carry-forward reporting gap before starting Phase 11 identity work.
+
+Changes made:
+
+- Updated `source_completeness.py` so first-value readiness counts stored `vw_dialpad_communications.source_url` call-review URLs in addition to the latest import-run metadata.
+- Updated `scripts/lead_attention_report.py` so call-review transcript/recap evidence joins when Dialpad communication URLs include query parameters.
+- Added a regression test proving stored Conversation History call-review URLs satisfy the first-value URL gate without exposing sensitive content.
+
+Gate results:
+
+- Live source completeness now reports:
+  - First Value Report: `READY`
+  - Report ready: `yes`
+  - Call-review URL rows: `293`
+  - Call-review transcript rows: `236`
+  - Call-review recap rows: `236`
+  - Blockers: `None`
+- West U lead-attention report regenerated:
+  - Candidate leads needing attention: `8`
+  - Candidate leads with matched Dialpad communications: `6`
+  - Candidate leads with call-review transcripts: `5`
+  - Candidate leads with call-review recaps: `5`
+- Focused tests:
+  - `venv/bin/python -m pytest tests/test_lead_followup_schema.py tests/test_lead_attention_report.py tests/test_progress_dashboard.py`: `20 passed`
+
+Known remaining next action:
+
+- Start Phase 11: Person Identity Layer.
+
+Rollback path:
+
+- Revert `source_completeness.py`, `scripts/lead_attention_report.py`, and `tests/test_lead_followup_schema.py`.
+
+Phase status:
+
+- First-value report wiring gate passed.

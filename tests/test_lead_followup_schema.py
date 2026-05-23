@@ -13,7 +13,7 @@ from lead_followup_schema import (
     start_import_run,
     utc_now_iso,
 )
-from source_completeness import build_source_completeness_report, import_run_summary
+from source_completeness import build_source_completeness_report, first_value_section, import_run_summary
 
 
 class LeadFollowupSchemaTests(unittest.TestCase):
@@ -751,6 +751,83 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         dialpad = report["sources"]["dialpad"]
         self.assertTrue(dialpad["conversation_history_call_review_link_visible"])
         self.assertFalse(any("Conversation History proof" in blocker for blocker in dialpad["blockers"]))
+
+    def test_stored_conversation_history_urls_satisfy_first_value_url_gate(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_deals (
+                deal_id, deal_name, stage, owner, school, create_date,
+                last_contacted, follow_up_needed, source_url, raw_text, updated_at
+            )
+            VALUES ('deal-1', 'Customer', 'Scheduled Trial', 'Owner', 'West U',
+                    '2026-04-22', '2026-04-22', 'Yes',
+                    'https://app.hubspot.com/deal/1', 'raw deal', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email_normalized, phone, phone_normalized,
+                associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-1', 'Customer', 'customer@example.com',
+                    '(713) 555-1212', '7135551212', 'deal-1', ?, ?)
+            """,
+            (json.dumps({"trusted": True}), now),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, source_view, event_type, direction, event_at,
+                phone_normalized, school, department, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('voice-1', 'conversation_history', 'call', 'inbound',
+                    '2026-04-23T10:00:00', '7135551212', 'West U', 'WESTU',
+                    'https://dialpad.com/callhistory/callreview/call-1?external_endpoint=7135551212',
+                    'raw voice', '{}', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_call_reviews (
+                call_review_id, call_id, voice_event_id, call_review_url, event_at,
+                transcript_text, recap_text, action_items_json, speaker_turns_json,
+                transcript_available, recap_available, action_items_available,
+                audio_available, extraction_status, raw_json, updated_at
+            )
+            VALUES ('call-1', 'call-1', 'voice-1',
+                    'https://dialpad.com/callhistory/callreview/call-1',
+                    '2026-04-23T10:00:00', 'Transcript', 'Recap', '[]', '[]',
+                    1, 1, 0, 1, 'success', '{}', ?)
+            """,
+            (now,),
+        )
+
+        report = build_source_completeness_report(conn, window_days=51, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        self.assertEqual(dialpad["conversation_history_recording_or_transcript_url_rows"], 1)
+
+        first_value = first_value_section(
+            conn,
+            {
+                "hubspot": {"status": "ready"},
+                "dialpad": {
+                    "conversation_history_recording_or_transcript_url_rows": dialpad[
+                        "conversation_history_recording_or_transcript_url_rows"
+                    ],
+                    "call_review_transcript_rows": dialpad["call_review_transcript_rows"],
+                    "call_review_recap_rows": dialpad["call_review_recap_rows"],
+                },
+            },
+            {"matched_hubspot_deals": 1, "matched_hubspot_contacts": 1},
+            "2026-04-01",
+        )
+        self.assertTrue(first_value["report_ready"])
+        self.assertEqual(first_value["blockers"], [])
 
     def test_source_completeness_uses_existing_reminders_as_pike13_lesson_visits(self):
         conn = self.open_db()

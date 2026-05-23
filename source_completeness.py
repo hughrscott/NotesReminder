@@ -1030,6 +1030,17 @@ def dialpad_section(conn, window_start):
     conversation_history_recording_action_rows = 0
     conversation_history_recording_or_transcript_url_rows = 0
     conversation_history_call_review_link_visible = False
+    stored_call_review_url_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM vw_dialpad_communications
+        WHERE COALESCE(source_url, '') LIKE '%dialpad.com/callhistory/callreview/%'
+          AND date(event_at) >= date(:window_start)
+          AND date(event_at) <= date('now')
+        """,
+        {"window_start": window_start},
+    )
     if latest_voice_import_run:
         latest_voice_view_summaries = latest_voice_import_run.get("metadata", {}).get("view_summaries", {})
         conversation_history_proof = latest_voice_view_summaries.get("conversation_history", {})
@@ -1043,6 +1054,10 @@ def dialpad_section(conn, window_start):
         conversation_history_call_review_link_visible = bool(
             availability.get("call_review_link_visible") or availability.get("transcript_link_visible")
         )
+    conversation_history_recording_or_transcript_url_rows = max(
+        conversation_history_recording_or_transcript_url_rows,
+        stored_call_review_url_rows,
+    )
     required_rates = [
         sms_coverage["message_id"]["fill_rate"],
         sms_coverage["body"]["fill_rate"],
