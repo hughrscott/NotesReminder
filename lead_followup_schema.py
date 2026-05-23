@@ -615,6 +615,7 @@ def _create_views(conn):
             "DROP VIEW IF EXISTS vw_dialpad_communications",
             "DROP VIEW IF EXISTS vw_school_email_communications",
             "DROP VIEW IF EXISTS vw_pike13_lesson_visits",
+            "DROP VIEW IF EXISTS vw_person_journey",
             "DROP VIEW IF EXISTS vw_stale_leads",
             "DROP VIEW IF EXISTS vw_no_show_followup",
             "DROP VIEW IF EXISTS vw_lead_conversion_path",
@@ -990,6 +991,175 @@ def _create_views(conn):
                 COALESCE(v.source_url, p.source_url)
             FROM pike13_visits v
             LEFT JOIN pike13_people p ON p.person_id = v.person_id
+            """,
+            """
+            CREATE VIEW vw_person_journey AS
+            SELECT
+                d.person_id,
+                d.create_date AS event_at,
+                'lead_created' AS event_type,
+                'hubspot' AS source_system,
+                d.deal_id AS source_id,
+                'HubSpot deal: ' || COALESCE(d.stage, 'unknown') AS summary,
+                json_object(
+                    'deal_id', d.deal_id,
+                    'stage', d.stage,
+                    'owner', d.owner,
+                    'trial_date', d.trial_date,
+                    'source_url', d.source_url
+                ) AS detail_json,
+                d.school
+            FROM hubspot_deals d
+            WHERE d.person_id IS NOT NULL
+              AND d.create_date IS NOT NULL
+            UNION ALL
+            SELECT
+                COALESCE(d.person_id, c.person_id),
+                t.due_date,
+                'hubspot_task',
+                'hubspot',
+                t.task_id,
+                'HubSpot task: ' || COALESCE(t.status, 'unknown'),
+                json_object(
+                    'deal_id', t.deal_id,
+                    'contact_id', t.contact_id,
+                    'owner', t.owner,
+                    'title', t.title,
+                    'task_type', t.task_type,
+                    'source_url', t.source_url
+                ),
+                COALESCE(d.school, c.school)
+            FROM hubspot_tasks t
+            LEFT JOIN hubspot_deals d ON d.deal_id = t.deal_id
+            LEFT JOIN hubspot_contacts c ON c.contact_id = t.contact_id
+            WHERE COALESCE(d.person_id, c.person_id) IS NOT NULL
+              AND t.due_date IS NOT NULL
+            UNION ALL
+            SELECT
+                COALESCE(d.person_id, c.person_id),
+                a.activity_time,
+                'hubspot_activity',
+                'hubspot',
+                a.activity_id,
+                'HubSpot activity: ' || COALESCE(a.activity_type, 'activity'),
+                json_object(
+                    'deal_id', a.deal_id,
+                    'contact_id', a.contact_id,
+                    'owner', a.owner,
+                    'title', a.title,
+                    'body', a.body,
+                    'source_url', a.source_url
+                ),
+                COALESCE(d.school, c.school)
+            FROM hubspot_activities a
+            LEFT JOIN hubspot_deals d ON d.deal_id = a.deal_id
+            LEFT JOIN hubspot_contacts c ON c.contact_id = a.contact_id
+            WHERE COALESCE(d.person_id, c.person_id) IS NOT NULL
+              AND a.activity_time IS NOT NULL
+            UNION ALL
+            SELECT
+                t.person_id,
+                m.message_at,
+                'dialpad_sms',
+                'dialpad',
+                m.message_id,
+                'Dialpad SMS: ' || COALESCE(m.direction, 'unknown'),
+                json_object(
+                    'thread_id', m.thread_id,
+                    'direction', m.direction,
+                    'body', m.body,
+                    'source_url', COALESCE(m.source_url, t.source_url)
+                ),
+                t.school
+            FROM dialpad_sms_messages m
+            JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            WHERE t.person_id IS NOT NULL
+              AND m.message_at IS NOT NULL
+            UNION ALL
+            SELECT
+                v.person_id,
+                v.event_at,
+                'dialpad_' || COALESCE(v.event_type, 'call'),
+                'dialpad',
+                v.event_id,
+                'Dialpad ' || COALESCE(v.event_type, 'call') || ': ' || COALESCE(v.direction, 'unknown'),
+                json_object(
+                    'call_id', v.call_id,
+                    'direction', v.direction,
+                    'outcome', v.outcome,
+                    'voicemail_transcript', v.voicemail_transcript,
+                    'transcript_summary', v.transcript_summary,
+                    'source_url', COALESCE(v.source_url, v.recording_url)
+                ),
+                v.school
+            FROM dialpad_voice_events v
+            WHERE v.person_id IS NOT NULL
+              AND v.event_at IS NOT NULL
+            UNION ALL
+            SELECT
+                e.person_id,
+                e.message_at,
+                'school_email',
+                'school_email',
+                e.message_id,
+                'School email: ' || COALESCE(e.direction, 'unknown'),
+                json_object(
+                    'subject', e.subject,
+                    'snippet', e.snippet,
+                    'body', e.body,
+                    'source_url', e.source_url
+                ),
+                e.school
+            FROM school_email_messages e
+            WHERE e.person_id IS NOT NULL
+              AND e.message_at IS NOT NULL
+            UNION ALL
+            SELECT
+                v.person_identity_id,
+                v.starts_at,
+                CASE
+                    WHEN COALESCE(v.no_show_flag, 0) = 1 THEN 'pike13_no_show'
+                    WHEN COALESCE(v.canceled_flag, 0) = 1 THEN 'pike13_canceled_visit'
+                    WHEN COALESCE(v.first_visit_flag, 0) = 1 OR LOWER(COALESCE(v.service, '')) LIKE '%trial%' THEN 'pike13_trial_visit'
+                    ELSE 'pike13_visit'
+                END,
+                'pike13',
+                v.visit_id,
+                'Pike13 visit: ' || COALESCE(v.service, 'visit') || ' / ' || COALESCE(v.status, 'unknown'),
+                json_object(
+                    'pike13_person_id', v.person_id,
+                    'event_id', v.event_id,
+                    'service', v.service,
+                    'status', v.status,
+                    'no_show_flag', v.no_show_flag,
+                    'canceled_flag', v.canceled_flag,
+                    'source_url', v.source_url
+                ),
+                v.school
+            FROM pike13_visits v
+            WHERE v.person_identity_id IS NOT NULL
+              AND v.starts_at IS NOT NULL
+            UNION ALL
+            SELECT
+                p.person_identity_id,
+                COALESCE(p.starts_at, p.next_invoice_at, p.updated_at),
+                'pike13_plan_or_pass',
+                'pike13',
+                p.plan_pass_id,
+                'Pike13 plan/pass: ' || COALESCE(p.name, 'plan/pass') || ' / ' || COALESCE(p.status, 'unknown'),
+                json_object(
+                    'pike13_person_id', p.person_id,
+                    'name', p.name,
+                    'status', p.status,
+                    'starts_at', p.starts_at,
+                    'ends_at', p.ends_at,
+                    'next_invoice_at', p.next_invoice_at,
+                    'source_url', p.source_url
+                ),
+                p.school
+            FROM pike13_plans_passes p
+            WHERE p.person_identity_id IS NOT NULL
+              AND COALESCE(p.starts_at, p.next_invoice_at, p.updated_at) IS NOT NULL
             """,
             "DROP VIEW IF EXISTS vw_stale_leads",
             """

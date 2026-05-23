@@ -455,3 +455,110 @@ def person_details(conn, person_id):
         ).fetchall()
     ]
     return {"person": dict(person), "identities": identities, "conflicts": conflicts}
+
+
+def _person_ids_for_search(conn, search, limit=5):
+    search = str(search or "").strip()
+    if not search:
+        return []
+    direct = conn.execute("SELECT person_id FROM persons WHERE person_id = ?", (search,)).fetchone()
+    if direct:
+        return [direct["person_id"]]
+    return [row["person_id"] for row in person_search(conn, search, limit=limit)]
+
+
+def person_journey(conn, search, start_date="", end_date="", limit=100, include_sensitive=False):
+    ensure_lead_followup_schema(conn)
+    person_ids = _person_ids_for_search(conn, search)
+    if not person_ids:
+        return {"person_ids": [], "events": [], "row_count": 0}
+    placeholders = ", ".join(f":person_{index}" for index, _ in enumerate(person_ids))
+    params = {f"person_{index}": person_id for index, person_id in enumerate(person_ids)}
+    params["limit"] = max(1, min(int(limit), 500))
+    date_filters = []
+    if start_date:
+        params["start_date"] = start_date
+        date_filters.append("date(event_at) >= date(:start_date)")
+    if end_date:
+        params["end_date"] = end_date
+        date_filters.append("date(event_at) <= date(:end_date)")
+    where_dates = " AND " + " AND ".join(date_filters) if date_filters else ""
+    rows = conn.execute(
+        f"""
+        SELECT person_id, event_at, event_type, source_system, source_id,
+               summary, detail_json, school
+        FROM vw_person_journey
+        WHERE person_id IN ({placeholders})
+          AND event_at IS NOT NULL
+          {where_dates}
+        ORDER BY datetime(event_at), source_system, source_id
+        LIMIT :limit
+        """,
+        params,
+    ).fetchall()
+    events = []
+    for row in rows:
+        event = {
+            "person_id": row["person_id"],
+            "event_at": row["event_at"],
+            "event_type": row["event_type"],
+            "source_system": row["source_system"],
+            "source_id": row["source_id"],
+            "summary": row["summary"],
+            "school": row["school"],
+        }
+        if include_sensitive:
+            try:
+                event["detail"] = json.loads(row["detail_json"] or "{}")
+            except json.JSONDecodeError:
+                event["detail"] = row["detail_json"]
+        events.append(event)
+    return {"person_ids": person_ids, "events": events, "row_count": len(events)}
+
+
+def customer_lifecycle_summary(conn, person_id):
+    ensure_lead_followup_schema(conn)
+    details = person_details(conn, person_id)
+    if not details:
+        return None
+    rows = conn.execute(
+        """
+        SELECT event_type, source_system, COUNT(*) AS rows,
+               MIN(event_at) AS first_event_at,
+               MAX(event_at) AS latest_event_at
+        FROM vw_person_journey
+        WHERE person_id = ?
+        GROUP BY event_type, source_system
+        ORDER BY first_event_at, event_type
+        """,
+        (person_id,),
+    ).fetchall()
+    first_event = conn.execute(
+        """
+        SELECT event_at, event_type, source_system, summary
+        FROM vw_person_journey
+        WHERE person_id = ?
+        ORDER BY datetime(event_at), source_system, source_id
+        LIMIT 1
+        """,
+        (person_id,),
+    ).fetchone()
+    latest_event = conn.execute(
+        """
+        SELECT event_at, event_type, source_system, summary
+        FROM vw_person_journey
+        WHERE person_id = ?
+        ORDER BY datetime(event_at) DESC, source_system, source_id
+        LIMIT 1
+        """,
+        (person_id,),
+    ).fetchone()
+    event_counts = {f"{row['source_system']}:{row['event_type']}": row["rows"] for row in rows}
+    return {
+        "person": details["person"],
+        "event_count": sum(event_counts.values()),
+        "event_counts": event_counts,
+        "first_event": dict(first_event) if first_event else None,
+        "latest_event": dict(latest_event) if latest_event else None,
+        "conflict_count": len(details["conflicts"]),
+    }

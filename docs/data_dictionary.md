@@ -75,6 +75,7 @@ These now live in the promoted single `reminders.db` alongside production notes 
 | `vw_unanswered_messages` | derived, shadow | Inbound SMS without later outbound follow-up. | `vw_unanswered_communications`. | Recreated by schema setup. | medium. |
 | `vw_no_show_followup` | derived, shadow | Pike13 no-shows with follow-up context. | Pike13 visits, people, HubSpot. | Recreated by schema setup. | medium. |
 | `vw_lead_conversion_path` | derived, shadow | Lead-created to trial/enrollment path. | HubSpot, Pike13. | Recreated by schema setup. | medium. |
+| `vw_person_journey` | derived, shadow | Chronological event stream by resolved `person_id`. | persons, HubSpot, Dialpad, school email, Pike13. | Recreated by schema setup. | medium/high. |
 
 ## Derived Reporting Schema Targets
 
@@ -101,7 +102,6 @@ These are rebuildable reporting tables/views. They should be additive until prod
 
 | Object | Status | Purpose | Source | Primary Key / Natural Key | Sensitivity |
 | --- | --- | --- | --- | --- | --- |
-| `vw_person_journey` | future/derived | Chronological event stream for a person. | all source tables. | person ID + event timestamp + source ID. | medium/high. |
 | `raw_captures` | future | Index of raw HTML/JSON captures saved to disk. | extractors. | capture ID / SHA-256. | high. |
 | `qb_customers` | future | QuickBooks customer records. | QuickBooks. | QB customer ID. | medium. |
 | `qb_invoices` | future | QuickBooks invoices. | QuickBooks. | QB invoice ID. | medium/high financial. |

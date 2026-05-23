@@ -293,6 +293,10 @@ MCP tools:
 - `refresh_person_identity_layer`
 - `person_search(query, limit)`
 - `person_details(person_id)`
+- `person_journey(search, start_date, end_date, limit, include_sensitive)`
+- `customer_lifecycle_summary(person_id)`
+
+`person_journey` is sanitized by default and omits message bodies, transcript text, raw source URLs, and raw detail JSON unless `include_sensitive=true` is explicitly passed.
 
 ## Scripts overview
 - `run_daily.py` : Scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3.

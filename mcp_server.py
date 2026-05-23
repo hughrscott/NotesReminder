@@ -15,7 +15,9 @@ from lead_operating_dashboard import (
     lead_evidence_timeline as build_lead_evidence_timeline,
 )
 from notesreminder.lib.person_identity import (
+    customer_lifecycle_summary as build_customer_lifecycle_summary,
     person_details as build_person_details,
+    person_journey as build_person_journey,
     person_search as build_person_search,
     refresh_person_identities,
 )
@@ -290,6 +292,41 @@ def person_details(person_id: str) -> str:
         return json.dumps({"person_id": person_id, "found": False}, indent=2)
     details["found"] = True
     return json.dumps(details, indent=2, default=str)
+
+
+@mcp.tool()
+def person_journey(
+    search: str,
+    start_date: str = "",
+    end_date: str = "",
+    limit: int = 100,
+    include_sensitive: bool = False,
+) -> str:
+    """Return a chronological journey for a resolved person. Sanitized unless include_sensitive is true."""
+    if not search or not search.strip():
+        raise ValueError("search is required.")
+    conn = _connect()
+    try:
+        journey = build_person_journey(conn, search, start_date, end_date, limit, include_sensitive)
+    finally:
+        conn.close()
+    return json.dumps(journey, indent=2, default=str)
+
+
+@mcp.tool()
+def customer_lifecycle_summary(person_id: str) -> str:
+    """Return a one-screen lifecycle summary for a resolved person ID."""
+    if not person_id or not person_id.strip():
+        raise ValueError("person_id is required.")
+    conn = _connect()
+    try:
+        summary = build_customer_lifecycle_summary(conn, person_id.strip())
+    finally:
+        conn.close()
+    if summary is None:
+        return json.dumps({"person_id": person_id, "found": False}, indent=2)
+    summary["found"] = True
+    return json.dumps(summary, indent=2, default=str)
 
 
 @mcp.tool()

@@ -893,3 +893,79 @@ Rollback path:
 Phase status:
 
 - Phase 11 gate passed.
+
+## 2026-05-23 Phase 12: Customer Journey View
+
+Goal:
+
+- Add a chronological person journey view and MCP tools on top of the Phase 11 identity layer.
+
+Backup:
+
+- Local pre-view backup:
+  - `outputs/db_backups/reminders.db.20260523T184956Z.before-phase-12-person-journey.bak`
+- S3 pre-view backup:
+  - `s3://notesreminder-db/backups/reminders.db.20260523T184956Z.before-phase-12-person-journey.bak`
+
+Changes made:
+
+- Added `vw_person_journey` with the planned row shape:
+  - `person_id`
+  - `event_at`
+  - `event_type`
+  - `source_system`
+  - `source_id`
+  - `summary`
+  - `detail_json`
+  - `school`
+- Included current available branches:
+  - HubSpot lead-created, task, and activity events
+  - Dialpad SMS and voice events
+  - School email events
+  - Pike13 visit/trial/no-show/canceled events
+  - Pike13 plan/pass events
+- Added resolver helpers:
+  - `person_journey`
+  - `customer_lifecycle_summary`
+- Added MCP tools:
+  - `person_journey`
+  - `customer_lifecycle_summary`
+- Sanitized journey mode omits `detail_json`, message bodies, transcript text, and raw source URLs unless `include_sensitive=true`.
+- Updated data dictionary and pipeline docs.
+
+Live proof:
+
+- `vw_person_journey` rows: `632`
+- Distinct persons with journey rows: `232`
+- Event-type counts:
+  - `dialpad_call`: `209`
+  - `pike13_plan_or_pass`: `107`
+  - `pike13_trial_visit`: `103`
+  - `school_email`: `91`
+  - `dialpad_sms`: `80`
+  - `lead_created`: `21`
+  - `pike13_canceled_visit`: `9`
+  - `dialpad_missed_call`: `8`
+  - `dialpad_voicemail`: `4`
+- Five high-source-count person journeys returned coherent chronological output with nonzero lifecycle summaries.
+- MCP `person_journey` and `customer_lifecycle_summary` smoke checks returned expected JSON.
+
+Gate checks run so far:
+
+- `venv/bin/python -m pytest tests/test_person_journey.py tests/test_person_identity.py tests/test_lead_followup_schema.py`: `23 passed`
+- Full test suite: `105 passed`
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows: `0`
+- Source completeness after Phase 12: `overall_status=ready`; first-value report remains `ready`
+
+Known remaining next action:
+
+- Hugh should spot-check 5 real people before replacing older lead timeline tools.
+
+Rollback path:
+
+- Restore the backup above, or revert `vw_person_journey`, MCP tool additions, and helper/test changes.
+
+Phase status:
+
+- Phase 12 gate passed.
