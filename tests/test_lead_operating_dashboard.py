@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 import mcp_server
+from build_reporting_schema import backfill_reporting
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
 from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
 
@@ -20,6 +21,7 @@ def open_db(path=":memory:"):
             lesson_id TEXT,
             pike13_lesson_id TEXT,
             school TEXT,
+            instructor_name TEXT,
             lesson_date TEXT,
             lesson_time TEXT,
             lesson_type TEXT,
@@ -30,6 +32,11 @@ def open_db(path=":memory:"):
             notes_text TEXT,
             note_timestamp TEXT,
             note_score REAL,
+            note_score_explanation TEXT,
+            note_score_model TEXT,
+            note_score_version TEXT,
+            note_score_updated_at TEXT,
+            note_score_hash TEXT,
             last_checked TEXT
         )
         """
@@ -56,6 +63,23 @@ def open_db(path=":memory:"):
 
 
 def seed_dashboard_data(conn):
+    conn.execute(
+        """
+        INSERT INTO reminders (
+            lesson_id, school, instructor_name, lesson_date, lesson_time,
+            lesson_type, students, note_completed, attendance_status,
+            notes_text, note_score, last_checked
+        )
+        VALUES
+            ('lesson-1', 'westu-sor', 'Teacher One', '2026-05-02', '4:00 PM',
+             'Private Lesson', 'Student One', 1, 'present', 'Good note', 8.0, '2026-05-08'),
+            ('lesson-2', 'westu-sor', 'Teacher One', '2026-05-03', '5:00 PM',
+             'Private Lesson', 'Student Two', 0, 'present', NULL, NULL, '2026-05-08'),
+            ('lesson-group', 'westu-sor', 'Teacher One', '2026-05-03', '6:00 PM',
+             'Group Lesson', 'Student Three, Student Four', 0, 'present', NULL, NULL, '2026-05-08')
+        """
+    )
+    backfill_reporting(conn)
     conn.execute(
         """
         INSERT INTO source_import_runs (
@@ -228,6 +252,10 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["communications"]["dialpad_calls"], 1)
         self.assertEqual(snapshot["communications"]["dialpad_sms"], 1)
         self.assertEqual(snapshot["communications"]["school_email"], 1)
+        self.assertEqual(snapshot["notes_operations"]["reportable_lessons"], 2)
+        self.assertEqual(snapshot["notes_operations"]["completed_notes"], 1)
+        self.assertEqual(snapshot["notes_operations"]["missing_notes"], 1)
+        self.assertEqual(snapshot["notes_operations"]["league_score"], 40.0)
         self.assertEqual(snapshot["dialpad_recordings"]["success"], 1)
         self.assertEqual(snapshot["transcription_queue"]["pending"], 1)
         self.assertIn("Weekly Lead Dashboard", markdown)
@@ -267,6 +295,30 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(mcp_snapshot["window"], direct_snapshot["window"])
         self.assertEqual(mcp_snapshot["funnel_counts"], direct_snapshot["funnel_counts"])
         self.assertEqual(mcp_snapshot["communications"], direct_snapshot["communications"])
+        self.assertEqual(mcp_snapshot["notes_operations"], direct_snapshot["notes_operations"])
+
+    def test_mcp_daily_and_monthly_snapshots_match_shared_logic(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        db_path = Path(tmp.name) / "lead.db"
+        conn = open_db(str(db_path))
+        seed_dashboard_data(conn)
+        conn.commit()
+        conn.close()
+
+        original_path = mcp_server.LEAD_DB_PATH
+        mcp_server.LEAD_DB_PATH = str(db_path)
+        self.addCleanup(setattr, mcp_server, "LEAD_DB_PATH", original_path)
+
+        for tool, period in ((mcp_server.daily_snapshot, "daily"), (mcp_server.monthly_snapshot, "monthly")):
+            mcp_snapshot = json.loads(tool(as_of="2026-05-09", school="West U"))
+            direct_conn = sqlite3.connect(db_path)
+            direct_conn.row_factory = sqlite3.Row
+            direct_snapshot = build_snapshot(direct_conn, period, as_of="2026-05-09", school="West U")
+            direct_conn.close()
+            self.assertEqual(mcp_snapshot["window"], direct_snapshot["window"])
+            self.assertEqual(mcp_snapshot["funnel_counts"], direct_snapshot["funnel_counts"])
+            self.assertEqual(mcp_snapshot["notes_operations"], direct_snapshot["notes_operations"])
 
     def test_mcp_defaults_lead_tools_to_main_db(self):
         original_db = os.environ.get("REMINDERS_DB_PATH")

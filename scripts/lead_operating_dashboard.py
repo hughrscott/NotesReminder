@@ -15,7 +15,7 @@ from lead_operating_dashboard import (  # noqa: E402
 )
 
 
-DEFAULT_DB = "outputs/lead_intelligence/lead_intelligence_working.db"
+DEFAULT_DB = "reminders.db"
 DEFAULT_OUTPUT_DIR = "outputs/progress"
 
 

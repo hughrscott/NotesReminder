@@ -1,14 +1,14 @@
 # NotesReminder Data Pipeline
 
 ## Overview
-This project keeps the production lesson-note database (`reminders.db`) synced to S3. While lead intelligence is still being hardened, a separate local working DB is used for HubSpot/Dialpad/Pike13 lead proof work so production notes emails stay isolated.
+This project keeps the production lesson-note database (`reminders.db`) synced to S3. The current operating model is a single canonical local production database with additive lead-intelligence and reporting tables. Lead dashboards and scorecards remain shadow-mode outputs until their phase gates are approved.
 
 ## Two-pipeline operating model
 
-`reminders.db` is the production source of truth, but the current notes emails and the new lead intelligence work are separate operational pipelines until the production merge gate is passed.
+`reminders.db` is the production source of truth. Notes emails and lead-intelligence work are separate operational workflows, but both now read and write approved additive tables in the main local database.
 
 - Production notes pipeline: GitHub Actions runs `run_daily.py`, downloads the S3 DB, scrapes Pike13 lesson notes, scores notes, sends the daily/weekly lesson-note emails, and uploads the DB back to S3.
-- Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into `outputs/lead_intelligence/lead_intelligence_working.db`, then validates them with the source completeness report.
+- Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into `reminders.db`, then validates them with the source completeness report.
 - Lead refresh work must not change the current daily/weekly email content until there is a separate plan and acceptance gate for adding lead insights to those summaries.
 - Lead tables are additive. They must not change the meaning of the existing `reminders` table or note-score columns used by `run_daily.py`.
 
@@ -16,7 +16,7 @@ This project keeps the production lesson-note database (`reminders.db`) synced t
 - `Call Log/` : Dialpad CSV exports (`Call_Logs*.csv`, `Voicemails*.csv`, etc.)
 - `ClientList/` : Pike13 client CSV export
 - `reminders.db` : Local SQLite database (synced to S3)
-- `outputs/lead_intelligence/lead_intelligence_working.db` : Local lead proof DB seeded from production notes plus additive lead tables
+- `outputs/lead_intelligence/lead_intelligence_working.db` : Historical/staging lead proof DB, not the default production path
 - `screenshots/` : Playwright screenshots for debugging Pike13 scraping
 - `notesreminder/` : Package skeleton for new source, schema, report, orchestration, MCP, transcription, and shared utility modules
 
@@ -321,6 +321,7 @@ MCP tools:
 - `scripts/discover_pike13_routes.py` : Probe Pike13 routes and record sanitized route-capability diagnostics.
 - `scripts/refresh_person_identities.py` : Rebuild deterministic `persons`, `person_identities`, and conflict rows.
 - `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
+- `scripts/lead_operating_dashboard.py` : Generate sanitized daily, weekly, and monthly shadow operating dashboards from `reminders.db`.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
@@ -336,6 +337,25 @@ python3 scripts/notes_read_path_comparison.py \
 ```
 
 The comparison checks base row coverage, school/day counts, instructor missing-note counts, and note-quality league-table rows. A nonzero mismatch exits with failure.
+
+## Shadow operating dashboards
+
+Generate daily, weekly, and monthly shadow dashboards from the canonical local database:
+
+```bash
+python3 scripts/lead_operating_dashboard.py \
+  --db reminders.db \
+  --school "West U" \
+  --period all \
+  --as-of YYYY-MM-DD \
+  --output-dir outputs/progress/lead_operating_dashboard_westu
+```
+
+The dashboards include funnel counts, communication coverage, exception queues,
+recording/transcription coverage, and notes-operation metrics from normalized
+tables: reportable lessons, completed notes, missing notes, completion rate, and
+league score. These dashboards are sanitized by default and remain shadow mode
+until Hugh approves them for the normal management cadence.
 
 ## Smoke test
 Validate env + Python dependencies without scraping:

@@ -266,6 +266,58 @@ def communication_counts(conn, start_date, end_date, school):
     }
 
 
+def notes_operations(conn, start_date, end_date, school):
+    if not table_exists(conn, "lessons") or not table_exists(conn, "lesson_notes"):
+        return {
+            "reportable_lessons": 0,
+            "completed_notes": 0,
+            "missing_notes": 0,
+            "completion_rate": 0.0,
+            "league_score": 0.0,
+        }
+    aliases = school_aliases(school)
+    if aliases:
+        school_params = {f"school_{index}": value for index, value in enumerate(aliases)}
+        placeholders = ", ".join(f":{key}" for key in school_params)
+        school_sql = (
+            f"(LOWER(COALESCE(s.school_code, '')) IN ({placeholders}) "
+            f"OR LOWER(COALESCE(s.school_name, '')) IN ({placeholders}))"
+        )
+    else:
+        school_params = {}
+        school_sql = "1=1"
+    row = conn.execute(
+        f"""
+        SELECT
+            COUNT(*) AS reportable_lessons,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_notes,
+            SUM(CASE WHEN COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes,
+            ROUND(
+                100.0 * SUM(CASE WHEN COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
+                1
+            ) AS completion_rate,
+            ROUND(
+                100.0 * SUM(CASE WHEN n.note_score IS NOT NULL THEN n.note_score / 10.0 ELSE 0 END) / NULLIF(COUNT(*), 0),
+                1
+            ) AS league_score
+        FROM lessons l
+        JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
+        WHERE date(l.lesson_date) BETWEEN date(:start) AND date(:end)
+          AND {school_sql}
+          AND COALESCE(l.lesson_is_reportable, 0) = 1
+        """,
+        {"start": start_date, "end": end_date, **school_params},
+    ).fetchone()
+    return {
+        "reportable_lessons": row["reportable_lessons"] or 0,
+        "completed_notes": row["completed_notes"] or 0,
+        "missing_notes": row["missing_notes"] or 0,
+        "completion_rate": row["completion_rate"] or 0.0,
+        "league_score": row["league_score"] or 0.0,
+    }
+
+
 def recording_status(conn, start_date, end_date, school):
     if not table_exists(conn, "recording_downloads"):
         return {"downloads": {}, "transcription_queue": {}}
@@ -391,6 +443,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
     trial = build_trial_followup_report(conn, start_date, end_date, pike13_school(school))
     pike13 = pike13_outcomes(conn, start_date, end_date, school)
     communications = communication_counts(conn, start_date, end_date, school)
+    notes = notes_operations(conn, start_date, end_date, school)
     recordings = recording_status(conn, start_date, end_date, school)
     contacted = sum(1 for row in gap["rows"] if row.get("outreach_evidence_found"))
     trial_expected = sum(1 for row in gap["rows"] if row.get("trial_expected"))
@@ -422,6 +475,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
             "converted": conversion_count(conn, start_date, end_date, school),
         },
         "communications": communications,
+        "notes_operations": notes,
         "dialpad_recordings": recordings["downloads"],
         "transcription_queue": recordings["transcription_queue"],
         "performance": performance_sections(conn, start_date, end_date, school),
@@ -483,6 +537,10 @@ def render_snapshot_markdown(snapshot):
         "## Dialpad and Gmail Coverage",
         "",
         _markdown_counts(snapshot["communications"]),
+        "",
+        "## Notes Operations",
+        "",
+        _markdown_counts(snapshot.get("notes_operations", {})),
         "",
         "## Recording and Transcription Coverage",
         "",

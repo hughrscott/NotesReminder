@@ -1,6 +1,6 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## 2026-05-20 Phase 7 Copy-Mode Reconciliation
 
@@ -122,6 +122,37 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
 - Phase 10 has passed the 30-day proof and the April 1, 2026 forward proof. Do not widen to January 1, 2025 forward without explicit Hugh approval.
 - Dialpad source access is working through Conversation History and Call Review pages. First-value reporting now counts stored Conversation History call-review URLs and is ready for limited proof.
 - School-email extraction now supports Okta username/password from `.env`, sends the Okta Verify push, and pauses for Hugh approval. The durable authenticated state is the browser profile session, not a permanent HTTP header.
+- Phase 14 operating dashboards are in shadow mode. They read from the canonical local `reminders.db`, include normalized notes-operation metrics, and have not been promoted into the normal management cadence.
+
+## 2026-05-23 Phase 14 Shadow Operating Dashboards
+
+- Hugh approved building and running the shadow read-path comparison, but did not approve cutting production reports over from `reminders`.
+- Added normalized notes-operation metrics to the daily, weekly, and monthly lead operating dashboard snapshot:
+  - `reportable_lessons`
+  - `completed_notes`
+  - `missing_notes`
+  - `completion_rate`
+  - `league_score`
+- Updated `scripts/lead_operating_dashboard.py` to default to the canonical local `reminders.db` instead of the historical lead working DB.
+- Extended dashboard tests so MCP daily, weekly, and monthly snapshots share the same dashboard logic and include notes-operation parity.
+- Generated shadow proof dashboards for both schools:
+  - `outputs/progress/phase14_westu/`
+  - `outputs/progress/phase14_heights/`
+- Shadow notes-operation proof:
+  - West U daily, 2026-05-22 to 2026-05-23: `20` reportable, `16` completed, `4` missing, `80.0%` completion, `0.0` league score.
+  - West U weekly, 2026-05-11 to 2026-05-17: `173` reportable, `145` completed, `28` missing, `83.8%` completion, `58.3` league score.
+  - West U MTD, 2026-05-01 to 2026-05-23: `570` reportable, `465` completed, `105` missing, `81.6%` completion, `50.8` league score.
+  - The Heights daily, 2026-05-22 to 2026-05-23: `5` reportable, `0` completed, `5` missing, `0.0%` completion, `0.0` league score.
+  - The Heights weekly, 2026-05-11 to 2026-05-17: `137` reportable, `70` completed, `67` missing, `51.1%` completion, `36.6` league score.
+  - The Heights MTD, 2026-05-01 to 2026-05-23: `396` reportable, `226` completed, `170` missing, `57.1%` completion, `37.8` league score.
+- Gate checks:
+  - `venv/bin/python -m pytest tests/test_lead_operating_dashboard.py tests/test_notes_read_path_comparison.py`: `7 passed`
+  - `venv/bin/python -m pytest`: `108 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - running source imports: `0`
+  - `scripts/notes_read_path_comparison.py --db reminders.db --start-date 2026-05-16 --end-date 2026-05-22`: status `ready`, mismatches `0`, base counts `17156` rows in `reminders`, `lessons`, `lesson_notes`, and `lesson_attendance`
+- Source freshness in the generated dashboards still reports `attention` because it checks broad source-import recency, but dashboard generation, sanitization, and normalized notes read-path parity passed.
+- Approval boundary: dashboards remain shadow. Hugh approval is still required before these dashboards become part of the normal management cadence or before production reports are cut over from `reminders`.
 
 ## May 1 Production Notes Run
 
