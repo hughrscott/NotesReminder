@@ -324,6 +324,8 @@ MCP tools:
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
+`run_daily.py` now syncs normalized reporting tables from `reminders` after notes writes by default. Use `--skip-reporting-sync` only for rollback/debugging of the shadow dual-write path; do not retire `reminders` or cut reports over without explicit approval.
+
 ## Smoke test
 Validate env + Python dependencies without scraping:
 

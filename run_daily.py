@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from build_reporting_schema import backfill_reporting  # noqa: E402
 from noteschecker import scrape_lessons
 
 VERBOSE = False
@@ -71,7 +72,18 @@ def parse_args():
                         help='SQLite DB path to read/write (default: reminders.db).')
     parser.add_argument('--skip-s3-sync', action='store_true',
                         help='Do not download from or upload to S3. Use for local DB validation only.')
+    parser.add_argument('--skip-reporting-sync', action='store_true',
+                        help='Skip normalized reporting-table sync after reminders writes.')
     return parser.parse_args()
+
+
+def sync_reporting_tables(db_path):
+    conn = sqlite3.connect(db_path)
+    try:
+        backfill_reporting(conn)
+        conn.commit()
+    finally:
+        conn.close()
 
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
     """Get all lessons from the database that don't have notes for a specific school."""
@@ -971,6 +983,10 @@ async def main():
                 'note_score': note_score,
                 'note_score_explanation': note_score_explanation,
             })
+
+    if not args.skip_reporting_sync:
+        sync_reporting_tables(DB_PATH)
+        log("✅ Normalized reporting tables synced from reminders.", force=args.verbose)
 
     # Now, retrieve missing notes from the DB within the requested window
     all_missing_notes = get_lessons_without_notes(school_subdomain, start_date, end_date)

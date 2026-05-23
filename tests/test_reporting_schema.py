@@ -225,6 +225,33 @@ class ReportingSchemaTests(unittest.TestCase):
         create_reminders_schema(conn)
         seed_lessons(conn)
         seed_call_and_client_data(conn)
+        conn.execute(
+            """
+            CREATE TABLE persons (
+                person_id TEXT PRIMARY KEY,
+                display_name TEXT,
+                primary_email TEXT,
+                primary_phone TEXT,
+                school TEXT,
+                resolution_status TEXT,
+                source_count INTEGER,
+                identity_count INTEGER,
+                raw_json TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO persons (
+                person_id, display_name, school, resolution_status,
+                created_at, updated_at
+            )
+            VALUES ('person-student-one', 'Student One', 'West U',
+                    'resolved', '2026-05-01', '2026-05-01')
+            """
+        )
 
         backfill_reporting(conn)
         first_counts = {
@@ -239,6 +266,17 @@ class ReportingSchemaTests(unittest.TestCase):
 
         self.assertEqual(first_counts, second_counts)
         self.assertEqual(second_counts["lessons"], 6)
+        self.assertEqual(
+            conn.execute(
+                """
+                SELECT ls.person_id
+                FROM lesson_students ls
+                JOIN students s ON s.student_id = ls.student_id
+                WHERE s.student_name = 'Student One'
+                """
+            ).fetchone()[0],
+            "person-student-one",
+        )
         self.assertEqual(
             conn.execute(
                 "SELECT COUNT(*) FROM lessons WHERE lesson_is_reportable = 1"

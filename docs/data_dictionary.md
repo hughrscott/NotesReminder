@@ -87,7 +87,7 @@ These are rebuildable reporting tables/views. They should be additive until prod
 | `instructors` | derived | Instructor dimension. | `reminders`. | school + instructor name. | low/medium. |
 | `students` | derived | Student dimension. | `reminders`. | school + student name; future `person_id`. | medium. |
 | `lessons` | derived | Normalized lesson facts. | `reminders`. | `lesson_id`, `pike13_lesson_id`. | medium. |
-| `lesson_students` | derived | Lesson-to-student relationship. | `reminders`. | lesson ID + student ID/name. | medium. |
+| `lesson_students` | derived | Lesson-to-student relationship, with nullable resolved `person_id` where exact identity is available. | `reminders`, `persons`. | lesson ID + student ID/name. | medium. |
 | `lesson_notes` | derived | Note completion, note text, timestamps. | `reminders`. | lesson ID. | high. |
 | `lesson_attendance` | derived | Attendance status by lesson. | `reminders`. | lesson ID. | medium. |
 | `lesson_note_scores_history` | derived | Historical note-score changes. | note scoring pipeline. | lesson ID + score timestamp/hash. | high. |

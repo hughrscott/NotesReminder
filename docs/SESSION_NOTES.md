@@ -969,3 +969,69 @@ Rollback path:
 Phase status:
 
 - Phase 12 gate passed.
+
+## 2026-05-23 Phase 13: Notes Normalization Shadow Dual-Write
+
+Goal:
+
+- Start the normalized notes write-path transition without cutting existing daily/weekly reads away from `reminders`.
+
+Backup:
+
+- Local pre-dual-write backup:
+  - `outputs/db_backups/reminders.db.20260523T185628Z.before-phase-13-notes-dual-write.bak`
+- S3 pre-dual-write backup:
+  - `s3://notesreminder-db/backups/reminders.db.20260523T185628Z.before-phase-13-notes-dual-write.bak`
+
+Changes made:
+
+- `run_daily.py` now syncs normalized reporting tables from `reminders` after notes writes by default.
+- Added rollback/debug flag:
+  - `--skip-reporting-sync`
+- Extended normalized reporting schema:
+  - `lesson_students.person_id`
+  - `idx_lesson_students_person`
+- Backfilled `lesson_students.person_id` only when a unique exact `persons.display_name` + school match exists.
+- Kept `reminders` as the production write/read source; no read-path cutover was made.
+
+Live validation:
+
+- Ran local no-email/no-S3 notes validation with reporting sync enabled:
+  - West U, `2026-05-21`: passed
+  - The Heights, `2026-05-21`: passed
+  - West U, `2026-05-22`: passed
+  - The Heights, `2026-05-22`: passed
+- Normalized parity after the runs:
+  - `reminders`: `17156`
+  - `lessons`: `17156`
+  - `lesson_notes`: `17156`
+  - `lesson_attendance`: `17156`
+  - reminders without lessons: `0`
+  - reminders without lesson_notes: `0`
+  - reminders without lesson_attendance: `0`
+- May 21/May 22 school/day counts matched exactly between `reminders` and normalized `lessons`/`lesson_notes`.
+- `lesson_students.person_id` exact backfill rows: `254` of `27794`.
+- Notes pipeline health after May 22 local checks: `ready`.
+- No leftover Playwright/Chrome-for-Testing/run_daily processes.
+
+Gate results:
+
+- `venv/bin/python -m pytest tests/test_reporting_schema.py tests/test_notes_pipeline_isolation.py`: `2 passed`
+- Full test suite: `105 passed`
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows: `0`
+- Source completeness after Phase 13: `overall_status=ready`; first-value report remains `ready`
+
+Known remaining next action:
+
+- Stop before any daily/weekly report or MCP read-path cutover from `reminders` to normalized notes tables. The master plan requires explicit Hugh approval before that cutover or any `reminders` retirement.
+
+Rollback path:
+
+- Use `run_daily.py --skip-reporting-sync` to disable the shadow normalized sync.
+- Restore the backup above if the live DB needs to be reverted.
+
+Phase status:
+
+- Phase 13 shadow dual-write gate passed.
+- Phase 13 read-path cutover is intentionally not started pending approval.

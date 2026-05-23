@@ -39,6 +39,15 @@ def add_column_if_missing(conn, table, column, definition):
         )
 
 
+def table_exists(conn, table):
+    return bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (table,),
+        ).fetchone()
+    )
+
+
 def is_reportable_lesson(lesson_type, students, instructor=None):
     lesson_type = (lesson_type or "").lower()
     if "admin" in lesson_type or "meeting" in lesson_type:
@@ -111,6 +120,7 @@ def ensure_reporting_tables(conn):
         CREATE TABLE IF NOT EXISTS lesson_students (
             lesson_id TEXT NOT NULL,
             student_id INTEGER NOT NULL,
+            person_id TEXT,
             is_primary INTEGER DEFAULT 0,
             PRIMARY KEY (lesson_id, student_id)
         )
@@ -196,6 +206,7 @@ def ensure_reporting_tables(conn):
         """
     )
     add_column_if_missing(conn, "lessons", "lesson_is_reportable", "INTEGER")
+    add_column_if_missing(conn, "lesson_students", "person_id", "TEXT")
     add_column_if_missing(conn, "lesson_notes", "note_score", "REAL")
     add_column_if_missing(conn, "lesson_notes", "note_score_explanation", "TEXT")
     add_column_if_missing(conn, "lesson_notes", "note_score_model", "TEXT")
@@ -232,6 +243,9 @@ def ensure_reporting_tables(conn):
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lesson_students_student ON lesson_students(student_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lesson_students_person ON lesson_students(person_id)"
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_lesson_note_scores_history_lesson "
@@ -471,6 +485,38 @@ def get_or_create_student(conn, cache, school_id, student_name):
     return student_id
 
 
+def school_aliases(value):
+    normalized = " ".join(str(value or "").replace("-sor", "").lower().split())
+    if normalized in {"westu", "west u", "west university place", "west university"}:
+        return {"westu", "west u", "west university place", "west university"}
+    if normalized in {"theheights", "the heights", "heights"}:
+        return {"theheights", "the heights", "heights"}
+    return {normalized} if normalized else set()
+
+
+def schools_match(left, right):
+    return bool(school_aliases(left).intersection(school_aliases(right)))
+
+
+def resolve_student_person_id(conn, student_name, school_code):
+    if not student_name or not table_exists(conn, "persons"):
+        return None
+    rows = conn.execute(
+        """
+        SELECT person_id, school
+        FROM persons
+        WHERE LOWER(COALESCE(display_name, '')) = LOWER(?)
+        """,
+        (student_name.strip(),),
+    ).fetchall()
+    matches = [
+        row[0]
+        for row in rows
+        if not row[1] or schools_match(school_code, row[1])
+    ]
+    return matches[0] if len(set(matches)) == 1 else None
+
+
 def backfill_reporting(conn):
     ensure_reporting_tables(conn)
 
@@ -625,10 +671,16 @@ def backfill_reporting(conn):
                         INSERT OR IGNORE INTO lesson_students (
                             lesson_id,
                             student_id,
+                            person_id,
                             is_primary
-                        ) VALUES (?, ?, ?)
+                        ) VALUES (?, ?, ?, ?)
                         """,
-                        (lesson_id, student_id, is_primary),
+                        (
+                            lesson_id,
+                            student_id,
+                            resolve_student_person_id(conn, student_name, school_code),
+                            is_primary,
+                        ),
                     )
 
 
