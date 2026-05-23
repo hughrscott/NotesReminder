@@ -154,6 +154,38 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
 - Source freshness in the generated dashboards still reports `attention` because it checks broad source-import recency, but dashboard generation, sanitization, and normalized notes read-path parity passed.
 - Approval boundary: dashboards remain shadow. Hugh approval is still required before these dashboards become part of the normal management cadence or before production reports are cut over from `reminders`.
 
+## 2026-05-23 Phase 15 Shadow Management Scorecards
+
+- Added a read-only scorecard module:
+  - `notesreminder/reports/management_scorecards.py`
+  - `scripts/management_scorecards.py`
+  - MCP tool: `note_quality_scorecard`
+- Scorecards generate school-vs-school and instructor note-quality league tables for MTD, prior week, prior month, and custom windows.
+- Scoring formula:
+  - no-note lesson: `0`
+  - scored note component: `note_score / 10`
+  - league score: `SUM(score_component) / reportable_lessons * 100`
+  - zero-inclusive average note score: `league_score / 10`
+- Scorecards use normalized `lessons`, `lesson_notes`, `schools`, and `instructors` tables with `lesson_is_reportable = 1`; group and multi-student lessons remain excluded under the current business rule.
+- Generated live May MTD shadow scorecards:
+  - `outputs/progress/phase15_scorecards/may_mtd_all_schools.md`
+  - `outputs/progress/phase15_scorecards/may_mtd_westu.md`
+  - `outputs/progress/phase15_scorecards/may_mtd_heights.md`
+- May MTD school league, 2026-05-01 to 2026-05-23:
+  - West U: rank `1`, `570` reportable, `465` with notes, `105` missing, `81.6%` completion, `score_sum=289.7`, `league_score=50.8`, average note score `5.08/10`
+  - The Heights: rank `2`, `396` reportable, `226` with notes, `170` missing, `57.1%` completion, `score_sum=149.5`, `league_score=37.8`, average note score `3.78/10`
+- May MTD top instructor rows:
+  - Jordan King, The Heights: rank `1`, `53` reportable, `50` with notes, `3` missing, `league_score=69.1`
+  - Alexander Peterson, West U: rank `2`, `19` reportable, `19` with notes, `0` missing, `league_score=63.2`
+  - Jack Riggs, West U: rank `3`, `45` reportable, `38` with notes, `7` missing, `league_score=61.8`
+- Gate checks:
+  - `venv/bin/python -m pytest tests/test_management_scorecards.py`: `4 passed`
+  - `venv/bin/python -m pytest`: `112 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - running source imports: `0`
+  - `scripts/notes_read_path_comparison.py --db reminders.db --start-date 2026-05-16 --end-date 2026-05-22`: status `ready`, mismatches `0`, base counts `17156` rows in `reminders`, `lessons`, `lesson_notes`, and `lesson_attendance`
+- Approval boundary: scorecards remain shadow. Hugh approval is still required before these scorecards are published broadly, emailed, or used as the normal management scorecard.
+
 ## May 1 Production Notes Run
 
 - Command used:

@@ -21,6 +21,7 @@ from notesreminder.lib.person_identity import (
     person_search as build_person_search,
     refresh_person_identities,
 )
+from notesreminder.reports.management_scorecards import build_note_quality_scorecard_for_period
 from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
@@ -223,6 +224,30 @@ def monthly_snapshot(as_of: str = "", school: str = "West U", limit: int = 50) -
     finally:
         conn.close()
     return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def note_quality_scorecard(
+    period: str = "mtd",
+    as_of: str = "",
+    start_date: str = "",
+    end_date: str = "",
+    school: str = "",
+) -> str:
+    """Return sanitized school and instructor note-quality league tables in shadow mode."""
+    conn = _connect_lead()
+    try:
+        scorecard = build_note_quality_scorecard_for_period(
+            conn,
+            period=period,
+            as_of=as_of or None,
+            start_date=start_date or None,
+            end_date=end_date or None,
+            school=school or None,
+        )
+    finally:
+        conn.close()
+    return json.dumps(scorecard, indent=2, default=str)
 
 
 @mcp.tool()

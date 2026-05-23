@@ -322,6 +322,7 @@ MCP tools:
 - `scripts/refresh_person_identities.py` : Rebuild deterministic `persons`, `person_identities`, and conflict rows.
 - `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
 - `scripts/lead_operating_dashboard.py` : Generate sanitized daily, weekly, and monthly shadow operating dashboards from `reminders.db`.
+- `scripts/management_scorecards.py` : Generate sanitized school and instructor note-quality scorecards in shadow mode.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
@@ -356,6 +357,28 @@ recording/transcription coverage, and notes-operation metrics from normalized
 tables: reportable lessons, completed notes, missing notes, completion rate, and
 league score. These dashboards are sanitized by default and remain shadow mode
 until Hugh approves them for the normal management cadence.
+
+## Shadow management scorecards
+
+Generate note-quality league tables for school-vs-school and instructor
+comparison:
+
+```bash
+python3 scripts/management_scorecards.py \
+  --db reminders.db \
+  --period mtd \
+  --as-of YYYY-MM-DD \
+  --output-dir outputs/progress/management_scorecards
+```
+
+Use `--school "West U"` or `--school "The Heights"` for a single-school
+instructor league. Use `--period prior-week`, `--period prior-month`, or
+`--period custom --start-date YYYY-MM-DD --end-date YYYY-MM-DD` for other
+windows. The scorecard uses the same normalized reportable-lesson flag as the
+notes operations dashboard: no-note lessons score `0`; scored notes contribute
+`note_score / 10`; league score is `SUM(score_component) / reportable_lessons *
+100`. Group and multi-student lessons remain excluded. The output is sanitized
+and remains shadow mode until scorecard publication is approved.
 
 ## Smoke test
 Validate env + Python dependencies without scraping:
