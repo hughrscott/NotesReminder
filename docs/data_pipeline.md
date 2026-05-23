@@ -324,6 +324,7 @@ MCP tools:
 - `scripts/lead_operating_dashboard.py` : Generate sanitized daily, weekly, and monthly shadow operating dashboards from `reminders.db`.
 - `scripts/management_scorecards.py` : Generate sanitized school and instructor note-quality scorecards in shadow mode.
 - `scripts/cadence_runner.py` : Dry-run or run the approved shadow cadence scaffold and write run metadata.
+- `scripts/replay_parse.py` : Replay supported local raw captures into a scratch DB for parser regression checks.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
@@ -380,6 +381,26 @@ notes operations dashboard: no-note lessons score `0`; scored notes contribute
 `note_score / 10`; league score is `SUM(score_component) / reportable_lessons *
 100`. Group and multi-student lessons remain excluded. The output is sanitized
 and remains shadow mode until scorecard publication is approved.
+
+## Raw capture and replay
+
+Authenticated extractors can now save raw local evidence before or alongside
+parsing. Raw files are written under git-ignored `raw/{source}/{YYYY-MM-DD}/`,
+indexed in `raw_captures`, and retained locally for 90 days by default. Raw
+captures are not archived to S3 unless that policy is approved later.
+
+Replay supported captures into a scratch DB:
+
+```bash
+python3 scripts/replay_parse.py \
+  --source-db reminders.db \
+  --scratch-db outputs/progress/replay_scratch.db \
+  --capture-type hubspot_deal_text
+```
+
+Supported replay types currently include HubSpot deal detail text and selected
+Pike13 person/related-page text. Unsupported raw capture types remain indexed
+for parser development and can be replay-enabled later.
 
 ## Smoke test
 Validate env + Python dependencies without scraping:

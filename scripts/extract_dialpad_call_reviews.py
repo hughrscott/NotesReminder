@@ -18,6 +18,7 @@ from lead_followup_schema import (  # noqa: E402
     start_import_run,
     utc_now_iso,
 )
+from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 from scripts.extract_dialpad_voice import (  # noqa: E402
     extract_source_id,
     wait_for_authenticated_page,
@@ -257,6 +258,7 @@ def extract_call_review_page(page, target, interactive_login=False, login_timeou
             "call_review_url": page.url,
             "event_at": target["event_at"],
             "updated_at": utc_now_iso(),
+            "_raw_capture_text": text,
         }
     )
     return parsed
@@ -306,6 +308,20 @@ def main():
                         }
                     )
                     continue
+                write_raw_capture(
+                    conn,
+                    source="dialpad",
+                    capture_type="dialpad_call_review_text",
+                    content=row.pop("_raw_capture_text", ""),
+                    source_url=row["call_review_url"],
+                    metadata={
+                        "call_review_id": row["call_review_id"],
+                        "voice_event_id": row["voice_event_id"],
+                    },
+                    import_run_id=run_id,
+                    extension="txt",
+                    label=f"call-review-{row['call_review_id']}",
+                )
                 exists = conn.execute(
                     "SELECT 1 FROM dialpad_call_reviews WHERE call_review_id = ?",
                     (row["call_review_id"],),

@@ -487,6 +487,30 @@ def ensure_lead_followup_schema(conn):
                 UNIQUE(source_table, source_id, model, prompt_version)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS raw_captures (
+                capture_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                capture_type TEXT NOT NULL,
+                captured_at TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                content_sha256 TEXT NOT NULL,
+                parser_version TEXT NOT NULL,
+                parse_status TEXT NOT NULL DEFAULT 'captured',
+                parsed_at TEXT,
+                import_run_id TEXT,
+                source_url TEXT,
+                metadata_json TEXT
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_raw_captures_source_captured
+            ON raw_captures(source, captured_at)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_raw_captures_parse_status
+            ON raw_captures(parse_status)
+            """,
         ],
     )
     _add_column_if_missing(conn, "pike13_visits", "canceled_flag", "INTEGER DEFAULT 0")

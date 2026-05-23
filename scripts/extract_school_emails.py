@@ -25,6 +25,7 @@ from lead_followup_schema import (  # noqa: E402
     upsert_school_email_message,
     utc_now_iso,
 )
+from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 from school_email import (  # noqa: E402
     SCHOOL_MAILBOXES,
     classify_direction,
@@ -289,6 +290,23 @@ def run_extraction(args):
                                 page.wait_for_load_state("networkidle", timeout=10000)
                             except PlaywrightTimeoutError:
                                 pass
+                            message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
+                            write_raw_capture(
+                                conn,
+                                source="school_email",
+                                capture_type="school_email_message_text",
+                                content=message_text,
+                                source_url=page.url,
+                                metadata={
+                                    "mailbox": mailbox,
+                                    "direction": direction,
+                                    "query": query,
+                                    "row_index": row_meta["index"],
+                                },
+                                import_run_id=run_id,
+                                extension="txt",
+                                label=f"{mailbox}-{direction}-{rows_seen}",
+                            )
                             parsed = parse_open_message(page, row_meta, mailbox, direction)
                             upsert_school_email_message(conn, parsed)
                             rows_written += 1

@@ -22,6 +22,7 @@ from lead_followup_schema import (  # noqa: E402
     start_import_run,
     utc_now_iso,
 )
+from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 
 
 DEFAULT_URL = "https://app.hubspot.com/contacts"
@@ -689,7 +690,19 @@ def main():
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)
-            deal_rows = filter_deal_rows_by_school(capture_visible_deal_rows(page, args.limit), args.school)
+            visible_deal_rows = capture_visible_deal_rows(page, args.limit)
+            write_raw_capture(
+                conn,
+                source="hubspot",
+                capture_type="hubspot_visible_deal_rows",
+                content=visible_deal_rows,
+                source_url=page.url,
+                metadata={"limit": args.limit, "school": args.school},
+                import_run_id=run_id,
+                extension="json",
+                label="visible-deal-rows",
+            )
+            deal_rows = filter_deal_rows_by_school(visible_deal_rows, args.school)
             for index, (deal_id, link, spine_row) in enumerate(deal_rows):
                 rows_seen += 1
                 upsert_deal(conn, spine_row)
@@ -699,6 +712,17 @@ def main():
                     detail_page.goto(link["href"], wait_until="domcontentloaded", timeout=60000)
                     wait_until_ready(detail_page)
                     text = detail_page.locator("body").inner_text(timeout=30000)
+                    write_raw_capture(
+                        conn,
+                        source="hubspot",
+                        capture_type="hubspot_deal_text",
+                        content=text,
+                        source_url=detail_page.url,
+                        metadata={"deal_id": deal_id, "school": args.school},
+                        import_run_id=run_id,
+                        extension="txt",
+                        label=f"deal-{deal_id}",
+                    )
                     detail_row = parse_deal_text(deal_id, detail_page.url, text)
                     row = merge_deal_rows(spine_row, detail_row)
                     upsert_deal(conn, row)

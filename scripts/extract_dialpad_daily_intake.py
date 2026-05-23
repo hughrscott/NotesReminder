@@ -15,6 +15,7 @@ from lead_followup_schema import (  # noqa: E402
     finish_import_run,
     start_import_run,
 )
+from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 from scripts.discover_dialpad_targets import (  # noqa: E402
     clear_conversation_history_filters,
     run_route_discovery,
@@ -198,7 +199,36 @@ def run_daily_intake(
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 wait_until_ready(page)
             filter_diagnostics = try_apply_conversation_history_filters(page, school)
+            visible_text = page.locator("body").inner_text(timeout=30000)
+            write_raw_capture(
+                conn,
+                source="dialpad",
+                capture_type="dialpad_conversation_history_text",
+                content=visible_text,
+                source_url=page.url,
+                metadata={
+                    "school": school,
+                    "window_days": window_days,
+                    "limit": limit,
+                    "filter_diagnostics": filter_diagnostics,
+                    "clear_diagnostics": clear_diagnostics,
+                },
+                import_run_id=run_id,
+                extension="txt",
+                label="conversation-history",
+            )
             rows, links, pages_seen = extract_conversation_history_pages(page, limit)
+            write_raw_capture(
+                conn,
+                source="dialpad",
+                capture_type="dialpad_conversation_history_json",
+                content={"rows": rows, "links": links, "pages_seen": pages_seen},
+                source_url=page.url,
+                metadata={"school": school, "window_days": window_days, "limit": limit},
+                import_run_id=run_id,
+                extension="json",
+                label="conversation-history-rows",
+            )
             view_summary = summarize_view("conversation_history", page.url, rows, links)
             view_summary["filter_diagnostics"] = filter_diagnostics
             view_summary["clear_diagnostics"] = clear_diagnostics

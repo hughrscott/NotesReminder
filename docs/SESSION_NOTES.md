@@ -212,6 +212,46 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - `scripts/cadence_runner.py --date 2026-05-23 --simulate-expired-auth`: wrote `outputs/progress/phase16_cadence/cadence_2026-05-23_action_required.json` and exited with action-required status
 - Approval boundary: no `launchd`/cron job was installed or loaded. Hugh approval is still required before enabling unattended production notes, email, DB mutation, or S3 upload cadence.
 
+## 2026-05-23 Phase 17 Raw Capture And Replay
+
+- Hugh approved the Phase 17 storage approach:
+  - raw captures stay local only under git-ignored `raw/`
+  - local retention is `90` days
+  - `raw_captures` is additive metadata in `reminders.db`
+  - no S3 raw-capture archive for now
+- Created local DB backup before adding the production metadata table:
+  - `outputs/db_backups/reminders.db.20260523-183256.before-phase-17-raw-captures.bak`
+- Added `raw_captures` table and indexes through `ensure_lead_followup_schema`.
+- Added raw capture helpers:
+  - `notesreminder/lib/raw_capture.py`
+  - file writing under `raw/{source}/{YYYY-MM-DD}/`
+  - SHA-256 hashing
+  - parser version
+  - parse status / parsed timestamp
+  - 90-day retention pruning helper
+- Added replay tool:
+  - `scripts/replay_parse.py`
+  - replays supported saved payloads into a scratch DB
+  - marks captures as `replayed`, `unsupported`, or `replay_error`
+- Added raw capture hooks to source extractors:
+  - HubSpot visible deal rows and deal detail text
+  - Dialpad Conversation History visible text and parsed row JSON
+  - Dialpad call-review recap/transcript text
+  - Pike13 first-visits report JSON, person pages, and related pages
+  - school email opened-message visible text
+- Applied additive schema to local `reminders.db`:
+  - `raw_captures` table exists
+  - `PRAGMA integrity_check`: `ok`
+- Gate evidence:
+  - `venv/bin/python -m pytest tests/test_raw_capture_replay.py`: `3 passed`
+  - `venv/bin/python -m pytest tests/test_raw_capture_replay.py tests/test_lead_followup_schema.py tests/test_hubspot_extractor.py tests/test_dialpad_extractors.py tests/test_dialpad_call_reviews.py tests/test_pike13_extractor.py tests/test_school_email.py`: `59 passed`
+  - `venv/bin/python -m py_compile notesreminder/lib/raw_capture.py scripts/replay_parse.py scripts/extract_hubspot_leads.py scripts/extract_dialpad_daily_intake.py scripts/extract_dialpad_call_reviews.py scripts/extract_pike13_leads.py scripts/extract_school_emails.py`: passed
+  - `venv/bin/python -m pytest`: `119 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - running source imports: `0`
+  - current raw capture rows before live extractor refresh: `0`
+- Approval boundary: raw capture is now available for local extractor runs, but raw files remain local, ignored, and not archived to S3.
+
 ## May 1 Production Notes Run
 
 - Command used:

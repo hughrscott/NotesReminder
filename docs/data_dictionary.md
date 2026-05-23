@@ -59,6 +59,7 @@ These now live in the promoted single `reminders.db` alongside production notes 
 | `person_identities` | shadow | Source IDs, emails, and phones linked to `persons`. | deterministic identity resolver. | `identity_id`. | person + identity type/value + source row. | Person identity refresh. | names, emails, phones, match evidence. |
 | `person_resolution_conflicts` | shadow | Duplicate/ambiguous identity groups needing review. | deterministic identity resolver. | `conflict_id`. | conflict type + person IDs. | Person identity refresh. | identity evidence. |
 | `communication_ai_insights` | shadow | AI analysis over communications. | LLM analysis scripts. | implementation-defined row id. | source event ID and model/version. | AI insight runs. | summaries, sentiment, action items, model output. |
+| `raw_captures` | shadow | Local-only index of raw extractor payload files for replay and parser regression checks. | authenticated extractors. | `capture_id`; SHA-256 hash. | Extractor runs; 90-day local retention. | high: raw source payload pointers and metadata. |
 
 ## Shadow Lead-Intelligence Views
 
@@ -102,7 +103,6 @@ These are rebuildable reporting tables/views. They should be additive until prod
 
 | Object | Status | Purpose | Source | Primary Key / Natural Key | Sensitivity |
 | --- | --- | --- | --- | --- | --- |
-| `raw_captures` | future | Index of raw HTML/JSON captures saved to disk. | extractors. | capture ID / SHA-256. | high. |
 | `qb_customers` | future | QuickBooks customer records. | QuickBooks. | QB customer ID. | medium. |
 | `qb_invoices` | future | QuickBooks invoices. | QuickBooks. | QB invoice ID. | medium/high financial. |
 | `qb_payments` | future | QuickBooks payments. | QuickBooks. | QB payment ID. | medium/high financial. |

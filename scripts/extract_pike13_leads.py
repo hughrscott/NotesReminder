@@ -24,6 +24,7 @@ from lead_followup_schema import (  # noqa: E402
     start_import_run,
     utc_now_iso,
 )
+from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 
 
 DEFAULT_URL = "https://westu-sor.pike13.com"
@@ -956,6 +957,17 @@ def extract_first_visits_report(conn, page, args, query_url=None):
     if not query_url:
         raise RuntimeError("Pike13 authentication blocked the First Visits report.")
     rows = fetch_first_visits_report_rows(page, query_url, start_date, end_date, args.first_visits_limit)
+    write_raw_capture(
+        conn,
+        source="pike13",
+        capture_type="pike13_first_visits_report_json",
+        content={"rows": rows, "start_date": start_date, "end_date": end_date},
+        source_url=query_url,
+        metadata={"school": args.school, "mode": "first_visits_report"},
+        import_run_id=getattr(args, "import_run_id", None),
+        extension="json",
+        label="first-visits-report",
+    )
     rows_written = 0
     for row in rows:
         person = report_person_row(row, args.school, args.base_url)
@@ -1063,6 +1075,7 @@ def main():
             "auth_probe_url": auth_probe_url,
         },
     )
+    args.import_run_id = run_id
     conn.commit()
     rows_seen = rows_written = auth_blocked_rows = 0
     try:
@@ -1166,6 +1179,17 @@ def main():
                     print(f"Skipping Pike13 URL that redirected to login: {url}")
                     continue
                 person, text = parse_person(page, args.school)
+                write_raw_capture(
+                    conn,
+                    source="pike13",
+                    capture_type="pike13_person_text",
+                    content=text,
+                    source_url=page.url,
+                    metadata={"person_id": person["person_id"], "school": args.school},
+                    import_run_id=run_id,
+                    extension="txt",
+                    label=f"person-{person['person_id']}",
+                )
                 upsert_person(conn, person)
                 rows_written += 1
                 person_url = page.url
@@ -1181,6 +1205,17 @@ def main():
                             page.goto(related_url, wait_until="domcontentloaded", timeout=60000)
                             wait_until_ready(page)
                             text = page.locator("body").inner_text(timeout=30000)
+                            write_raw_capture(
+                                conn,
+                                source="pike13",
+                                capture_type="pike13_related_page_text",
+                                content=text,
+                                source_url=page.url,
+                                metadata={"person_id": person["person_id"], "school": args.school},
+                                import_run_id=run_id,
+                                extension="txt",
+                                label=f"related-{person['person_id']}",
+                            )
                             link_records = extract_visit_link_records(page, args.base_url)
                             for discovered_url in related_urls(person_url, extract_page_links(page, args.base_url)):
                                 if discovered_url not in seen_related_urls and discovered_url not in queue:
