@@ -1035,3 +1035,81 @@ Phase status:
 
 - Phase 13 shadow dual-write gate passed.
 - Phase 13 read-path cutover is intentionally not started pending approval.
+
+## 2026-05-23 Phase 13: Shadow Read-Path Comparison
+
+Approval:
+
+- Hugh approved building and running shadow read-path comparison only.
+- Production reports/MCP reads are **not** approved to cut over from `reminders` yet.
+
+Goal:
+
+- Compare legacy `reminders` reads with normalized notes-table reads and fail on mismatches, without changing production report read paths.
+
+Changes made:
+
+- Added `notesreminder/reports/notes_read_path_comparison.py`.
+- Added CLI wrapper:
+  - `scripts/notes_read_path_comparison.py`
+- Added tests:
+  - `tests/test_notes_read_path_comparison.py`
+- Updated docs with the comparison command.
+
+Comparison coverage:
+
+- Base row parity:
+  - `reminders`
+  - `lessons`
+  - `lesson_notes`
+  - `lesson_attendance`
+- Missing normalized rows from `reminders`.
+- School/day total, reportable, completed, and missing-note counts.
+- Instructor missing-note counts.
+- Note-quality league-table rows and scores.
+
+Live comparison result:
+
+- Command:
+
+```bash
+venv/bin/python scripts/notes_read_path_comparison.py \
+  --db reminders.db \
+  --start-date 2026-05-16 \
+  --end-date 2026-05-22 \
+  --output outputs/progress/phase13_notes_read_path_comparison.md \
+  --json-output outputs/progress/phase13_notes_read_path_comparison.json
+```
+
+- Status: `ready`
+- Mismatches: `0`
+- Base counts:
+  - `reminders`: `17156`
+  - `lessons`: `17156`
+  - `lesson_notes`: `17156`
+  - `lesson_attendance`: `17156`
+  - reminders missing lessons: `0`
+  - reminders missing lesson_notes: `0`
+  - reminders missing lesson_attendance: `0`
+
+Gate checks run so far:
+
+- `venv/bin/python -m pytest tests/test_notes_read_path_comparison.py tests/test_reporting_schema.py tests/test_notes_pipeline_health.py`: `6 passed`
+- `venv/bin/python -m pytest tests/test_notes_read_path_comparison.py`: `2 passed`
+- Full test suite: `107 passed`
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows: `0`
+- Notes pipeline health: `ready`
+
+Known remaining next action:
+
+- Keep collecting daily shadow comparisons until 7 days of parity are available.
+- Do not cut production reads over from `reminders` without explicit approval.
+
+Rollback path:
+
+- Revert the comparison script/module/test/docs. No production read path was changed.
+
+Phase status:
+
+- Shadow read-path comparison gate passed for `2026-05-16` through `2026-05-22`.

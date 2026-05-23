@@ -326,6 +326,17 @@ MCP tools:
 
 `run_daily.py` now syncs normalized reporting tables from `reminders` after notes writes by default. Use `--skip-reporting-sync` only for rollback/debugging of the shadow dual-write path; do not retire `reminders` or cut reports over without explicit approval.
 
+Compare legacy `reminders` reads against normalized notes reads without cutting production reports over:
+
+```bash
+python3 scripts/notes_read_path_comparison.py \
+  --db reminders.db \
+  --start-date 2026-05-16 \
+  --end-date 2026-05-22
+```
+
+The comparison checks base row coverage, school/day counts, instructor missing-note counts, and note-quality league-table rows. A nonzero mismatch exits with failure.
+
 ## Smoke test
 Validate env + Python dependencies without scraping:
 
