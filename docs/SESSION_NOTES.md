@@ -186,6 +186,32 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - `scripts/notes_read_path_comparison.py --db reminders.db --start-date 2026-05-16 --end-date 2026-05-22`: status `ready`, mismatches `0`, base counts `17156` rows in `reminders`, `lessons`, `lesson_notes`, and `lesson_attendance`
 - Approval boundary: scorecards remain shadow. Hugh approval is still required before these scorecards are published broadly, emailed, or used as the normal management scorecard.
 
+## 2026-05-23 Phase 16 Cadence Scaffold
+
+- Built a scheduler/cadence scaffold without enabling unattended production runs:
+  - `notesreminder/orchestration/cadence.py`
+  - `scripts/cadence_runner.py`
+- The cadence plan includes:
+  - production notes local MFA command, marked as requiring MFA, mutating DB, and sending email
+  - notes pipeline health
+  - source completeness
+  - West U and The Heights operating dashboards
+  - West U and The Heights note-quality scorecards
+- Safety behavior:
+  - default run is metadata-only dry-run
+  - `--execute-shadow` runs only non-production shadow report commands
+  - production notes/email is skipped unless `--execute-production` is passed after explicit approval
+  - `--simulate-expired-auth` produces action-required metadata for the MFA-bound production notes task
+- Gate evidence:
+  - `venv/bin/python -m pytest tests/test_cadence_runner.py`: `4 passed`
+  - `venv/bin/python -m pytest`: `116 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - running source imports: `0`
+  - `scripts/cadence_runner.py --date 2026-05-23`: wrote `outputs/progress/phase16_cadence/cadence_2026-05-23_dry_run.json`
+  - `scripts/cadence_runner.py --date 2026-05-23 --execute-shadow`: wrote `outputs/progress/phase16_cadence/cadence_2026-05-23_shadow_success.json` and generated shadow dashboards/scorecards under `outputs/progress/cadence_dashboards/2026-05-23/` and `outputs/progress/cadence_scorecards/2026-05-23/`
+  - `scripts/cadence_runner.py --date 2026-05-23 --simulate-expired-auth`: wrote `outputs/progress/phase16_cadence/cadence_2026-05-23_action_required.json` and exited with action-required status
+- Approval boundary: no `launchd`/cron job was installed or loaded. Hugh approval is still required before enabling unattended production notes, email, DB mutation, or S3 upload cadence.
+
 ## May 1 Production Notes Run
 
 - Command used:

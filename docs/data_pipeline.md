@@ -323,6 +323,7 @@ MCP tools:
 - `scripts/lead_attention_report.py` : Generate the sanitized West U lead-attention report.
 - `scripts/lead_operating_dashboard.py` : Generate sanitized daily, weekly, and monthly shadow operating dashboards from `reminders.db`.
 - `scripts/management_scorecards.py` : Generate sanitized school and instructor note-quality scorecards in shadow mode.
+- `scripts/cadence_runner.py` : Dry-run or run the approved shadow cadence scaffold and write run metadata.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
@@ -400,9 +401,25 @@ export DB_PATH="reminders.db"    # optional
 ```
 
 ## Scheduling (macOS)
-Use `launchd` or `cron` to run `./scripts/daily_scrape.sh` on a schedule, and direct logs to a `logs/` folder.
+The current Phase 16 scheduler path is a scaffold, not an enabled unattended
+production schedule. Use it first in dry-run or shadow-report mode:
 
-Example `launchd` plist (`~/Library/LaunchAgents/com.notesreminder.daily.plist`):
+```bash
+python3 scripts/cadence_runner.py --date YYYY-MM-DD
+python3 scripts/cadence_runner.py --date YYYY-MM-DD --execute-shadow
+python3 scripts/cadence_runner.py --date YYYY-MM-DD --simulate-expired-auth
+```
+
+The runner writes metadata under `outputs/progress/cadence_runs/`. Shadow
+execution can generate health reports, source completeness, lead operating
+dashboards, and note-quality scorecards. The production notes/email path is
+listed in the plan but skipped unless `--execute-production` is passed after
+explicit Hugh approval.
+
+Do not install or load a production `launchd`/cron job until the unattended
+production run promotion gate is approved.
+
+Historical `launchd` plist template only (`~/Library/LaunchAgents/com.notesreminder.daily.plist`):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -435,7 +452,7 @@ Example `launchd` plist (`~/Library/LaunchAgents/com.notesreminder.daily.plist`)
 </plist>
 ```
 
-Load it:
+After approval, load an updated plist:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.notesreminder.daily.plist
