@@ -1,6 +1,6 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-05-20
+Last updated: 2026-05-22
 
 ## 2026-05-20 Phase 7 Copy-Mode Reconciliation
 
@@ -112,26 +112,16 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
 
 ## Current State
 
-- `main` is synced to GitHub through `f2f9691`.
-- Current local `reminders.db` is the production notes DB after the May 1 local MFA run.
-- The production notes DB was uploaded to `s3://notesreminder-db/reminders.db` after both schools completed.
-- Current production DB sanity:
-  - `pragma integrity_check`: `ok`
-  - total `reminders`: `15,995`
-  - latest lesson date: `2026-05-01`
-  - May 1 West U rows: `26`, with notes: `14`
-  - May 1 The Heights rows: `5`, with notes: `1`
-- The current production DB does **not** contain the lead-intelligence additive tables, because `run_daily.py` downloads the S3 production DB at the start of each school run.
-- The latest local lead-intelligence proof DB is preserved here:
-  - `outputs/db_backups/reminders.db.20260501-211741.before-local-mfa-notes-run.bak`
-  - contains `25` HubSpot deals
-  - contains `117` Dialpad call-review rows
-  - contains `59` source import runs
-- The active local lead-intelligence working DB is:
-  - `outputs/lead_intelligence/lead_intelligence_working.db`
-  - seeded from current production `reminders.db`
-  - merged with additive lead tables from the May 1 proof backup
-  - contains `15,995` reminders, `25` HubSpot deals, `117` Dialpad call-review rows, and `59` source import runs
+- `main` is synced to GitHub through Phase 10 30-day proof commit `4dd92fd` before the April 1 proof check-in.
+- Current local `reminders.db` is the promoted single production database with notes, reporting schema, and lead-intelligence source tables in one file.
+- Local production DB sanity after the April 1 controlled proof:
+  - `PRAGMA integrity_check`: `ok`
+  - running source imports: `0`
+  - notes pipeline health: `ready`
+  - source completeness/dashboard: source intake `ready`; first-value report still `partial`
+- Phase 10 has passed the 30-day proof and the April 1, 2026 forward proof. Do not widen to January 1, 2025 forward without explicit Hugh approval.
+- Dialpad source access is working through Conversation History and Call Review pages. The remaining Dialpad/reporting task is row-level Conversation History call-review URL matching into lead-attention communications, not basic Dialpad access.
+- School-email extraction now supports Okta username/password from `.env`, sends the Okta Verify push, and pauses for Hugh approval. The durable authenticated state is the browser profile session, not a permanent HTTP header.
 
 ## May 1 Production Notes Run
 
@@ -179,80 +169,29 @@ scripts/run_notes_local_mfa.sh --date 2026-05-01
 
 ## DB Operating Model
 
-The production notes pipeline and the lead-intelligence proof previously competed over the same `reminders.db` file:
-
-- `run_daily.py` starts by downloading `s3://notesreminder-db/reminders.db`.
-- That S3 DB is currently the production notes DB.
-- Lead-intelligence tables may disappear locally after a production notes run if lead refreshes write directly to production `reminders.db`.
-
-Current decision:
-
-- Keep production notes in `reminders.db` and S3.
-- Keep lead proof work in `outputs/lead_intelligence/lead_intelligence_working.db`.
-- Rebuild the lead working DB after production notes runs so it has current lesson-note evidence.
-- Treat this as temporary; lead intelligence must pass a production merge gate before production use because notes are key performance indicators.
-
-Do **not** upload a lead-mutated DB to the production S3 key until the merge gate is explicitly reviewed.
+- Phase 7 promoted the reconciled single-DB model.
+- `reminders.db` is now the current local production database and contains both the production notes data and additive lead-intelligence/source tables.
+- `run_daily.py` can still sync with `s3://notesreminder-db/reminders.db`; preserve local and S3 backups before any widening or migration work.
+- `outputs/lead_intelligence/lead_intelligence_working.db` is historical/staging context only unless a later phase explicitly reintroduces a split proof database.
+- Raw source data currently lives in the main database by Hugh decision; broad dashboards and reports should remain sanitized unless a private operator view is explicitly requested.
 
 ## Next Steps
 
-1. Confirm no leftover browser/process state:
-
-```bash
-ps -axo pid,ppid,etime,command | rg "run_daily.py|extract_dialpad|browser_profiles/(dialpad|pike13)"
-```
-
-2. Rebuild the lead working DB after each successful production notes run:
-
-```bash
-python3 scripts/rebuild_lead_working_db.py \
-  --production-db reminders.db \
-  --lead-proof-db outputs/lead_intelligence/lead_intelligence_working.db \
-  --output outputs/lead_intelligence/lead_intelligence_working.db
-```
-
-3. Regenerate:
-
-```bash
-python3 scripts/progress_dashboard.py --db outputs/lead_intelligence/lead_intelligence_working.db --window-days 7 --pike13-lookahead-days 30
-python3 scripts/lead_attention_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --school "West U" --window-days 7
-python3 scripts/unmatched_inbound_report.py --db outputs/lead_intelligence/lead_intelligence_working.db --school "West U" --window-days 2
-```
-
-4. Review Phase 3 check-in:
-   - Dialpad intake is no longer blocked.
-   - Pagination works.
-   - Call-review ingestion needs progress logging and bounded retries before broad backfill.
-5. Then move to Phase 4:
-   - Pike13 rich lead/outcome hardening.
-   - Use `venv/bin/python` for the headed Pike13 proof on this machine; system `python3` can run headless but the headed bundled browser crashes.
-   - Current proof command:
-
-```bash
-venv/bin/python scripts/extract_pike13_leads.py \
-  --db outputs/lead_intelligence/lead_intelligence_working.db \
-  --profile-dir browser_profiles/pike13 \
-  --base-url https://westu-sor.pike13.com \
-  --school "West U" \
-  --limit 5 \
-  --interactive-login
-```
-
-   - The command waits at the login checkpoint; complete Pike13 MFA, then press Enter in the terminal.
+1. Stop before any January 1, 2025 forward backfill until Hugh explicitly approves that widening.
+2. Next phase should address the first-value/report-wiring gap:
+   - match Conversation History rows to lead-attention communications
+   - persist row-level call-review URLs where visible
+   - prove first-value report readiness with named test cases and sanitized dashboard output
+3. Keep using `reminders.db` as the single production database unless a later raw-data archive decision changes that.
+4. Preserve pre-proof backups for rollback.
 
 ## Files To Check In
 
-These were checked in before this split-DB phase:
+Current pending check-in for the April 1 proof:
 
-- `scripts/extract_dialpad_daily_intake.py`
-- `scripts/extract_dialpad_call_reviews.py`
+- `scripts/extract_school_emails.py`
+- `tests/test_school_email.py`
 - `docs/SESSION_NOTES.md`
-
-The split-DB phase should add/check in:
-
-- `scripts/rebuild_lead_working_db.py`
-- tests for the rebuild utility
-- docs explaining the lead working DB and production merge gate
 
 Leave these untracked files alone unless the user confirms they are intentional:
 
@@ -755,3 +694,77 @@ Rollback path:
 Phase status:
 
 - Phase 10 30-day proof gate passed. Stop here for Hugh approval before April 1, 2026 forward or January 1, 2025 forward backfill.
+
+## 2026-05-22 Phase 10: April 1 Controlled Backfill Proof
+
+Goal:
+
+- Widen the controlled source-intake proof from the 30-day window to April 1, 2026 forward, then stop at the Phase 10 gate before any January 1, 2025 historical backfill.
+
+Approval and backup:
+
+- Hugh approved widening to April 1, 2026 forward.
+- Local pre-window backup:
+  - `outputs/db_backups/reminders.db.20260522T233522Z.before-phase-10-april1-backfill.bak`
+- S3 pre-window backup:
+  - `s3://notesreminder-db/backups/reminders.db.20260522T233522Z.before-phase-10-april1-backfill.bak`
+
+Changes made:
+
+- Added Okta-aware school-email login support in `scripts/extract_school_emails.py`.
+- The extractor now reads Okta credentials from `.env`, fills username/password, sends the Okta Verify push, and prints an explicit confirmation message so Hugh knows the push came from NotesReminder.
+- Added a focused test proving the Okta helpers are safe when credentials are absent.
+
+Source refresh proof:
+
+- Date-window commands used `--start-date 2026-04-01` and `--end-date 2026-05-22`.
+- West U bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, school email after Okta approval, and Dialpad call reviews.
+- The Heights bounded refresh succeeded for HubSpot, Pike13, Dialpad daily intake, Dialpad voice, Dialpad SMS, school email, and Dialpad call reviews.
+- West U school-email initially hit an Okta login checkpoint; after the Okta helper was added and Hugh approved the push, the direct rerun wrote `20` visible school-email rows.
+
+April 1 source counts:
+
+- West U:
+  - HubSpot rows: `13`
+  - Pike13 first-visit rows: `47`
+  - Dialpad communication rows: `909`
+  - School email rows: `121` after the direct Okta-backed rerun
+  - Notes/reminders rows: `1458`
+- The Heights:
+  - HubSpot rows: `12`
+  - Pike13 first-visit rows: `47`
+  - Dialpad communication rows: `1117`
+  - School email rows: `7`
+  - Notes/reminders rows: `1416`
+
+Gate results:
+
+- `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+- Running import rows after source refresh: `0`
+- No leftover Playwright/Chrome-for-Testing/source-extractor processes.
+- Source completeness after widening: `overall_status=ready`
+- Progress dashboard after widening: `Overall status: READY`
+- Reporting schema rebuild: passed
+- Notes pipeline health after local no-email May 21 notes checks: `ready`
+- Local no-email production notes checks:
+  - West U, `2026-05-21`: passed with `--skip-s3-sync`
+  - The Heights, `2026-05-21`: passed with `--skip-s3-sync`
+- Focused test suite after Okta helper changes:
+  - `venv/bin/python -m pytest tests/test_school_email.py tests/test_date_window_lead_load.py`: `10 passed`
+- Full test suite after widening and reporting rebuild:
+  - `venv/bin/python -m pytest`: `98 passed`
+
+Known remaining next action:
+
+- First-value report remains `partial` because row-level Conversation History call-review URLs are not yet matched into lead-attention communications.
+- Dialpad access itself is not blocked: daily intake, voice/SMS, Call Review recap, Call Review transcripts, and school-filtered Conversation History access are proven.
+- Do not widen to January 1, 2025 forward without explicit Hugh approval.
+
+Rollback path:
+
+- Restore `reminders.db` from `outputs/db_backups/reminders.db.20260522T233522Z.before-phase-10-april1-backfill.bak`.
+- If the widened DB has been uploaded to the production S3 key, re-upload the S3 backup above to `s3://notesreminder-db/reminders.db`.
+
+Phase status:
+
+- Phase 10 April 1 proof gate passed. Stop before January 1, 2025 forward backfill unless Hugh approves the next widening.

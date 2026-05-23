@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
+from scripts.extract_school_emails import is_okta_login_url, okta_credentials_available
 from school_email import (
     classify_direction,
     external_email_for_message,
@@ -118,6 +119,11 @@ class SchoolEmailTests(unittest.TestCase):
         self.assertTrue(parse_gmail_datetime("Apr 22, 2026, 11:05 AM").startswith("2026-04-22T11:05:00"))
         self.assertIn("before:2026/05/01", gmail_query("westu@schoolofrock.com", "inbound", "2026-04-22", "2026-04-30"))
         self.assertTrue(gmail_query("westu@schoolofrock.com", "inbound", "2026-04-22", "2026-04-30", "maira").startswith("maira "))
+
+    def test_okta_login_helpers_are_safe_without_credentials(self):
+        self.assertTrue(is_okta_login_url("https://sor.okta.com/login/login.htm?fromURI=abc"))
+        self.assertFalse(is_okta_login_url("https://mail.google.com/mail/u/0/#inbox"))
+        self.assertIsInstance(okta_credentials_available(), bool)
 
     def test_email_identity_match_and_sanitized_trial_timeline(self):
         conn = open_db()

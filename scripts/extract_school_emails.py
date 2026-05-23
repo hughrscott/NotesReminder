@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
+import time
 from pathlib import Path
 from urllib.parse import quote
 
+from dotenv import load_dotenv
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -37,17 +40,81 @@ from school_email import (  # noqa: E402
 DEFAULT_PROFILE = "browser_profiles/sor_okta"
 DEFAULT_DB = "outputs/lead_intelligence/lead_intelligence_working.db"
 
+load_dotenv(ROOT / ".env")
+
 
 def gmail_search_url(query):
     return "https://mail.google.com/mail/u/0/#search/" + quote(query, safe="")
 
 
+def okta_credentials_available():
+    return bool(okta_username() and okta_password())
+
+
+def okta_username():
+    return os.getenv("OKTA_USERNAME") or os.getenv("SOR_OKTA_USERNAME") or os.getenv("OKTA_USER")
+
+
+def okta_password():
+    return os.getenv("OKTA_PASSWORD") or os.getenv("SOR_OKTA_PASSWORD")
+
+
+def is_okta_login_url(url):
+    lowered = (url or "").lower()
+    return "sor.okta.com" in lowered and ("login" in lowered or "signin" in lowered)
+
+
+def fill_okta_login(page):
+    username = okta_username()
+    password = okta_password()
+    if not username or not password:
+        return False
+    username_input = page.locator('input[name="username"], input#okta-signin-username, input[type="text"]').first
+    password_input = page.locator('input[name="password"], input#okta-signin-password, input[type="password"]').first
+    username_input.wait_for(timeout=15000)
+    username_input.fill(username)
+    password_input.fill(password)
+    remember_me = page.locator('input[type="checkbox"][name="remember"], input[type="checkbox"]')
+    if remember_me.count():
+        try:
+            if not remember_me.first.is_checked():
+                remember_me.first.check(timeout=3000)
+        except Exception:
+            pass
+    page.get_by_role("button", name=re.compile(r"sign in", re.IGNORECASE)).click(timeout=10000)
+    return True
+
+
+def wait_for_okta_push(page, timeout_seconds):
+    deadline = time.time() + timeout_seconds
+    notified = False
+    while time.time() < deadline:
+        lowered_url = page.url.lower()
+        try:
+            body = page.locator("body").inner_text(timeout=5000).lower()
+        except PlaywrightTimeoutError:
+            body = ""
+        if "mail.google.com" in lowered_url and "signin" not in lowered_url:
+            return
+        if not notified and ("push sent" in body or "okta verify" in body):
+            print("Okta Verify push sent by NotesReminder. Please approve it on your phone.", flush=True)
+            notified = True
+        time.sleep(2)
+    raise RuntimeError("Timed out waiting for Okta Verify approval.")
+
+
 def wait_for_gmail(page, interactive_login=False, login_timeout=300):
-    if "accounts.google.com" in page.url.lower() or "signin" in page.url.lower():
+    lowered_url = page.url.lower()
+    if "accounts.google.com" in lowered_url or "signin" in lowered_url or is_okta_login_url(page.url):
         if not interactive_login:
             raise RuntimeError(f"Gmail profile is not authenticated; final_url={page.url}")
-        print("Complete Google/Okta login in the opened browser, then press Enter here.")
-        input()
+        if is_okta_login_url(page.url) and okta_credentials_available():
+            print("Filling Okta username/password from environment. Approve only the Okta Verify push you expect from NotesReminder.", flush=True)
+            fill_okta_login(page)
+            wait_for_okta_push(page, login_timeout)
+        else:
+            print("Complete Google/Okta login in the opened browser, then press Enter here.")
+            input()
         page.wait_for_load_state("domcontentloaded", timeout=login_timeout * 1000)
 
 
