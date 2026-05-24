@@ -252,6 +252,48 @@ venv/bin/python scripts/migrate_lead_intel_to_production.py \
   - current raw capture rows before live extractor refresh: `0`
 - Approval boundary: raw capture is now available for local extractor runs, but raw files remain local, ignored, and not archived to S3.
 
+## 2026-05-23 Phase 19 Experimental Communication Insights
+
+- Hugh approved skipping QuickBooks for now. Phase 18 is deferred and should be resumed later when QuickBooks API/browser-access direction is decided.
+- Added experimental insight generation:
+  - `notesreminder/reports/communication_insights.py`
+  - `scripts/communication_insights.py`
+  - MCP tool: `experimental_communication_insights`
+- Extended `communication_ai_insights` with additive metadata columns:
+  - `insight_run_id`
+  - `recommendation`
+  - `evidence_json`
+  - `review_status`
+- The Phase 19 proof uses a deterministic local reviewer for the initial human-review sample so the gate does not depend on an external model call. Rows still store model/prompt/run metadata and are designed to be replaceable by an LLM-backed provider later.
+- Insight evidence links include source table, source ID, event timestamp, school, source URL, source-text hash, and prompt version. Sanitized reports do not print raw customer content or source URLs.
+- Created DB backup before writing experimental insight rows:
+  - `outputs/db_backups/reminders.db.20260523-203041.before-phase-19-insights.bak`
+- Generated dry-run samples:
+  - `outputs/progress/phase19_insights/westu_dry_run.md`
+  - `outputs/progress/phase19_insights/heights_dry_run.md`
+- Wrote live experimental human-review samples:
+  - `outputs/progress/phase19_insights/westu_sample.md`
+  - `outputs/progress/phase19_insights/heights_sample.md`
+  - `communication_ai_insights`: `20` rows
+  - `pending_human_review`: `20` rows
+  - intent/urgency summary:
+    - `general_followup` / `low`: `11`
+    - `trial_or_tour_interest` / `medium`: `4`
+    - `general_followup` / `medium`: `3`
+    - `cancellation_or_retention_risk` / `high`: `2`
+- Human-review observation:
+  - West U sample surfaced more useful school-email signals, including trial/tour interest and possible retention/cancellation risk.
+  - The Heights sample mostly surfaced low-signal Dialpad voice rows, so the next quality improvement should be source selection and stronger transcript/recap coverage before promotion.
+- Gate evidence:
+  - `venv/bin/python -m pytest tests/test_communication_insights.py`: `3 passed`
+  - `venv/bin/python -m pytest tests/test_communication_insights.py tests/test_lead_followup_schema.py`: `20 passed`
+  - `venv/bin/python -m pytest`: `122 passed`
+  - `sqlite3 reminders.db "PRAGMA integrity_check;"`: `ok`
+  - running source imports: `0`
+  - insight rows missing `evidence_json`: `0`
+  - insight rows not marked `pending_human_review`: `0`
+- Approval boundary: insights remain experimental and require human review. No customer-facing or staff-facing AI recommendation workflow was enabled.
+
 ## May 1 Production Notes Run
 
 - Command used:

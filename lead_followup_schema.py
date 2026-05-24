@@ -40,7 +40,11 @@ def _table_columns(conn, table):
 
 def _add_column_if_missing(conn, table, column, definition):
     if column not in _table_columns(conn, table):
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
 
 
 def ensure_lead_followup_schema(conn):
@@ -472,6 +476,7 @@ def ensure_lead_followup_schema(conn):
                 insight_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_table TEXT NOT NULL,
                 source_id TEXT NOT NULL,
+                insight_run_id TEXT,
                 model TEXT NOT NULL,
                 prompt_version TEXT NOT NULL,
                 sentiment TEXT,
@@ -481,7 +486,10 @@ def ensure_lead_followup_schema(conn):
                 topic TEXT,
                 action_items TEXT,
                 summary TEXT,
+                recommendation TEXT,
                 confidence REAL,
+                evidence_json TEXT,
+                review_status TEXT NOT NULL DEFAULT 'pending_human_review',
                 raw_response_json TEXT,
                 created_at TEXT NOT NULL,
                 UNIQUE(source_table, source_id, model, prompt_version)
@@ -564,6 +572,15 @@ def ensure_lead_followup_schema(conn):
     _add_column_if_missing(conn, "recording_transcripts", "summary", "TEXT")
     _add_column_if_missing(conn, "recording_transcripts", "created_at", "TEXT")
     _add_column_if_missing(conn, "recording_transcripts", "completed_at", "TEXT")
+    _add_column_if_missing(conn, "communication_ai_insights", "insight_run_id", "TEXT")
+    _add_column_if_missing(conn, "communication_ai_insights", "recommendation", "TEXT")
+    _add_column_if_missing(conn, "communication_ai_insights", "evidence_json", "TEXT")
+    _add_column_if_missing(
+        conn,
+        "communication_ai_insights",
+        "review_status",
+        "TEXT NOT NULL DEFAULT 'pending_human_review'",
+    )
     _execute_many(
         conn,
         [

@@ -325,6 +325,7 @@ MCP tools:
 - `scripts/management_scorecards.py` : Generate sanitized school and instructor note-quality scorecards in shadow mode.
 - `scripts/cadence_runner.py` : Dry-run or run the approved shadow cadence scaffold and write run metadata.
 - `scripts/replay_parse.py` : Replay supported local raw captures into a scratch DB for parser regression checks.
+- `scripts/communication_insights.py` : Generate experimental, human-review communication insights with evidence links.
 - `scripts/update_all.sh` : End-to-end pipeline runner (scrape, import, reports).
 - `scripts/smoke_test.sh` : Quick env/dependency check (no scrape).
 
@@ -401,6 +402,28 @@ python3 scripts/replay_parse.py \
 Supported replay types currently include HubSpot deal detail text and selected
 Pike13 person/related-page text. Unsupported raw capture types remain indexed
 for parser development and can be replay-enabled later.
+
+## Experimental communication insights
+
+Generate sanitized, human-review insight samples from stored communication text:
+
+```bash
+python3 scripts/communication_insights.py \
+  --db reminders.db \
+  --start-date YYYY-MM-DD \
+  --end-date YYYY-MM-DD \
+  --school "West U" \
+  --limit 10 \
+  --output-dir outputs/progress/communication_insights
+```
+
+The script stores rows in `communication_ai_insights` unless `--dry-run` is
+used. Each row keeps model, prompt version, run ID, review status, and an
+evidence JSON pointer back to the source table/source ID. Broad review output is
+sanitized and excludes customer names, emails, phones, message bodies,
+transcripts, source URLs, raw notes, and audio paths. These insights remain
+experimental until Hugh reviews sample usefulness and approves any staff-facing
+workflow.
 
 ## Smoke test
 Validate env + Python dependencies without scraping:

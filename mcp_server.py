@@ -22,6 +22,7 @@ from notesreminder.lib.person_identity import (
     refresh_person_identities,
 )
 from notesreminder.reports.management_scorecards import build_note_quality_scorecard_for_period
+from notesreminder.reports.communication_insights import generate_insights
 from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
@@ -248,6 +249,32 @@ def note_quality_scorecard(
     finally:
         conn.close()
     return json.dumps(scorecard, indent=2, default=str)
+
+
+@mcp.tool()
+def experimental_communication_insights(
+    start_date: str,
+    end_date: str,
+    school: str = "",
+    limit: int = 25,
+    dry_run: bool = True,
+) -> str:
+    """Return sanitized experimental communication insights for human review."""
+    conn = _connect_lead()
+    try:
+        report = generate_insights(
+            conn,
+            start_date,
+            end_date,
+            school=school or None,
+            limit=limit,
+            dry_run=dry_run,
+        )
+        if not dry_run:
+            conn.commit()
+    finally:
+        conn.close()
+    return json.dumps(report, indent=2, default=str)
 
 
 @mcp.tool()

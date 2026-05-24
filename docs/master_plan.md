@@ -751,6 +751,8 @@ Mode: `Shadow mode`
 
 Goal: complete the customer journey with billing, payments, failed payments, and subscription lifecycle.
 
+Status: deferred by Hugh on 2026-05-23. Resume later when QuickBooks API/browser-access direction is decided.
+
 Work:
 - Decide QuickBooks API vs Playwright extractor.
 - Add `qb_customers`, `qb_invoices`, `qb_payments`, and `qb_subscriptions`.
