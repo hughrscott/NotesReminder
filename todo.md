@@ -150,6 +150,35 @@ Reference: `docs/master_plan.md`, Phase 21.
 
 Goal: make NotesReminder maintainable as an operating platform.
 
+Status on 2026-05-24:
+- Completed locally on branch `codex/phase-21-productize-maintain`.
+- Added the canonical operating runbook:
+  - `docs/operational_runbook.md`
+- Updated setup/layout docs:
+  - `README.md`
+  - `docs/data_pipeline.md`
+- Runbook covers:
+  - daily notes operation
+  - source freshness SLAs
+  - shadow cadence/reporting
+  - MCP smoke test
+  - local and S3 backup procedure
+  - non-production restore drill
+  - fresh-clone setup check
+  - incident response
+  - promotion boundaries
+- Gate checks:
+  - `PYTHON_BIN=venv/bin/python scripts/smoke_test.sh`: passed
+  - fresh-clone style import/entrypoint smoke: passed
+  - non-production restore drill against `outputs/progress/phase21_restore_drill/restored_copy.db`: integrity `ok`, reporting sync passed, notes health `ready`
+  - MCP smoke: `MCP smoke ok`
+  - local-only notes plus dashboard smoke against `outputs/progress/phase21_e2e/notes_dashboard_smoke.db`: passed, no email, no S3 sync
+  - phase21 dashboard outputs:
+    - `outputs/progress/phase21_e2e/dashboard_westu/`
+    - `outputs/progress/phase21_e2e/scorecards/`
+  - source completeness snapshot: `outputs/progress/phase21_source_completeness.json`, status `ready`
+  - `venv/bin/python -m pytest`: `125 passed`
+
 Expected work:
 - Operational runbook.
 - Backup and restore instructions.

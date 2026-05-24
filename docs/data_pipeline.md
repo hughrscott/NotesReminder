@@ -18,9 +18,11 @@ This project keeps the production lesson-note database (`reminders.db`) synced t
 - `reminders.db` : Local SQLite database (synced to S3)
 - `outputs/lead_intelligence/lead_intelligence_working.db` : Historical/staging lead proof DB, not the default production path
 - `screenshots/` : Playwright screenshots for debugging Pike13 scraping
-- `notesreminder/` : Package skeleton for new source, schema, report, orchestration, MCP, transcription, and shared utility modules
+- `notesreminder/` : Packaged source, schema, report, orchestration, MCP, transcription, and shared utility modules
 
-New code should go under `notesreminder/`. Existing root-level production entry points stay in place until the later repository layout migration.
+New code should go under `notesreminder/`. Root-level production entry points
+remain as compatibility shims for existing commands, shell scripts, tests, and
+MCP setup.
 
 ## Environment setup
 1) Copy `.env.example` to `.env` and fill in credentials.
@@ -43,6 +45,12 @@ python -m pytest
 ```
 
 `pytest.ini` sets `testpaths = tests` and `pythonpath = .`, so normal collection excludes archived legacy tests and root-level modules import consistently.
+
+## Operational runbook
+
+Use `docs/operational_runbook.md` for the day-to-day production checklist,
+source freshness targets, backup/restore procedure, MCP smoke test, and incident
+response steps.
 
 ## Notes pipeline health
 Generate a small health dashboard before or after production notes runs:

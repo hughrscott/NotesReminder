@@ -33,9 +33,10 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 - `scripts/notes_pipeline_health.py` : generate the notes pipeline health dashboard
 - `scripts/` : shell wrappers for the above and an end-to-end `update_all.sh`
 - `docs/data_pipeline.md` : pipeline order, scheduling, sanity checks
+- `docs/operational_runbook.md` : daily operations, restore drills, MCP smoke tests, and incident response
 
 ## Code organization
-New code should be added under the `notesreminder/` package:
+Implementation code lives under the `notesreminder/` package:
 
 - `notesreminder/extractors/` for source extraction modules.
 - `notesreminder/schema/` for schema and migration helpers.
@@ -45,7 +46,9 @@ New code should be added under the `notesreminder/` package:
 - `notesreminder/mcp/` for MCP server/tool helpers.
 - `notesreminder/lib/` for shared utilities.
 
-Existing root-level scripts remain as production entry points until the later repository layout migration.
+Root-level Python files such as `run_daily.py`, `backfill.py`, and
+`mcp_server.py` are compatibility entry points that forward to the packaged
+implementations.
 
 ## Pipeline architecture
 1) Notes pipeline (daily + backfill)
