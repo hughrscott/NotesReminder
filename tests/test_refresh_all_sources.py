@@ -41,6 +41,17 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertTrue(production.uploads_s3)
         self.assertTrue(production.mutates_db)
 
+    def test_daily_plan_can_skip_notes_validation(self):
+        plan = build_daily_refresh_plan(
+            "2026-05-24",
+            root=Path("/repo"),
+            schools=["West U"],
+            skip_notes_validation=True,
+        )
+        names = [task.name for task in plan]
+        self.assertNotIn("notes_smoke_westu", names)
+        self.assertIn("dialpad_daily_intake_westu", names)
+
     def test_weekly_plan_is_read_only(self):
         plan = build_weekly_completeness_plan(
             "2026-05-24",

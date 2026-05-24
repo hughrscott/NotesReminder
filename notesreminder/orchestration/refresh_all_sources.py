@@ -92,6 +92,7 @@ def build_daily_refresh_plan(
     upload_s3: bool = False,
     send_email: bool = False,
     interactive_login: bool = False,
+    skip_notes_validation: bool = False,
 ) -> list[RefreshTask]:
     root = root or Path.cwd()
     py = _python(root)
@@ -112,7 +113,7 @@ def build_daily_refresh_plan(
                 enabled_flag="--execute-production-notes",
             )
         )
-    else:
+    elif not skip_notes_validation:
         for label, subdomain, _, _, slug in selected_schools:
             tasks.append(
                 RefreshTask(
@@ -245,8 +246,6 @@ def build_daily_refresh_plan(
                         run_date,
                         "--first-visits-limit",
                         str(pike13_limit),
-                        "--login-timeout",
-                        str(login_timeout),
                         *login_args,
                     ],
                     category="source_refresh",

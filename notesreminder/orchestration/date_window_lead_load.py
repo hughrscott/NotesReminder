@@ -12,7 +12,7 @@ from notesreminder.reports.lead_gap_analysis import build_gap_report
 from notesreminder.reports.source_completeness import refresh_identity_matches
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB = ROOT / "outputs" / "lead_intelligence" / "lead_intelligence_working.db"
 DEFAULT_START_DATE = "2026-04-27"
 DEFAULT_END_DATE = "2026-05-03"

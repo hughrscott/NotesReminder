@@ -39,6 +39,7 @@ def parse_args():
     parser.add_argument("--execute-refresh", action="store_true", help="Execute mutating refresh tasks.")
     parser.add_argument("--execute-verification", action="store_true", help="Execute read-only verification/report tasks.")
     parser.add_argument("--execute-production-notes", action="store_true", help="Allow normal notes wrapper emails/S3.")
+    parser.add_argument("--skip-notes-validation", action="store_true", help="Skip local-only notes validation tasks.")
     parser.add_argument("--send-email", action="store_true", help="Allow production notes email when used with --execute-production-notes.")
     parser.add_argument("--upload-s3", action="store_true", help="Allow production notes S3 upload when used with --execute-production-notes.")
     parser.add_argument("--backup", action="store_true", help="Create a local DB backup before executed refresh.")
@@ -71,6 +72,7 @@ def main():
             upload_s3=args.upload_s3 and args.execute_production_notes,
             send_email=args.send_email and args.execute_production_notes,
             interactive_login=args.interactive_login,
+            skip_notes_validation=args.skip_notes_validation,
         )
         label = run_date
     else:
