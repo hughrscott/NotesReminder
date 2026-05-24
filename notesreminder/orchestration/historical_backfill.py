@@ -82,7 +82,7 @@ def build_monthly_backfill_plan(
     hubspot_limit: int = 500,
     hubspot_detail_limit: int = 200,
     pike13_limit: int = 250,
-    email_limit_per_query: int = 100,
+    email_limit_per_query: int = 25,
     login_timeout: int = 900,
     interactive_login: bool = False,
 ) -> list[RefreshTask]:

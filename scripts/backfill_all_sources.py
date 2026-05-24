@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument("--hubspot-limit", type=int, default=500)
     parser.add_argument("--hubspot-detail-limit", type=int, default=200)
     parser.add_argument("--pike13-limit", type=int, default=250)
-    parser.add_argument("--email-limit-per-query", type=int, default=100)
+    parser.add_argument("--email-limit-per-query", type=int, default=25)
     parser.add_argument("--login-timeout", type=int, default=900)
     parser.add_argument("--interactive-login", action="store_true")
     parser.add_argument("--execute-refresh", action="store_true", help="Execute mutating backfill tasks.")

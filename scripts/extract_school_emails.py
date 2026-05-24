@@ -349,6 +349,7 @@ def run_extraction(args):
                             parsed = parse_open_message(page, row_meta, mailbox, direction)
                             upsert_school_email_message(conn, parsed)
                             rows_written += 1
+                            conn.commit()
                             page.go_back(wait_until="domcontentloaded", timeout=30000)
                             try:
                                 page.wait_for_selector("tr.zA", timeout=10000)
