@@ -143,6 +143,41 @@ def visible_message_rows(page, limit):
     return result
 
 
+def open_message_row(page, row_meta, timeout_ms):
+    clicked = page.evaluate(
+        """
+        ({messageId, threadId, index}) => {
+          const rows = Array.from(document.querySelectorAll("tr.zA"));
+          const row =
+            rows.find((candidate) => messageId && candidate.getAttribute("data-legacy-message-id") === messageId) ||
+            rows.find((candidate) => threadId && candidate.getAttribute("data-legacy-thread-id") === threadId) ||
+            rows[index];
+          if (!row) {
+            return false;
+          }
+          row.scrollIntoView({block: "center", inline: "nearest"});
+          const target = row.querySelector('a[href], td[role="link"], div[role="link"]') || row;
+          target.click();
+          return true;
+        }
+        """,
+        {
+            "messageId": row_meta.get("legacy_message_id"),
+            "threadId": row_meta.get("legacy_thread_id"),
+            "index": row_meta.get("index"),
+        },
+    )
+    if not clicked:
+        page.locator("tr.zA").nth(row_meta["index"]).click(timeout=timeout_ms)
+    try:
+        page.wait_for_function(
+            "() => !document.querySelector('tr.zA') || document.querySelector('h2')",
+            timeout=timeout_ms,
+        )
+    except PlaywrightTimeoutError:
+        pass
+
+
 def parse_open_message(page, row_meta, school_mailbox, forced_direction, now_year=None):
     data = page.evaluate(
         """
@@ -284,8 +319,12 @@ def run_extraction(args):
                         metadata["queries"].append({"mailbox": mailbox, "direction": direction, "rows": len(rows)})
                         for row_meta in rows:
                             rows_seen += 1
-                            row = page.locator("tr.zA").nth(row_meta["index"])
-                            row.click(timeout=10000)
+                            print(
+                                f"Opening Gmail row {rows_seen} mailbox={mailbox} direction={direction} "
+                                f"index={row_meta['index']}",
+                                flush=True,
+                            )
+                            open_message_row(page, row_meta, min(args.query_timeout, 10) * 1000)
                             try:
                                 page.wait_for_load_state("networkidle", timeout=10000)
                             except PlaywrightTimeoutError:
