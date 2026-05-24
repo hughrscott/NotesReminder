@@ -98,6 +98,43 @@ Use this file together with `docs/master_plan.md` to restore context and finish 
 
 ## Next Planned Work If QuickBooks Stays Deferred
 
+### Phase 22: Unified Daily Refresh And Weekly Completeness
+
+Reference: `docs/master_plan.md`, Phase 22.
+
+Goal: provide one supervised wrapper for daily source refreshes and weekly
+completeness scans before broad historical backfill.
+
+Status on 2026-05-24:
+- Added orchestration module:
+  - `notesreminder/orchestration/refresh_all_sources.py`
+- Added CLI wrapper:
+  - `scripts/refresh_all_sources.py`
+- Added tests:
+  - `tests/test_refresh_all_sources.py`
+- Daily mode plans notes validation, Dialpad intake, school email, HubSpot,
+  Pike13 lead outcomes, Dialpad call reviews, person identity refresh,
+  reporting sync, integrity, notes health, and source completeness.
+- Weekly completeness mode runs read-only integrity, notes health, source
+  completeness, notes read-path comparison, unmatched inbound, lead attention,
+  dashboards, and note-quality scorecards.
+- Defaults are conservative:
+  - no execution unless `--execute-refresh` or `--execute-verification` is passed
+  - no production notes email/S3 unless `--execute-production-notes --send-email --upload-s3` are all passed
+  - run metadata is written to `outputs/progress/refresh_all_sources/`
+- Gate checks:
+  - `venv/bin/python -m pytest tests/test_refresh_all_sources.py`: `5 passed`
+  - daily dry run for West U wrote `outputs/progress/refresh_all_sources/daily_2026-05-23_dry_run.json`
+  - weekly completeness dry run for West U wrote `outputs/progress/refresh_all_sources/weekly-completeness_2026-05-24_dry_run.json`
+  - weekly completeness read-only execution for West U succeeded and generated reports under `outputs/progress/weekly_completeness/2026-05-24/westu/`
+  - daily verification-only execution showed mutating source refreshes stayed dry-run while verification tasks succeeded
+
+Next after Phase 22:
+- Use the unified wrapper on recent windows until the daily/weekly source
+  completeness pattern is trusted.
+- Then plan historical `reminders.db` backfill using the same weekly
+  completeness checks as the acceptance gate.
+
 ### Phase 20: Repository Layout Migration
 
 Reference: `docs/master_plan.md`, Phase 20.

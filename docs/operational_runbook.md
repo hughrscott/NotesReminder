@@ -116,6 +116,58 @@ venv/bin/python scripts/cadence_runner.py --date YYYY-MM-DD --execute-shadow
 Do not pass `--execute-production` unless Hugh has explicitly approved a
 production notes/email run through the cadence runner.
 
+## Unified Refresh Wrapper
+
+Use the unified wrapper to plan or run the daily all-source workflow:
+
+```bash
+venv/bin/python scripts/refresh_all_sources.py \
+  --mode daily \
+  --date YYYY-MM-DD
+```
+
+Default daily mode is metadata-only dry-run. It writes a JSON plan under
+`outputs/progress/refresh_all_sources/`.
+
+To execute mutating source refreshes under supervision:
+
+```bash
+venv/bin/python scripts/refresh_all_sources.py \
+  --mode daily \
+  --date YYYY-MM-DD \
+  --execute-refresh \
+  --execute-verification \
+  --interactive-login \
+  --backup
+```
+
+Production notes email and S3 upload are still separately gated. To use the
+normal two-school production notes wrapper inside the unified refresh, all three
+flags are required:
+
+```bash
+--execute-production-notes --send-email --upload-s3
+```
+
+Use weekly completeness mode for read-only verification:
+
+```bash
+venv/bin/python scripts/refresh_all_sources.py \
+  --mode weekly-completeness \
+  --as-of YYYY-MM-DD \
+  --execute-verification
+```
+
+Weekly completeness runs integrity, notes health, source completeness,
+notes-read-path comparison, unmatched inbound reports, lead attention reports,
+operating dashboards, and scorecards. It writes run metadata under
+`outputs/progress/refresh_all_sources/` and report outputs under
+`outputs/progress/weekly_completeness/{YYYY-MM-DD}/`.
+
+Historical backfill should happen after this wrapper is proven on recent daily
+and weekly windows, so backfilled data can be validated through the same
+completeness checks.
+
 ## MCP Smoke Test
 
 Run this from the repo root:

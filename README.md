@@ -31,6 +31,7 @@ Optional: update `run_daily.py` if you need different SMTP server settings or re
 - `analyze_transcripts_openai.py` : tag transcripts with intent/sentiment/topic/outcome via OpenAI
 - `download_recordings_playwright.py` : download Dialpad recordings using a logged-in browser session
 - `scripts/notes_pipeline_health.py` : generate the notes pipeline health dashboard
+- `scripts/refresh_all_sources.py` : supervised daily all-source refresh and weekly completeness wrapper
 - `scripts/` : shell wrappers for the above and an end-to-end `update_all.sh`
 - `docs/data_pipeline.md` : pipeline order, scheduling, sanity checks
 - `docs/operational_runbook.md` : daily operations, restore drills, MCP smoke tests, and incident response

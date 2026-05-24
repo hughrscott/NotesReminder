@@ -169,6 +169,29 @@ replace-with-backup operation:
 ./scripts/generate_reports.sh --db reminders.db
 ```
 
+## Unified daily refresh and weekly completeness
+
+The individual source scripts remain available, but the preferred supervised
+operator path is the unified wrapper:
+
+```bash
+venv/bin/python scripts/refresh_all_sources.py --mode daily --date YYYY-MM-DD
+venv/bin/python scripts/refresh_all_sources.py --mode weekly-completeness --as-of YYYY-MM-DD --execute-verification
+```
+
+Daily mode is dry-run by default and lists the notes, Dialpad, school email,
+HubSpot, Pike13, call-review, person-identity, reporting, and verification
+tasks it would run. Add `--execute-refresh --execute-verification --backup` for
+a supervised mutating refresh. Production notes email/S3 requires the explicit
+combination `--execute-production-notes --send-email --upload-s3`.
+
+Weekly completeness mode is read-only by default when run with
+`--execute-verification`; it generates health/completeness metadata plus
+unmatched inbound reports, lead attention reports, dashboards, and scorecards.
+
+Use this wrapper to prove recent daily/weekly completeness before broad
+historical backfill of `reminders.db`.
+
 ## Lead refresh safety checklist
 
 Use this checklist before uploading any DB that has been touched by local authenticated lead refresh work. After the Phase 7 single-DB promotion, authenticated lead refresh writes to the canonical local `reminders.db` in shadow mode, with a local DB backup created before broad source refreshes. Do not upload a lead-refreshed DB to S3 until the gate checks pass.

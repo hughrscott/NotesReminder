@@ -903,6 +903,57 @@ Done/Test:
 - The architecture matches this plan and `docs/data_pipeline.md`.
 - MCP smoke tests pass.
 
+## Phase 22: Unified Daily Refresh And Weekly Completeness
+
+Mode: `Production-safe`
+
+Goal: provide one supervised wrapper for daily source refreshes and weekly
+completeness scans before broad historical backfill.
+
+Work:
+- Add a daily refresh plan that can run notes validation, Dialpad intake, school
+  email, HubSpot leads, Pike13 lead outcomes, Dialpad call reviews, person
+  identity refresh, reporting sync, and health checks.
+- Add a weekly completeness plan that runs read-only integrity, notes health,
+  source completeness, read-path comparison, unmatched inbound, lead attention,
+  dashboards, and note-quality scorecards.
+- Keep defaults conservative: metadata dry-run unless execution flags are
+  passed.
+- Gate mutating refresh separately from read-only verification.
+- Require explicit flags before production notes emails or S3 uploads.
+- Write JSON run metadata for every plan/run.
+
+Required tests:
+- Plan tests for daily refresh and weekly completeness.
+- Dry-run tests prove commands are not executed.
+- Verification-mode tests prove read-only tasks run without mutating refresh.
+- CLI dry-run smoke tests.
+
+Backup requirement:
+- Local DB backup before executed mutating all-source refreshes.
+- S3 backup still required before production notes/email/S3 sync.
+
+Rollback path:
+- Restore the local/S3 DB backup if a mutating refresh corrupts or degrades the
+  production DB.
+- Disable the unified wrapper and run individual scripts directly.
+
+Promotion rule:
+- Daily wrapper becomes normal operating procedure only after supervised runs
+  succeed for both schools.
+- Weekly completeness scan can run as read-only after verification output is
+  reviewed.
+
+Approval:
+- Hugh approval required before enabling any unattended all-source refresh or
+  broad historical backfill.
+
+Done/Test:
+- Daily refresh plan exists and is dry-run safe by default.
+- Weekly completeness scan runs read-only and produces actionable outputs.
+- Run metadata clearly shows skipped, successful, and failed tasks.
+- Documentation explains how historical backfill should follow the wrapper.
+
 ## Files And Tables Not To Break
 
 - `run_daily.py`: must continue to produce daily/weekly notes email and sync `reminders.db` to S3 throughout every phase.
@@ -930,3 +981,5 @@ Done/Test:
 - AI insights are evidence-backed and human-reviewable.
 - Repo layout is clean and documented.
 - Docs, tests, backups, and MCP tools support ongoing maintenance.
+- Unified daily refresh and weekly completeness scans exist before historical
+  backfill.
