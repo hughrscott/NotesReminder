@@ -8,7 +8,7 @@ import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
-from build_reporting_schema import backfill_reporting, is_reportable_lesson
+from notesreminder.schema.reporting import backfill_reporting, is_reportable_lesson
 from notesreminder.reports.notes_pipeline_health import normalize_lesson_time, normalize_students
 
 

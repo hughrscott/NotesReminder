@@ -9,7 +9,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from lead_followup_schema import ensure_lead_followup_schema
+from notesreminder.schema.lead_followup import ensure_lead_followup_schema
 
 
 PROMPT_VERSION = "phase19-communication-insights-v1"

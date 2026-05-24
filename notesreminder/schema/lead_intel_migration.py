@@ -7,7 +7,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from lead_followup_schema import ensure_lead_followup_schema
+from notesreminder.schema.lead_followup import ensure_lead_followup_schema
 
 
 REPLACE_TABLES = [

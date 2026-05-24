@@ -113,33 +113,29 @@ s3.copy_object(Bucket=bucket, CopySource={"Bucket": bucket, "Key": source}, Key=
 print(f"S3 DB backup: s3://{bucket}/{backup}")
 PY
 
-COMMON_ARGS="
-  --start-date $TARGET_DATE
-  --end-date $TARGET_DATE
-  --summary both
-  --verbose
-  --pike13-profile-dir $PROFILE_DIR
-  --interactive-login
-  --login-timeout $LOGIN_TIMEOUT
-"
-
-if [ -n "$SKIP_NOTE_SCORING" ]; then
-  COMMON_ARGS="$COMMON_ARGS $SKIP_NOTE_SCORING"
-fi
-if [ -n "$NO_EMAIL" ]; then
-  COMMON_ARGS="$COMMON_ARGS $NO_EMAIL"
-fi
+run_notes_for_school() {
+  SCHOOL="$1"
+  shift
+  "$PYTHON_BIN" run_daily.py \
+    --school "$SCHOOL" \
+    --start-date "$TARGET_DATE" \
+    --end-date "$TARGET_DATE" \
+    --summary both \
+    --verbose \
+    --pike13-profile-dir "$PROFILE_DIR" \
+    --interactive-login \
+    --login-timeout "$LOGIN_TIMEOUT" \
+    $SKIP_NOTE_SCORING \
+    $NO_EMAIL \
+    --to "$@"
+}
 
 echo "Running West U notes pipeline for $TARGET_DATE..."
-"$PYTHON_BIN" run_daily.py \
-  --school westu-sor \
-  $COMMON_ARGS \
-  --to huscott@schoolofrock.com vscott@schoolofrock.com cabarnhill@schoolofrock.com
+run_notes_for_school westu-sor \
+  huscott@schoolofrock.com vscott@schoolofrock.com cabarnhill@schoolofrock.com
 
 echo "Running The Heights notes pipeline for $TARGET_DATE..."
-"$PYTHON_BIN" run_daily.py \
-  --school theheights-sor \
-  $COMMON_ARGS \
-  --to huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com agarza@schoolofrock.com
+run_notes_for_school theheights-sor \
+  huscott@schoolofrock.com vscott@schoolofrock.com ndees@schoolofrock.com agarza@schoolofrock.com
 
 echo "Local MFA notes pipeline completed for $TARGET_DATE."
