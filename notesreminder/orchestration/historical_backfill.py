@@ -78,7 +78,7 @@ def build_monthly_backfill_plan(
     notes_chunk_days: int = 7,
     dialpad_voice_limit_per_view: int = 500,
     dialpad_sms_thread_limit: int = 250,
-    call_review_limit: int = 250,
+    call_review_limit: int = 25,
     hubspot_limit: int = 500,
     hubspot_detail_limit: int = 200,
     pike13_limit: int = 250,

@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument("--notes-chunk-days", type=int, default=7)
     parser.add_argument("--dialpad-voice-limit-per-view", type=int, default=500)
     parser.add_argument("--dialpad-sms-thread-limit", type=int, default=250)
-    parser.add_argument("--call-review-limit", type=int, default=250)
+    parser.add_argument("--call-review-limit", type=int, default=25)
     parser.add_argument("--hubspot-limit", type=int, default=500)
     parser.add_argument("--hubspot-detail-limit", type=int, default=200)
     parser.add_argument("--pike13-limit", type=int, default=250)
