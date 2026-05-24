@@ -78,8 +78,8 @@ async def scrape_lessons(
             # Create a new context with tracing enabled
             context = await browser.new_context(**context_options)
         
-        # Start tracing
-        await context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        if verbose:
+            await context.tracing.start(screenshots=True, snapshots=True, sources=True)
         
         page = next((candidate for candidate in context.pages if not candidate.is_closed()), None)
         if page is None:
@@ -137,6 +137,8 @@ async def scrape_lessons(
             raise RuntimeError("Timed out waiting for Pike13 interactive login/MFA.")
 
         async def safe_screenshot(path, **kwargs):
+            if not verbose:
+                return
             try:
                 await page.screenshot(path=path, timeout=2000, **kwargs)
             except Exception as exc:
@@ -485,8 +487,8 @@ async def scrape_lessons(
                     continue
 
         finally:
-            # Stop tracing and save trace
-            await context.tracing.stop(path="screenshots/trace.zip")
+            if verbose:
+                await context.tracing.stop(path="screenshots/trace.zip")
             await context.close()
             if browser:
                 await browser.close()
