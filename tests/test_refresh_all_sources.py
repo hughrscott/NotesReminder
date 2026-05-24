@@ -52,6 +52,19 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertNotIn("notes_smoke_westu", names)
         self.assertIn("dialpad_daily_intake_westu", names)
 
+    def test_interactive_daily_plan_uses_supported_auth_flags(self):
+        plan = build_daily_refresh_plan(
+            "2026-05-24",
+            root=Path("/repo"),
+            schools=["West U"],
+            interactive_login=True,
+        )
+        hubspot = next(task for task in plan if task.name == "hubspot_leads_westu")
+        pike13 = next(task for task in plan if task.name == "pike13_leads_westu")
+
+        self.assertNotIn("--interactive-login", hubspot.command)
+        self.assertIn("--reauth-if-needed", pike13.command)
+
     def test_weekly_plan_is_read_only(self):
         plan = build_weekly_completeness_plan(
             "2026-05-24",

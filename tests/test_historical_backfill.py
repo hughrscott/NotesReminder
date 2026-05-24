@@ -63,6 +63,20 @@ class HistoricalBackfillTests(unittest.TestCase):
         self.assertFalse(any(name.startswith("notes_backfill_heights") for name in names))
         self.assertIn("school_email_heights", names)
 
+    def test_interactive_monthly_plan_uses_supported_auth_flags(self):
+        plan = build_monthly_backfill_plan(
+            "2026-01-01",
+            "2026-01-31",
+            root=Path("/repo"),
+            schools=["West U"],
+            interactive_login=True,
+        )
+        hubspot = next(task for task in plan if task.name == "hubspot_leads_westu")
+        pike13 = next(task for task in plan if task.name == "pike13_leads_westu")
+
+        self.assertNotIn("--interactive-login", hubspot.command)
+        self.assertIn("--reauth-if-needed", pike13.command)
+
 
 if __name__ == "__main__":
     unittest.main()

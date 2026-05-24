@@ -146,6 +146,8 @@ def build_daily_refresh_plan(
 
     for label, _, base_url, mailbox, slug in selected_schools:
         login_args = ["--interactive-login"] if interactive_login else ["--headless"]
+        hubspot_login_args = [] if interactive_login else ["--headless"]
+        pike13_login_args = ["--headless", "--reauth-if-needed"] if interactive_login else ["--headless"]
         tasks.extend(
             [
                 RefreshTask(
@@ -216,7 +218,7 @@ def build_daily_refresh_plan(
                         str(hubspot_limit),
                         "--detail-limit",
                         str(hubspot_detail_limit),
-                        *login_args,
+                        *hubspot_login_args,
                     ],
                     category="source_refresh",
                     mutates_db=True,
@@ -246,7 +248,7 @@ def build_daily_refresh_plan(
                         run_date,
                         "--first-visits-limit",
                         str(pike13_limit),
-                        *login_args,
+                        *pike13_login_args,
                     ],
                     category="source_refresh",
                     mutates_db=True,

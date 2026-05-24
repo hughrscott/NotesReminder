@@ -89,7 +89,10 @@ def build_monthly_backfill_plan(
     root = root or Path.cwd()
     py = _python(root)
     selected_schools = _school_filter(schools)
-    login_args = ["--interactive-login"] if interactive_login else ["--headless"]
+    email_login_args = ["--interactive-login"] if interactive_login else ["--headless"]
+    hubspot_login_args = [] if interactive_login else ["--headless"]
+    pike13_login_args = ["--headless", "--reauth-if-needed"] if interactive_login else ["--headless"]
+    dialpad_login_args = ["--interactive-login"] if interactive_login else ["--headless"]
     checkpoint_days = _days_inclusive(start_date, end_date)
     tasks: list[RefreshTask] = []
 
@@ -146,7 +149,7 @@ def build_monthly_backfill_plan(
                         "--login-timeout",
                         str(login_timeout),
                         "--allow-production-db",
-                        *login_args,
+                        *email_login_args,
                     ],
                     category="historical_backfill",
                     mutates_db=True,
@@ -170,7 +173,7 @@ def build_monthly_backfill_plan(
                         str(hubspot_limit),
                         "--detail-limit",
                         str(hubspot_detail_limit),
-                        *login_args,
+                        *hubspot_login_args,
                     ],
                     category="historical_backfill_start_date_only",
                     mutates_db=True,
@@ -200,7 +203,7 @@ def build_monthly_backfill_plan(
                         end_date,
                         "--first-visits-limit",
                         str(pike13_limit),
-                        *login_args,
+                        *pike13_login_args,
                     ],
                     category="historical_backfill",
                     mutates_db=True,
@@ -229,7 +232,7 @@ def build_monthly_backfill_plan(
                     start_date,
                     "--login-timeout",
                     str(login_timeout),
-                    *login_args,
+                    *dialpad_login_args,
                 ],
                 category="historical_backfill_start_date_only",
                 mutates_db=True,
@@ -251,7 +254,7 @@ def build_monthly_backfill_plan(
                     str(dialpad_sms_thread_limit),
                     "--login-timeout",
                     str(login_timeout),
-                    *login_args,
+                    *dialpad_login_args,
                 ],
                 category="historical_backfill_start_date_only",
                 mutates_db=True,
@@ -271,7 +274,7 @@ def build_monthly_backfill_plan(
                     str(call_review_limit),
                     "--login-timeout",
                     str(login_timeout),
-                    *login_args,
+                    *dialpad_login_args,
                 ],
                 category="historical_backfill_limit_only",
                 mutates_db=True,
