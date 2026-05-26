@@ -268,9 +268,30 @@ def is_login_page(url, text):
     )
 
 
-def is_dialpad_app_page(url, text):
+def is_dialpad_preboot_shell(text):
     lowered = (text or "").lower()
-    return "dialpad.com" in (url or "") and any(
+    return (
+        "we're having trouble connecting" in lowered
+        or "there seems to be a problem connecting to dialpad" in lowered
+        or ("clear your browser's cache" in lowered and "system diagnostic test" in lowered)
+    )
+
+
+def is_dialpad_app_page(url, text):
+    if "dialpad.com" not in (url or "") or is_dialpad_preboot_shell(text):
+        return False
+    lowered = (text or "").lower()
+    if "/callhistory/callreview/" in (url or ""):
+        return any(
+            token in lowered
+            for token in (
+                "call history / call review",
+                "transcript search by keyword",
+                "show callers",
+                "excerpts",
+            )
+        )
+    return any(
         token in lowered
         for token in (
             "search dialpad",
@@ -279,34 +300,45 @@ def is_dialpad_app_page(url, text):
             "calls",
             "voicemails",
             "conversation history",
-            "call history / call review",
-            "call review",
-            "transcript search by keyword",
-            "recap",
-            "excerpts",
             "user & contact center",
         )
     )
 
 
+def wait_for_dialpad_app_render(page, timeout_ms=45000):
+    deadline = time.time() + timeout_ms / 1000
+    last_text = ""
+    while time.time() < deadline:
+        try:
+            last_text = page.locator("body").inner_text(timeout=5000)
+        except PlaywrightTimeoutError:
+            page.wait_for_timeout(1000)
+            continue
+        if is_login_page(page.url, last_text) or is_dialpad_app_page(page.url, last_text):
+            return last_text
+        page.wait_for_timeout(1000)
+    return last_text
+
+
 def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
-    text = page.locator("body").inner_text(timeout=30000)
+    text = wait_for_dialpad_app_render(page)
     if is_dialpad_app_page(page.url, text):
         return
     if not interactive_login:
-        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
+        if is_login_page(page.url, text):
+            raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
+        if is_dialpad_preboot_shell(text):
+            raise RuntimeError("Dialpad did not finish loading; still showing the preboot connection shell.")
+        raise RuntimeError("Dialpad did not render the authenticated app page.")
     print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         time.sleep(2)
-        try:
-            text = page.locator("body").inner_text(timeout=5000)
-        except PlaywrightTimeoutError:
-            continue
+        text = wait_for_dialpad_app_render(page, timeout_ms=5000)
         if is_dialpad_app_page(page.url, text):
             page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)
-            text = page.locator("body").inner_text(timeout=30000)
+            text = wait_for_dialpad_app_render(page)
             if is_dialpad_app_page(page.url, text):
                 return
         elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
@@ -317,7 +349,7 @@ def wait_for_authenticated_page(page, target_url, interactive_login=False, timeo
                 wait_until_ready(page)
             except PlaywrightTimeoutError:
                 pass
-            text = page.locator("body").inner_text(timeout=30000)
+            text = wait_for_dialpad_app_render(page)
             if is_dialpad_app_page(page.url, text):
                 return
     raise RuntimeError("Timed out waiting for Dialpad interactive login.")
@@ -536,10 +568,22 @@ def conversation_history_row_from_dom(url, row, index, now=None):
 
 
 def extract_conversation_history_rows_from_dom(page, limit, now=None):
-    dom_rows = page.locator("table tr").evaluate_all(
+    dom_rows = page.locator("body").evaluate(
         """
-        rows => rows.slice(1).map(row => {
-          const cells = Array.from(row.querySelectorAll('td, [role="cell"]'));
+        body => {
+          const visible = element => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+          };
+          let rows = Array.from(body.querySelectorAll('table tr')).slice(1);
+          if (!rows.length) {
+            rows = Array.from(body.querySelectorAll('[role="row"]'))
+              .filter(row => visible(row) && row.querySelector('[role="cell"], [role="gridcell"]'));
+          }
+          return rows.map(row => {
+          const cells = Array.from(row.querySelectorAll('td, th, [role="cell"], [role="gridcell"]'))
+            .filter(visible);
           const actionCell = cells[cells.length - 1];
           return {
             text: row.innerText || row.textContent || '',
@@ -554,7 +598,8 @@ def extract_conversation_history_rows_from_dom(page, limit, now=None):
             ).filter(Boolean),
             action_button_count: actionCell ? actionCell.querySelectorAll('button').length : 0
           };
-        })
+          });
+        }
         """
     )
     rows = []

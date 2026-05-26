@@ -22,6 +22,7 @@ from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 from scripts.extract_dialpad_voice import (  # noqa: E402
     extract_source_id,
     wait_for_authenticated_page,
+    wait_for_dialpad_app_render,
     wait_until_ready,
 )
 
@@ -70,6 +71,39 @@ def parse_action_items(lines):
     return [item for item in items if item]
 
 
+def parse_recap(lines):
+    stop_lines = {
+        "action item",
+        "action items",
+        "comments",
+        "comment",
+        "transcript search by keyword",
+    }
+    tab_lines = {"transcript", "excerpts"}
+    speaker_time_re = re.compile(r"^.+?\s+\d{1,2}:\d{2}\s*[AP]M$", re.IGNORECASE)
+    chunks = []
+    in_recap = False
+    for line in lines:
+        lowered = line.lower()
+        if lowered == "recap":
+            in_recap = True
+            continue
+        if not in_recap:
+            continue
+        if lowered in tab_lines and not chunks:
+            continue
+        if lowered == "no ai recap available":
+            return ""
+        if lowered in stop_lines or lowered in tab_lines or speaker_time_re.match(line):
+            break
+        if lowered.startswith("how accurate ") or "call audio seek slider" in lowered:
+            continue
+        if re.search(r"\d+:\d{2}/\d+:\d{2}", line) or re.fullmatch(r"[A-Z]{1,3}", line):
+            continue
+        chunks.append(line)
+    return " ".join(chunks).strip()
+
+
 def parse_transcript_turns(lines):
     turns = []
     inline_time_re = re.compile(r"^(?P<speaker>.+?)\s+(?P<time>\d{1,2}:\d{2}\s*[AP]M)\s+(?P<text>.+)$", re.IGNORECASE)
@@ -86,6 +120,17 @@ def parse_transcript_turns(lines):
         "powered by dialpad ai",
         "show callers",
         "save",
+        "call history / call review",
+        "#moments",
+        "action item",
+        "action items",
+        "interesting question",
+        "call purpose",
+        "positive sentiment",
+        "others",
+        "time",
+        "date",
+        "add to playlist",
     }
     index = 0
     while index < len(lines):
@@ -95,6 +140,10 @@ def parse_transcript_turns(lines):
             lowered in stop_lines
             or lowered.startswith("how accurate ")
             or "call audio seek slider" in lowered
+            or " duration:" in lowered
+            or lowered.endswith(" search by keyword")
+            or lowered in {"1x", "15"}
+            or re.fullmatch(r"\d+", line)
             or re.search(r"^\d+:\d{2}/\d+:\d{2}$", line)
             or re.fullmatch(r"[A-Z]{1,3}", line)
         ):
@@ -135,11 +184,7 @@ def parse_transcript_turns(lines):
 def parse_call_review_text(url, text):
     lines = clean_lines(text)
     call_review_id = call_review_id_from_url(url)
-    recap_text = ""
-    for index, line in enumerate(lines):
-        if line.lower() == "recap" and index + 1 < len(lines):
-            recap_text = lines[index + 1]
-            break
+    recap_text = parse_recap(lines)
     action_items = parse_action_items(lines)
     turns = parse_transcript_turns(lines)
     transcript_text = "\n".join(turn["text"] for turn in turns)
@@ -190,7 +235,7 @@ def upsert_call_review(conn, row):
             call_review_url = excluded.call_review_url,
             event_at = COALESCE(excluded.event_at, dialpad_call_reviews.event_at),
             transcript_text = COALESCE(excluded.transcript_text, dialpad_call_reviews.transcript_text),
-            recap_text = COALESCE(excluded.recap_text, dialpad_call_reviews.recap_text),
+            recap_text = excluded.recap_text,
             action_items_json = excluded.action_items_json,
             speaker_turns_json = excluded.speaker_turns_json,
             transcript_available = excluded.transcript_available,
@@ -235,20 +280,66 @@ def goto_call_review_with_retry(page, url, attempts=3):
     raise last_error
 
 
+def visible_body_text(page):
+    return page.locator("body").inner_text(timeout=30000)
+
+
+def wait_for_call_review_content(page, timeout=30000):
+    try:
+        page.wait_for_function(
+            """
+            () => {
+              const text = document.body ? document.body.innerText || '' : '';
+              return text.includes('CALL HISTORY / CALL REVIEW') ||
+                     text.includes('Transcript search by keyword') ||
+                     text.includes('Show callers') ||
+                     /\\b\\d{1,2}:\\d{2}\\s*[AP]M\\b/.test(text);
+            }
+            """,
+            timeout=timeout,
+        )
+    except PlaywrightTimeoutError:
+        pass
+    return visible_body_text(page)
+
+
+def click_call_review_tab(page, label):
+    name_re = re.compile(rf"^{re.escape(label)}$", re.IGNORECASE)
+    candidates = [
+        page.get_by_role("tab", name=name_re),
+        page.locator("button, [role=tab], [role=button], a").filter(has_text=name_re),
+    ]
+    for candidate in candidates:
+        try:
+            count = min(candidate.count(), 5)
+        except PlaywrightTimeoutError:
+            continue
+        for index in range(count):
+            item = candidate.nth(index)
+            try:
+                if not item.is_visible(timeout=1000):
+                    continue
+                item.click(timeout=5000)
+                page.wait_for_timeout(1200)
+                return True
+            except PlaywrightTimeoutError:
+                continue
+    return False
+
+
 def extract_call_review_page(page, target, interactive_login=False, login_timeout=300):
     goto_call_review_with_retry(page, target["call_review_url"])
     wait_until_ready(page)
     wait_for_authenticated_page(page, target["call_review_url"], interactive_login, login_timeout)
-    recap_text = page.locator("body").inner_text(timeout=30000)
-    transcript_button = page.get_by_text("Transcript", exact=True)
-    if transcript_button.count():
-        try:
-            transcript_button.first.click(timeout=10000)
-            page.wait_for_timeout(1000)
-        except PlaywrightTimeoutError:
-            pass
-    transcript_text = page.locator("body").inner_text(timeout=30000)
-    text = f"{recap_text}\n{transcript_text}"
+    wait_for_dialpad_app_render(page)
+    texts = [wait_for_call_review_content(page)]
+    if click_call_review_tab(page, "Recap"):
+        texts.append(wait_for_call_review_content(page))
+    if click_call_review_tab(page, "Transcript"):
+        texts.append(wait_for_call_review_content(page))
+    else:
+        texts.append(visible_body_text(page))
+    text = "\n".join(texts)
     parsed = parse_call_review_text(page.url, text)
     parsed.update(
         {

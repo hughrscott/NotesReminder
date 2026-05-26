@@ -81,6 +81,93 @@ class DialpadCallReviewTests(unittest.TestCase):
         self.assertEqual(parsed["action_items_available"], 1)
         self.assertEqual(parsed["audio_available"], 1)
 
+    def test_parse_call_review_text_handles_rendered_dialpad_call_review(self):
+        parsed = parse_call_review_text(
+            "https://dialpad.com/callhistory/callreview/5646748416811008?",
+            """
+            CALL HISTORY / CALL REVIEW
+            Calvin Barnhill's call with Kate Hall
+            WEST U
+            May 21, 2026 @ 2:07 pm - 2:11 pm Duration: 4 min
+            Transcript search by keyword
+            Add to playlist
+            #Moments
+            Action Item
+            Interesting Question
+            3
+            Call Purpose
+            1
+            Positive Sentiment
+            1
+            Others
+            Time
+            3
+            Date
+            2
+            0:00/3:19
+            15
+            15
+            1x
+            Show callers
+            Recap
+            Transcript
+            Excerpts
+            Calvin Barnhill 2:07 PM
+            School of rock in west, this is Calvin. Can I help you?
+            Kate Hall 2:07 PM
+            Hi, yes, my name is Kate and I just signed my daughter up for the green day band camp and I had two questions.
+            Calvin Barnhill 2:08 PM
+            Okay.
+            Mm-hmm yeah. I'm looking at a roster right now.
+            Comments
+            Transcript
+            """,
+        )
+
+        turns = json.loads(parsed["speaker_turns_json"])
+        self.assertEqual(parsed["call_review_id"], "5646748416811008")
+        self.assertEqual(len(turns), 3)
+        self.assertEqual(turns[0]["speaker"], "Calvin Barnhill")
+        self.assertEqual(turns[1]["speaker"], "Kate Hall")
+        self.assertIn("roster", turns[2]["text"])
+        self.assertIn("green day band camp", parsed["transcript_text"])
+        self.assertEqual(parsed["audio_available"], 1)
+
+    def test_parse_call_review_text_handles_rendered_recap_tab_row(self):
+        parsed = parse_call_review_text(
+            "https://dialpad.com/callhistory/callreview/call-456",
+            """
+            CONVERSATION HISTORY / CALL REVIEW
+            Recap
+            Transcript
+            Excerpts
+            Caller asked whether the student would be too old for camp.
+            Calvin Barnhill 2:07 PM
+            School of rock in west, this is Calvin.
+            """,
+        )
+
+        self.assertEqual(parsed["recap_text"], "Caller asked whether the student would be too old for camp.")
+        self.assertEqual(parsed["recap_available"], 1)
+
+    def test_parse_call_review_text_ignores_no_ai_recap_available(self):
+        parsed = parse_call_review_text(
+            "https://dialpad.com/callhistory/callreview/call-789",
+            """
+            Recap
+            Transcript
+            Excerpts
+            No AI Recap available
+            Transcript
+            Greer Thomas
+            3:15 PM
+            Please leave a message.
+            """,
+        )
+
+        self.assertIsNone(parsed["recap_text"])
+        self.assertEqual(parsed["recap_available"], 0)
+
     def test_call_review_upsert_is_idempotent_and_reported(self):
         conn = self.open_db()
         now = utc_now_iso()
@@ -116,6 +203,43 @@ class DialpadCallReviewTests(unittest.TestCase):
         self.assertEqual(dialpad["call_review_transcript_rows"], 1)
         self.assertEqual(dialpad["call_review_recap_rows"], 1)
         self.assertEqual(dialpad["call_review_action_item_rows"], 1)
+
+    def test_call_review_upsert_clears_stale_recap_when_source_has_none(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        base = {
+            "call_review_id": "call-123",
+            "call_id": "call-123",
+            "voice_event_id": "voice-123",
+            "call_review_url": "https://dialpad.com/callhistory/callreview/call-123",
+            "event_at": "2026-04-27T20:22:05",
+            "transcript_text": "Caller asked about lessons.",
+            "recap_text": "Transcript",
+            "action_items_json": json.dumps([]),
+            "speaker_turns_json": json.dumps([{"speaker": "Caller", "time": "8:23 PM", "text": "Interested."}]),
+            "transcript_available": 1,
+            "recap_available": 1,
+            "action_items_available": 0,
+            "audio_available": 1,
+            "extraction_status": "success",
+            "raw_json": json.dumps({"source": "test"}),
+            "updated_at": now,
+        }
+
+        upsert_call_review(conn, base)
+        upsert_call_review(
+            conn,
+            {
+                **base,
+                "recap_text": None,
+                "recap_available": 0,
+                "updated_at": utc_now_iso(),
+            },
+        )
+
+        stored = conn.execute("SELECT recap_text, recap_available FROM dialpad_call_reviews").fetchone()
+        self.assertIsNone(stored["recap_text"])
+        self.assertEqual(stored["recap_available"], 0)
 
 
 if __name__ == "__main__":

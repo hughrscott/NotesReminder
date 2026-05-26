@@ -338,6 +338,44 @@ class ReportingSchemaTests(unittest.TestCase):
             1,
         )
 
+    def test_backfill_reporting_removes_stale_derived_lessons(self):
+        conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
+        create_reminders_schema(conn)
+        seed_lessons(conn)
+
+        backfill_reporting(conn)
+        conn.execute(
+            """
+            INSERT INTO lessons (
+                lesson_id, school_id, instructor_id, lesson_date, lesson_time,
+                lesson_type, students_raw, lesson_is_group,
+                lesson_student_count, lesson_is_reportable
+            )
+            VALUES ('stale-lesson', 1, 1, '2026-01-01', '1:00 PM',
+                    'Guitar', 'Removed Student', 0, 1, 1)
+            """
+        )
+        conn.execute(
+            "INSERT INTO lesson_notes (lesson_id, note_completed) VALUES ('stale-lesson', 1)"
+        )
+        conn.execute(
+            "INSERT INTO lesson_attendance (lesson_id, attendance_status) VALUES ('stale-lesson', 'present')"
+        )
+        conn.execute(
+            "INSERT INTO lesson_students (lesson_id, student_id) VALUES ('stale-lesson', 999)"
+        )
+
+        backfill_reporting(conn)
+
+        for table in ["lessons", "lesson_students", "lesson_notes", "lesson_attendance"]:
+            self.assertEqual(
+                conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE lesson_id = 'stale-lesson'"
+                ).fetchone()[0],
+                0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,7 @@ from typing import Iterable
 
 
 DEFAULT_SCHOOLS = ("westu-sor", "theheights-sor")
+DEFAULT_CLOSURES_PATH = "config/notes_pipeline_closures.json"
 SCHOOL_LABELS = {
     "westu-sor": "West U",
     "theheights-sor": "The Heights",
@@ -104,6 +105,31 @@ def scan_notes_send_logs(logs_dir: str | Path = "logs") -> dict[str, dict[str, d
     return results
 
 
+def load_closure_calendar(path: str | Path | None = DEFAULT_CLOSURES_PATH) -> dict[str, dict[str, str]]:
+    """Load explicit no-lesson/closed dates by school.
+
+    Expected JSON shape:
+      {"westu-sor": {"2026-05-25": "Memorial Day"}}
+    """
+    if not path:
+        return {}
+    closure_path = Path(path)
+    if not closure_path.exists():
+        return {}
+    data = json.loads(closure_path.read_text())
+    closures: dict[str, dict[str, str]] = {}
+    for school, dates in data.items():
+        if not isinstance(dates, dict):
+            continue
+        school_dates = {}
+        for item, reason in dates.items():
+            if _safe_date(item):
+                school_dates[item] = str(reason or "closed")
+        if school_dates:
+            closures[str(school)] = school_dates
+    return closures
+
+
 def build_notes_pipeline_health(
     conn: sqlite3.Connection,
     *,
@@ -112,6 +138,8 @@ def build_notes_pipeline_health(
     expected_lag_days: int = 1,
     schools: Iterable[str] = DEFAULT_SCHOOLS,
     logs_dir: str | Path = "logs",
+    closures_path: str | Path | None = DEFAULT_CLOSURES_PATH,
+    closure_calendar: dict[str, dict[str, str]] | None = None,
 ) -> dict:
     """Build a sanitized notes pipeline health snapshot."""
     if as_of is None:
@@ -125,6 +153,7 @@ def build_notes_pipeline_health(
     start_date = end_date - timedelta(days=max(0, lookback_days - 1))
     expected_dates = [item.isoformat() for item in date_range(start_date, end_date)]
     log_sends = scan_notes_send_logs(logs_dir)
+    closures = closure_calendar if closure_calendar is not None else load_closure_calendar(closures_path)
 
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
@@ -163,6 +192,8 @@ def build_notes_pipeline_health(
                 "last_checked": None,
                 "email_status": "not_found",
                 "email_log": "",
+                "closed": False,
+                "closure_reason": "",
             },
         )
         bucket["total_lessons"] += 1
@@ -195,8 +226,15 @@ def build_notes_pipeline_health(
                     "last_checked": None,
                     "email_status": "not_found",
                     "email_log": "",
+                    "closed": False,
+                    "closure_reason": "",
                 },
             ).copy()
+            closure_reason = closures.get(school, {}).get(item)
+            if closure_reason and data["total_lessons"] == 0:
+                data["closed"] = True
+                data["closure_reason"] = closure_reason
+                data["email_status"] = "closed"
             send = log_sends.get(school, {}).get(item)
             if send:
                 data["email_status"] = send["status"]
@@ -211,9 +249,18 @@ def build_notes_pipeline_health(
 
         latest_lesson = _safe_date(latest_lesson_date)
         max_allowed_lag_date = as_of_date - timedelta(days=expected_lag_days)
+        expected_lesson_dates = [
+            _safe_date(item)
+            for item in expected_dates
+            if not closures.get(school, {}).get(item)
+        ]
+        expected_lesson_dates = [item for item in expected_lesson_dates if item]
+        if expected_lesson_dates:
+            max_allowed_lag_date = min(max_allowed_lag_date, max(expected_lesson_dates))
         blockers = []
         if latest_lesson is None:
-            blockers.append("No lesson rows found in the health window.")
+            if expected_lesson_dates:
+                blockers.append("No lesson rows found in the health window.")
         elif latest_lesson < max_allowed_lag_date:
             blockers.append(
                 f"Latest lesson date {latest_lesson.isoformat()} is older than expected lag date {max_allowed_lag_date.isoformat()}."
@@ -246,6 +293,7 @@ def build_notes_pipeline_health(
             "end": end_date.isoformat(),
             "lookback_days": lookback_days,
             "expected_lag_days": expected_lag_days,
+            "closures_path": str(closures_path) if closures_path else "",
         },
         "schools": school_summaries,
     }
@@ -279,8 +327,11 @@ def render_markdown(report: dict) -> str:
             ]
         )
         for row in school["days"]:
+            evidence = row["email_status"]
+            if row.get("closed") and row.get("closure_reason"):
+                evidence = f"closed: {row['closure_reason']}"
             lines.append(
-                f"| {row['date']} | {row['total_lessons']} | {row['reportable_lessons']} | {row['with_notes']} | {row['missing_notes']} | {row['email_status']} |"
+                f"| {row['date']} | {row['total_lessons']} | {row['reportable_lessons']} | {row['with_notes']} | {row['missing_notes']} | {evidence} |"
             )
         if school["blockers"]:
             lines.extend(["", "Blockers:"])
@@ -306,6 +357,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", default="outputs/progress")
     parser.add_argument("--as-of", default="")
     parser.add_argument("--lookback-days", type=int, default=7)
+    parser.add_argument("--closures", default=DEFAULT_CLOSURES_PATH)
     args = parser.parse_args(argv)
 
     conn = sqlite3.connect(args.db)
@@ -315,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
             as_of=args.as_of or None,
             lookback_days=args.lookback_days,
             logs_dir=args.logs_dir,
+            closures_path=args.closures,
         )
     finally:
         conn.close()

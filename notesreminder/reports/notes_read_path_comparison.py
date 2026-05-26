@@ -31,6 +31,7 @@ def legacy_day_counts(conn, start_date, end_date, schools=DEFAULT_SCHOOLS):
         FROM reminders
         WHERE lesson_date BETWEEN ? AND ?
           AND school IN ({})
+        ORDER BY school, lesson_date, instructor_name, lesson_time, lesson_type, students, lesson_id
         """.format(",".join("?" for _ in schools)),
         [start_date, end_date, *schools],
     ).fetchall()
@@ -73,30 +74,46 @@ def normalized_day_counts(conn, start_date, end_date, schools=DEFAULT_SCHOOLS):
         SELECT
             s.school_code AS school,
             l.lesson_date,
-            COUNT(*) AS total_lessons,
-            SUM(CASE WHEN COALESCE(l.lesson_is_reportable, 0) = 1 THEN 1 ELSE 0 END) AS reportable_lessons,
-            SUM(CASE WHEN COALESCE(l.lesson_is_reportable, 0) = 1 AND COALESCE(n.note_completed, 0) = 1 THEN 1 ELSE 0 END) AS completed_notes,
-            SUM(CASE WHEN COALESCE(l.lesson_is_reportable, 0) = 1 AND COALESCE(n.note_completed, 0) = 0 THEN 1 ELSE 0 END) AS missing_notes
+            COALESCE(i.instructor_name, '') AS instructor_name,
+            l.lesson_time,
+            l.lesson_type,
+            l.students_raw AS students,
+            COALESCE(l.lesson_is_reportable, 0) AS lesson_is_reportable,
+            COALESCE(n.note_completed, 0) AS note_completed
         FROM lessons l
         JOIN schools s ON s.school_id = l.school_id
+        LEFT JOIN instructors i ON i.instructor_id = l.instructor_id
         LEFT JOIN lesson_notes n ON n.lesson_id = l.lesson_id
         WHERE l.lesson_date BETWEEN ? AND ?
           AND s.school_code IN ({})
-        GROUP BY s.school_code, l.lesson_date
+        ORDER BY s.school_code, l.lesson_date, i.instructor_name, l.lesson_time, l.lesson_type, l.students_raw, l.lesson_id
         """.format(",".join("?" for _ in schools)),
         [start_date, end_date, *schools],
     ).fetchall()
-    buckets = {
-        (row["school"], row["lesson_date"]): {
-            "school": row["school"],
-            "lesson_date": row["lesson_date"],
-            "total_lessons": row["total_lessons"] or 0,
-            "reportable_lessons": row["reportable_lessons"] or 0,
-            "completed_notes": row["completed_notes"] or 0,
-            "missing_notes": row["missing_notes"] or 0,
-        }
-        for row in rows
-    }
+    buckets = {}
+    seen = set()
+    for row in rows:
+        school = row["school"]
+        lesson_date = row["lesson_date"]
+        instructor = (row["instructor_name"] or "").strip()
+        lesson_type = (row["lesson_type"] or "").strip()
+        students = normalize_students(row["students"])
+        lesson_time = normalize_lesson_time(row["lesson_time"] or "")
+        key = (school, lesson_date, instructor, lesson_time, lesson_type, students)
+        if key in seen:
+            continue
+        seen.add(key)
+        bucket = buckets.setdefault(
+            (school, lesson_date),
+            {"school": school, "lesson_date": lesson_date, "total_lessons": 0, "reportable_lessons": 0, "completed_notes": 0, "missing_notes": 0},
+        )
+        bucket["total_lessons"] += 1
+        if row["lesson_is_reportable"]:
+            bucket["reportable_lessons"] += 1
+            if row["note_completed"]:
+                bucket["completed_notes"] += 1
+            else:
+                bucket["missing_notes"] += 1
     for school in schools:
         for item in _date_range(start_date, end_date):
             buckets.setdefault(

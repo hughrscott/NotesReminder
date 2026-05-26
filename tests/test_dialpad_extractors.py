@@ -13,6 +13,7 @@ from scripts.extract_dialpad_sms import (
 from scripts.extract_dialpad_voice import (
     conversation_history_row_from_dom,
     is_dialpad_app_page as is_voice_app_page,
+    is_dialpad_preboot_shell,
     is_login_page as is_voice_login_page,
     parse_conversation_history_rows,
     rows_from_visible_text,
@@ -100,6 +101,9 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertTrue(is_voice_app_page("https://dialpad.com/app/history/calls", app_text))
         call_review_text = "CALL HISTORY / CALL REVIEW\nRecap\nTranscript\nExcerpts\nTranscript search by keyword"
         self.assertTrue(is_voice_app_page("https://dialpad.com/callhistory/callreview/5646748416811008", call_review_text))
+        preboot_text = "We're having trouble connecting.\nClear your browser's cache.\nRun a system diagnostic test."
+        self.assertTrue(is_dialpad_preboot_shell(preboot_text))
+        self.assertFalse(is_voice_app_page("https://dialpad.com/callhistory/callreview/5646748416811008", preboot_text))
         self.assertFalse(is_sms_app_page("https://dialpad.okta.com", app_text))
 
     def test_sms_date_normalizer_handles_relative_and_short_dates(self):

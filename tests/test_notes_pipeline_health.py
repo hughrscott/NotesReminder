@@ -6,6 +6,7 @@ from pathlib import Path
 from notesreminder.reports.notes_pipeline_health import (
     build_notes_pipeline_health,
     is_reportable_lesson,
+    load_closure_calendar,
     render_markdown,
     scan_notes_send_logs,
 )
@@ -74,6 +75,49 @@ class NotesPipelineHealthTests(unittest.TestCase):
         self.assertEqual(westu["window_missing_notes"], 1)
         self.assertEqual(westu["days"][0]["email_status"], "delivered")
         self.assertIn("Notes Pipeline Health", render_markdown(report))
+
+    def test_closure_calendar_satisfies_expected_freshness_for_no_lesson_days(self):
+        conn = make_db()
+        rows = [
+            ("westu-sor", "Teacher A", "2026-05-23", "3pm", "Guitar Lessons - 45 minutes", "Student A", 1, "2026-05-24"),
+        ]
+        conn.executemany("INSERT INTO reminders VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
+
+        report = build_notes_pipeline_health(
+            conn,
+            as_of="2026-05-26",
+            lookback_days=3,
+            schools=("westu-sor",),
+            closure_calendar={
+                "westu-sor": {
+                    "2026-05-24": "No lessons on Pike13 schedule",
+                    "2026-05-25": "Memorial Day",
+                }
+            },
+        )
+
+        westu = report["schools"][0]
+        self.assertEqual(report["overall_status"], "ready")
+        self.assertEqual(westu["status"], "ready")
+        self.assertFalse(westu["blockers"])
+        self.assertEqual(westu["days"][1]["email_status"], "closed")
+        self.assertEqual(westu["days"][2]["closure_reason"], "Memorial Day")
+
+    def test_load_closure_calendar_ignores_invalid_shapes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "closures.json"
+            path.write_text(
+                """
+                {
+                  "westu-sor": {"2026-05-25": "Memorial Day", "bad-date": "ignored"},
+                  "theheights-sor": ["not", "a", "map"]
+                }
+                """
+            )
+
+            result = load_closure_calendar(path)
+
+        self.assertEqual(result, {"westu-sor": {"2026-05-25": "Memorial Day"}})
 
 
 if __name__ == "__main__":

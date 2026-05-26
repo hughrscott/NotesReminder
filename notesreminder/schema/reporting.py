@@ -520,6 +520,11 @@ def resolve_student_person_id(conn, student_name, school_code):
 def backfill_reporting(conn):
     ensure_reporting_tables(conn)
 
+    # These tables are fully derived from reminders. Clear them first so stale
+    # lesson IDs disappear when source rows are removed or regenerated.
+    for table in ("lesson_students", "lesson_notes", "lesson_attendance", "lessons"):
+        conn.execute(f"DELETE FROM {quote_identifier(table)}")
+
     schools = load_school_map(conn)
     instructors = {}
     students = {}
