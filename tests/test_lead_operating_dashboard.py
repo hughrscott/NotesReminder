@@ -10,6 +10,10 @@ import mcp_server
 from build_reporting_schema import backfill_reporting
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
 from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
+from notesreminder.reports.operations_dashboard import (
+    build_operations_dashboard,
+    render_operations_dashboard_html,
+)
 
 
 def open_db(path=":memory:"):
@@ -338,6 +342,36 @@ class LeadOperatingDashboardTests(unittest.TestCase):
             else:
                 os.environ["LEAD_INTELLIGENCE_DB_PATH"] = original_lead
             importlib.reload(mcp_server)
+
+    def test_operations_dashboard_html_is_aggregate_and_sanitized(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+
+        report = build_operations_dashboard(
+            conn,
+            period="weekly",
+            as_of="2026-05-09",
+            schools=("West U",),
+        )
+        html = render_operations_dashboard_html(report)
+
+        self.assertIn("Weekly Operations Dashboard", html)
+        self.assertIn("West U", html)
+        self.assertIn("Notes Complete", html)
+        self.assertEqual(report["totals"]["hubspot_leads"], 1)
+        self.assertEqual(report["totals"]["missing_notes"], 1)
+
+        forbidden = [
+            "Private Student",
+            "lead@example.com",
+            "7135551212",
+            "Private SMS body",
+            "Private email body",
+            "/private/audio.mp3",
+            "https://mail.google.com/private",
+        ]
+        for value in forbidden:
+            self.assertNotIn(value, html)
 
 
 if __name__ == "__main__":
