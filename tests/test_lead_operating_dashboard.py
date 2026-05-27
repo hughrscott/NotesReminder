@@ -355,11 +355,14 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         )
         html = render_operations_dashboard_html(report)
 
-        self.assertIn("Weekly Operations Dashboard", html)
+        self.assertIn("School Operations Scorecard", html)
         self.assertIn("West U", html)
-        self.assertIn("Notes Complete", html)
-        self.assertEqual(report["totals"]["hubspot_leads"], 1)
-        self.assertEqual(report["totals"]["missing_notes"], 1)
+        self.assertIn("Instructor Notes Ranking MTD", html)
+        self.assertIn("Instructor Trial Conversion YTD", html)
+        self.assertIn("Lead To First Response", html)
+        self.assertEqual(report["totals"]["mtd_new_leads"], 1)
+        self.assertEqual(report["totals"]["mtd_conversions"], 1)
+        self.assertEqual(report["school_reports"][0]["conversion_ytd"][0]["converted_trials"], 1)
 
         forbidden = [
             "Private Student",
