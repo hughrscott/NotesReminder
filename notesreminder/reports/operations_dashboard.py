@@ -9,12 +9,16 @@ from collections import Counter
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
 from notesreminder.reports.lead_operating_dashboard import (
     DEFAULT_SCHOOL,
     build_exception_queue,
+    hubspot_lead_count,
+    pike13_outcomes,
     school_aliases,
     source_freshness,
     table_exists,
+    trial_cohort_conversion_count,
 )
 
 
@@ -136,7 +140,7 @@ def instructor_trial_conversions_ytd(
                       AND LOWER(COALESCE(pp.name, '')) NOT LIKE '%trial%'
                       AND LOWER(COALESCE(pp.name, '')) NOT LIKE '%free%'
                       AND date(COALESCE(NULLIF(pp.starts_at, ''), NULLIF(pp.next_invoice_at, ''), pp.updated_at))
-                          BETWEEN date(v.starts_at) AND date(v.starts_at, '+30 day')
+                          BETWEEN date(v.starts_at, '-30 day') AND date(v.starts_at, '+30 day')
                 )
                 THEN 1 ELSE 0
             END AS converted_trial
@@ -173,69 +177,16 @@ def instructor_trial_conversions_ytd(
 
 
 def funnel_metrics(conn: sqlite3.Connection, *, start_date: str, end_date: str, school: str) -> dict:
-    school_sql, school_params = _school_filter("d", school)
-    row = conn.execute(
-        f"""
-        WITH deals AS (
-            SELECT d.deal_id, COALESCE(NULLIF(d.create_date, ''), d.updated_at) AS create_at
-            FROM hubspot_deals d
-            WHERE date(COALESCE(NULLIF(d.create_date, ''), d.updated_at)) BETWEEN date(:start) AND date(:end)
-              AND {school_sql}
-        ),
-        deal_people AS (
-            SELECT deal_id, pike13_person_id AS person_id
-            FROM hubspot_deals
-            WHERE COALESCE(pike13_person_id, '') != ''
-            UNION
-            SELECT deal_id, person_id
-            FROM hubspot_deals
-            WHERE COALESCE(person_id, '') != ''
-            UNION
-            SELECT source_id AS deal_id, target_id AS person_id
-            FROM identity_matches
-            WHERE source_table = 'hubspot_deals'
-              AND target_table = 'pike13_people'
-            UNION
-            SELECT d.deal_id, im.target_id AS person_id
-            FROM hubspot_deals d
-            JOIN hubspot_contacts c ON instr(COALESCE(c.associated_deal_ids, ''), d.deal_id) > 0
-            JOIN identity_matches im ON im.source_table = 'hubspot_contacts'
-              AND im.source_id = c.contact_id
-              AND im.target_table = 'pike13_people'
-        ),
-        deal_trials AS (
-            SELECT DISTINCT deals.deal_id, v.visit_id, v.starts_at, v.person_id
-            FROM deals
-            JOIN deal_people dp ON dp.deal_id = deals.deal_id
-            JOIN pike13_visits v ON v.person_id = dp.person_id
-            WHERE date(v.starts_at) >= date(deals.create_at)
-              AND (COALESCE(v.first_visit_flag, 0) = 1 OR LOWER(COALESCE(v.service, '')) LIKE '%trial%')
-        ),
-        converted AS (
-            SELECT DISTINCT deal_id
-            FROM deal_trials dt
-            WHERE EXISTS (
-                SELECT 1
-                FROM pike13_plans_passes pp
-                WHERE pp.person_id = dt.person_id
-                  AND LOWER(COALESCE(pp.name, '')) NOT LIKE '%trial%'
-                  AND LOWER(COALESCE(pp.name, '')) NOT LIKE '%free%'
-                  AND date(COALESCE(NULLIF(pp.starts_at, ''), NULLIF(pp.next_invoice_at, ''), pp.updated_at))
-                      BETWEEN date(dt.starts_at) AND date(dt.starts_at, '+30 day')
-            )
-        )
-        SELECT
-            COUNT(DISTINCT deals.deal_id) AS new_leads,
-            COUNT(DISTINCT deal_trials.deal_id) AS leads_to_trial,
-            COUNT(DISTINCT deal_trials.visit_id) AS trial_lessons,
-            COUNT(DISTINCT converted.deal_id) AS trials_converted
-        FROM deals
-        LEFT JOIN deal_trials ON deal_trials.deal_id = deals.deal_id
-        LEFT JOIN converted ON converted.deal_id = deals.deal_id
-        """,
-        {"start": start_date, "end": end_date, **school_params},
-    ).fetchone()
-    data = dict(row or {})
+    register_dashboard_sql_functions(conn)
+    pike13 = pike13_outcomes(conn, start_date, end_date, school)
+    trial_count = int(pike13.get("first_visits", 0) or 0)
+    converted_count = trial_cohort_conversion_count(conn, start_date, end_date, school)
+    data = {
+        "new_leads": hubspot_lead_count(conn, start_date, end_date, school),
+        "leads_to_trial": trial_count,
+        "trial_lessons": trial_count,
+        "trials_converted": converted_count,
+    }
     data["lead_to_trial_rate"] = _rate(data.get("leads_to_trial", 0), data.get("new_leads", 0))
     data["trial_to_conversion_rate"] = _rate(data.get("trials_converted", 0), data.get("leads_to_trial", 0))
     return data
@@ -283,14 +234,16 @@ def lead_response_distribution(
     school: str,
     limit: int,
 ) -> dict:
+    register_dashboard_sql_functions(conn)
     school_sql, school_params = _school_filter("d", school)
     rows = _rows(
         conn,
         f"""
         WITH deals AS (
-            SELECT d.deal_id, COALESCE(NULLIF(d.create_date, ''), d.updated_at) AS create_at
+            SELECT d.deal_id, dashboard_date(NULLIF(d.create_date, ''), d.updated_at) AS create_at
             FROM hubspot_deals d
-            WHERE date(COALESCE(NULLIF(d.create_date, ''), d.updated_at)) BETWEEN date(:start) AND date(:end)
+            WHERE dashboard_date(NULLIF(d.create_date, ''), d.updated_at)
+                BETWEEN dashboard_date(:start) AND dashboard_date(:end)
               AND {school_sql}
         ),
         deal_contacts AS (

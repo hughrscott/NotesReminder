@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -56,6 +57,23 @@ OUTCOMES = {
     "not_found",
     "ui_blocked",
 }
+
+
+def expected_conversation_history_scope(school):
+    value = (school or "").strip().lower()
+    if "height" in value:
+        return "The Heights"
+    if "west" in value:
+        return "West U"
+    return None
+
+
+def school_scope_matches(active_scope, expected_scope):
+    active = (active_scope or "").strip().lower()
+    expected = (expected_scope or "").strip().lower()
+    return bool(active and expected and active == expected)
+
+
 ROUTES = (
     {
         "name": "global_search",
@@ -159,6 +177,79 @@ def conversation_history_participant_url(phone, days="0-30"):
     return f"https://dialpad.com/conversationhistory?{urlencode({'days': days, 'external_endpoint': normalize_phone(phone) or phone})}"
 
 
+def conversation_history_days_for_target(target, today=None, minimum_days=30, maximum_days=365):
+    today = today or datetime.now(timezone.utc).date()
+    candidates = []
+    for key in ("lead_date", "create_date", "window_start"):
+        value = target.get(key)
+        if not value:
+            continue
+        try:
+            candidates.append(date.fromisoformat(str(value)[:10]))
+        except ValueError:
+            continue
+    if not candidates:
+        return f"0-{minimum_days}"
+    oldest_required_date = min(candidates)
+    lookback_days = max(minimum_days, (today - oldest_required_date).days + 1)
+    lookback_days = min(maximum_days, max(0, lookback_days))
+    return f"0-{lookback_days}"
+
+
+def target_window_start_date(target):
+    for key in ("lead_date", "create_date", "window_start"):
+        value = target.get(key)
+        if not value:
+            continue
+        try:
+            return date.fromisoformat(str(value)[:10])
+        except ValueError:
+            continue
+    return None
+
+
+def filter_voice_rows_to_target_window(voice_rows, target):
+    start = target_window_start_date(target)
+    if not start:
+        return voice_rows
+    filtered = []
+    for row in voice_rows or []:
+        event_at = row.get("event_at")
+        if not event_at:
+            continue
+        try:
+            if date.fromisoformat(str(event_at)[:10]) >= start:
+                filtered.append(row)
+        except ValueError:
+            continue
+    return filtered
+
+
+def voice_rows_relative_to_lead_date(voice_rows, target):
+    start = target_window_start_date(target)
+    rows = voice_rows or []
+    if not start:
+        return {"pre_lead": [], "post_lead": rows, "undated": []}
+    pre_lead = []
+    post_lead = []
+    undated = []
+    for row in rows:
+        event_at = row.get("event_at")
+        if not event_at:
+            undated.append(row)
+            continue
+        try:
+            event_date = date.fromisoformat(str(event_at)[:10])
+        except ValueError:
+            undated.append(row)
+            continue
+        if event_date < start:
+            pre_lead.append(row)
+        else:
+            post_lead.append(row)
+    return {"pre_lead": pre_lead, "post_lead": post_lead, "undated": undated}
+
+
 def sanitize_dialpad_url(url):
     if not url:
         return url
@@ -251,6 +342,7 @@ def select_target_candidates(conn, school=DEFAULT_SCHOOL, window_days=7, limit=2
                     "target_type": "phone",
                     "target_value": normalized,
                     "target_hash": target_hash(normalized),
+                    "lead_date": candidate["create_date"],
                     "window_start": window_start,
                 }
             )
@@ -285,6 +377,8 @@ def try_apply_conversation_history_filters(page, school):
     diagnostics = {
         "school_filter_attempted": False,
         "school_filter_applied": False,
+        "active_school_scope": None,
+        "expected_school_scope": expected_conversation_history_scope(school),
         "date_filter_visible": False,
         "keyword_filter_visible": False,
     }
@@ -298,16 +392,16 @@ def try_apply_conversation_history_filters(page, school):
     if "conversation history" not in lowered:
         return diagnostics
     diagnostics["school_filter_attempted"] = True
-    school_terms = ["West U", "West University", school or ""]
-    for term in school_terms:
-        if not term:
-            continue
-        try:
-            if page.get_by_text(term, exact=False).count():
-                diagnostics["school_filter_applied"] = True
-                break
-        except Exception:
-            continue
+    try:
+        selector = page.locator("button[aria-label='Select menu search']")
+        if selector.count():
+            diagnostics["active_school_scope"] = selector.first.inner_text(timeout=2000).strip()
+    except Exception:
+        diagnostics["active_school_scope"] = None
+    diagnostics["school_filter_applied"] = school_scope_matches(
+        diagnostics["active_school_scope"],
+        diagnostics["expected_school_scope"],
+    )
     return diagnostics
 
 
@@ -540,7 +634,10 @@ def search_target(page, target, per_target_limit):
                 page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 wait_until_ready(page)
                 clear_diagnostics = clear_conversation_history_filters(page)
-                url = conversation_history_participant_url(target["target_value"])
+                url = conversation_history_participant_url(
+                    target["target_value"],
+                    days=conversation_history_days_for_target(target),
+                )
             else:
                 clear_diagnostics = {}
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
@@ -616,6 +713,7 @@ def search_target(page, target, per_target_limit):
 def diagnostics_row(run_id, target, result, path_results, rows_inserted, rows_updated):
     now = utc_now_iso()
     voice_rows = result.get("voice_rows") or []
+    relative_rows = voice_rows_relative_to_lead_date(voice_rows, target)
     event_times = sorted(row.get("event_at") for row in voice_rows if row.get("event_at"))
     links = result.get("links") or []
     outcome = result.get("outcome") if result.get("outcome") in OUTCOMES else "parse_error"
@@ -639,6 +737,9 @@ def diagnostics_row(run_id, target, result, path_results, rows_inserted, rows_up
         "raw_json": json.dumps(
             {
                 "matched_url": result.get("matched_url"),
+                "pre_lead_voice_count": len(relative_rows["pre_lead"]),
+                "post_lead_voice_count": len(relative_rows["post_lead"]),
+                "undated_voice_count": len(relative_rows["undated"]),
                 "rows_inserted": rows_inserted,
                 "rows_updated": rows_updated,
                 "diagnostic_only": True,

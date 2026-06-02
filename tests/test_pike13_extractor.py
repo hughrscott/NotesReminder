@@ -7,6 +7,7 @@ from scripts.extract_pike13_leads import (
     AUTH_BLOCKED,
     AUTH_EMPTY_REPORT,
     AUTH_EXPIRED_SESSION,
+    backfill_current_plans_from_clients,
     auth_probe_success,
     capture_visit_link_rows,
     capture_related_rows,
@@ -102,6 +103,75 @@ class Pike13ExtractorTests(unittest.TestCase):
         self.assertEqual(person["phone_normalized"], "7135551212")
         self.assertEqual(person["membership_state"], "No membership")
 
+    def test_upsert_person_does_not_overwrite_real_name_with_loading_placeholder(self):
+        conn = open_db()
+        upsert_person(
+            conn,
+            report_person_row(
+                {
+                    "person_id": "15046380",
+                    "full_name": "Maira Example",
+                    "email": "maira@example.com",
+                    "phone": "(713) 555-1212",
+                },
+                "West U",
+                "https://westu-sor.pike13.com",
+            ),
+        )
+        person, _ = parse_person_text(
+            "https://westu-sor.pike13.com/people/15046380",
+            "Loading\nSchool of Rock West U",
+            "West U",
+        )
+
+        upsert_person(conn, person)
+
+        self.assertEqual(
+            conn.execute("SELECT full_name FROM pike13_people WHERE person_id = '15046380'").fetchone()[0],
+            "Maira Example",
+        )
+
+    def test_backfill_current_plans_from_clients_matches_exact_student_and_school(self):
+        conn = open_db()
+        upsert_person(
+            conn,
+            report_person_row(
+                {"person_id": "15046380", "full_name": "Maira Example"},
+                "West U",
+                "https://westu-sor.pike13.com",
+            ),
+        )
+        conn.execute(
+            """
+            CREATE TABLE pike13_clients (
+                "Client" TEXT,
+                "Current Passes/Plans" TEXT,
+                "Client ID" TEXT,
+                "Client Home Location" TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_clients (
+                "Client", "Current Passes/Plans", "Client ID", "Client Home Location"
+            )
+            VALUES ('Maira Example', 'Rock 101 - 45 Minute Lessons, Make-up Lesson - 45 Minutes',
+                    'client-1', 'School of Rock West U')
+            """
+        )
+
+        rows_written = backfill_current_plans_from_clients(conn)
+
+        self.assertEqual(rows_written, 2)
+        plans = conn.execute(
+            "SELECT name, status FROM pike13_plans_passes WHERE person_id = '15046380' ORDER BY name"
+        ).fetchall()
+        self.assertEqual(
+            [(row["name"], row["status"]) for row in plans],
+            [("Make-up Lesson - 45 Minutes", "Active"), ("Rock 101 - 45 Minute Lessons", "Active")],
+        )
+
     def test_capture_related_rows_extracts_trial_visit_flags_and_plan_state(self):
         text = """
         Adult Band Trial
@@ -149,6 +219,36 @@ class Pike13ExtractorTests(unittest.TestCase):
         self.assertEqual(plans[0]["name"], "Rock 101 Monthly")
         self.assertEqual(plans[0]["status"], "Active")
         self.assertEqual(plans[0]["starts_at"], "2026-04-29")
+
+        balances_text = """
+        Plans & Passes Liam Godoy
+        Active Upcoming Inactive
+        Skip
+        LG
+
+        Make-up Lesson - 45 Minutes
+        Liam Godoy • 1 of 1 visits remaining • Never used
+        Ends after Jun 2, 2026
+
+        LG
+
+        Rock 101 - 45 Minute Lessons
+        Liam Godoy • 2 of 2 visits remaining this week • Last used Fri, May 22, 2026 at 4:30
+        $399 due from Myrna Godoy on Aug 1, 2026
+
+        New Purchase
+        Bills
+        """
+        _, plans = capture_related_rows(
+            "14361185",
+            "https://westu-sor.pike13.com/people/14361185/balances",
+            balances_text,
+            "West U",
+            "plans_page_text",
+        )
+        self.assertEqual([plan["name"] for plan in plans], ["Make-up Lesson - 45 Minutes", "Rock 101 - 45 Minute Lessons"])
+        self.assertTrue(all(plan["status"] == "Active" for plan in plans))
+        self.assertNotIn("or Pass", [plan["name"] for plan in plans])
 
     def test_capture_visit_link_rows_extracts_row_level_outcomes(self):
         visits = capture_visit_link_rows(
@@ -341,6 +441,21 @@ class Pike13ExtractorTests(unittest.TestCase):
             )
             VALUES ('contact-1', 'maira@example.com', '7135551212', 'West U',
                     '{"trusted": 1}', '2026-05-02T00:00:00+00:00')
+            """
+        )
+
+        urls = person_urls_from_db(conn, "https://westu-sor.pike13.com", 25, "West U")
+
+        self.assertEqual(urls, ["https://westu-sor.pike13.com/people/15046380"])
+
+    def test_person_urls_include_hubspot_contact_pike13_ids(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, pike13_person_id, school, updated_at
+            )
+            VALUES ('contact-1', '15046380', 'West U', '2026-05-02T00:00:00+00:00')
             """
         )
 

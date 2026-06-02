@@ -12,6 +12,7 @@ from lead_followup_schema import ensure_lead_followup_schema, upsert_school_emai
 from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
 from notesreminder.reports.operations_dashboard import (
     build_operations_dashboard,
+    funnel_metrics,
     render_operations_dashboard_html,
 )
 
@@ -101,7 +102,7 @@ def seed_dashboard_data(conn):
             trial_date, pike13_person_id, lead_source, updated_at
         )
         VALUES ('deal-1', 'Private Student | West University Place', 'Scheduled Trial/Tour',
-                'West University Place', '2026-05-02', '2026-05-02', '2026-05-02',
+                'West University Place', 'May 2, 2026 at 9:15 AM CDT', '2026-05-02', '2026-05-02',
                 '2026-05-03', 'person-1', 'Website', '2026-05-08T00:00:00+00:00')
         """
     )
@@ -109,10 +110,11 @@ def seed_dashboard_data(conn):
         """
         INSERT INTO hubspot_contacts (
             contact_id, full_name, email, email_normalized, phone, phone_normalized,
-            school, associated_deal_ids, raw_json, updated_at
+            school, create_date, pike13_person_id, associated_deal_ids, raw_json, updated_at
         )
         VALUES ('contact-1', 'Private Student', 'lead@example.com', 'lead@example.com',
-                '7135551212', '7135551212', 'West University Place', 'deal-1',
+                '7135551212', '7135551212', 'West University Place', '2026-05-02',
+                'person-1', 'deal-1',
                 '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
         """
     )
@@ -253,9 +255,18 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["funnel_counts"]["pike13_first_visits"], 1)
         self.assertEqual(snapshot["funnel_counts"]["attended"], 1)
         self.assertEqual(snapshot["funnel_counts"]["converted"], 1)
+        self.assertEqual(snapshot["funnel_rates"]["lead_to_trial_rate"], 1.0)
+        self.assertEqual(snapshot["funnel_rates"]["trial_to_conversion_rate"], 1.0)
         self.assertEqual(snapshot["communications"]["dialpad_calls"], 1)
         self.assertEqual(snapshot["communications"]["dialpad_sms"], 1)
         self.assertEqual(snapshot["communications"]["school_email"], 1)
+        self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["leads"], 1)
+        self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["outbound_7d_leads"], 1)
+        self.assertEqual(snapshot["lead_followup_pareto"]["overall_total"]["trial_rate"], 1.0)
+        pareto_row = snapshot["lead_followup_pareto"]["grid"][0]
+        self.assertEqual(pareto_row["response_time"], "Same / next day")
+        self.assertEqual(pareto_row["cells"]["Active"]["leads"], 1)
+        self.assertEqual(pareto_row["cells"]["Active"]["trial_rate"], 1.0)
         self.assertEqual(snapshot["notes_operations"]["reportable_lessons"], 2)
         self.assertEqual(snapshot["notes_operations"]["completed_notes"], 1)
         self.assertEqual(snapshot["notes_operations"]["missing_notes"], 1)
@@ -263,6 +274,10 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["dialpad_recordings"]["success"], 1)
         self.assertEqual(snapshot["transcription_queue"]["pending"], 1)
         self.assertIn("Weekly Lead Dashboard", markdown)
+        self.assertIn("lead_to_trial_rate: 100%", markdown)
+        self.assertIn("trial_to_conversion_rate: 100%", markdown)
+        self.assertIn("Lead Follow-Up Pareto", markdown)
+        self.assertIn("| Same / next day | 0 | 0 | 1 / 100% | 0 | 1 / 100% |", markdown)
         self.assertIn("Calvin Barnhill", markdown)
 
         forbidden = [
@@ -276,6 +291,73 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         ]
         for value in forbidden:
             self.assertNotIn(value, markdown)
+
+    def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, email, email_normalized,
+                school, lead_source, raw_json, updated_at
+            )
+            VALUES ('contact-only', 'Contact Only', '2026-05-04', 'contact@example.com',
+                    'contact@example.com', 'West University Place', 'Offline Sources',
+                    '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+
+        self.assertEqual(snapshot["funnel_counts"]["hubspot_leads"], 2)
+        self.assertIn(
+            {"source": "Offline Sources", "leads": 1},
+            snapshot["performance"]["hubspot_source_counts"],
+        )
+
+    def test_snapshot_counts_hubspot_contact_school_from_matched_pike13_person(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, school, updated_at
+            )
+            VALUES ('person-school-only', 'School Only', 'West U',
+                    '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, email, email_normalized,
+                pike13_person_id, lead_source, raw_json, updated_at
+            )
+            VALUES ('contact-school-only', 'School Only', '2026-05-04', 'school@example.com',
+                    'school@example.com', 'person-school-only', 'Offline Sources',
+                    '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+
+        self.assertEqual(snapshot["funnel_counts"]["hubspot_leads"], 2)
+        self.assertIn(
+            {"source": "Offline Sources", "leads": 1},
+            snapshot["performance"]["hubspot_source_counts"],
+        )
 
     def test_mcp_weekly_snapshot_matches_shared_snapshot_logic(self):
         tmp = tempfile.TemporaryDirectory()
@@ -375,6 +457,55 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         ]
         for value in forbidden:
             self.assertNotIn(value, html)
+
+    def test_operations_funnel_parses_hubspot_dates_and_maps_unified_person_ids(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_deals (
+                deal_id, deal_name, stage, school, create_date, person_id, updated_at
+            )
+            VALUES ('deal-unified', 'Display Date Lead', 'Scheduled Trial/Tour',
+                    'West University Place', 'May 2, 2026 at 9:15 AM CDT',
+                    'person-unified', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO person_identities (
+                person_id, identity_type, identity_value, source_system, source_table,
+                source_id, confidence, evidence, created_at
+            )
+            VALUES ('person-unified', 'pike13_person', 'pike-person-1', 'pike13',
+                    'pike13_people', 'pike-person-1', 0.99, 'test', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_visits (
+                visit_id, person_id, service, starts_at, status, first_visit_flag,
+                attendance_confirmed_flag, checked_in_flag, instructor, school, updated_at
+            )
+            VALUES ('visit-unified', 'pike-person-1', 'Trial - Drums', '2026-05-03T14:00:00',
+                    'Complete', 1, 1, 1, 'Teacher Two', 'West U', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_plans_passes (
+                plan_pass_id, person_id, name, status, starts_at, school, payer_name, updated_at
+            )
+            VALUES ('plan-unified', 'pike-person-1', 'Lessons Only - 45 Minute Lessons',
+                    'Active', '2026-05-02', 'West U', 'Payer', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        funnel = funnel_metrics(conn, start_date="2026-05-01", end_date="2026-05-09", school="West U")
+
+        self.assertEqual(funnel["new_leads"], 1)
+        self.assertEqual(funnel["leads_to_trial"], 1)
+        self.assertEqual(funnel["trial_lessons"], 1)
+        self.assertEqual(funnel["trials_converted"], 1)
 
 
 if __name__ == "__main__":

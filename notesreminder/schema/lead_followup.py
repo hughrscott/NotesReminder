@@ -101,6 +101,7 @@ def ensure_lead_followup_schema(conn):
                 first_name TEXT,
                 last_name TEXT,
                 full_name TEXT,
+                create_date TEXT,
                 email TEXT,
                 email_normalized TEXT,
                 phone TEXT,
@@ -109,6 +110,19 @@ def ensure_lead_followup_schema(conn):
                 owner TEXT,
                 school TEXT,
                 school_lead_status TEXT,
+                lead_source TEXT,
+                marketing_source TEXT,
+                record_source_detail TEXT,
+                registration_method TEXT,
+                registration_type TEXT,
+                hubspot_deal_name TEXT,
+                hubspot_deal_stage TEXT,
+                hubspot_trial_date TEXT,
+                hubspot_trial_scheduled_flag INTEGER DEFAULT 0,
+                hubspot_associated_deals_json TEXT,
+                pike13_person_id TEXT,
+                pike13_loaded_flag INTEGER DEFAULT 0,
+                pike13_match_method TEXT,
                 associated_deal_ids TEXT,
                 source_url TEXT,
                 raw_text TEXT,
@@ -535,6 +549,20 @@ def ensure_lead_followup_schema(conn):
     _add_column_if_missing(conn, "pike13_plans_passes", "person_identity_id", "TEXT")
     _add_column_if_missing(conn, "hubspot_deals", "person_id", "TEXT")
     _add_column_if_missing(conn, "hubspot_contacts", "person_id", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "create_date", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "lead_source", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "marketing_source", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "record_source_detail", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "registration_method", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "registration_type", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "hubspot_deal_name", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "hubspot_deal_stage", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "hubspot_trial_date", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "hubspot_trial_scheduled_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "hubspot_contacts", "hubspot_associated_deals_json", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "pike13_person_id", "TEXT")
+    _add_column_if_missing(conn, "hubspot_contacts", "pike13_loaded_flag", "INTEGER DEFAULT 0")
+    _add_column_if_missing(conn, "hubspot_contacts", "pike13_match_method", "TEXT")
     _add_column_if_missing(conn, "pike13_people", "person_identity_id", "TEXT")
     _add_column_if_missing(conn, "dialpad_sms_threads", "person_id", "TEXT")
     _add_column_if_missing(conn, "dialpad_voice_events", "person_id", "TEXT")
@@ -591,6 +619,10 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_hubspot_deals_pike13 ON hubspot_deals(pike13_person_id)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_email ON hubspot_contacts(email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_phone ON hubspot_contacts(phone_normalized)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_create_date ON hubspot_contacts(create_date)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_school ON hubspot_contacts(school)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_pike13 ON hubspot_contacts(pike13_person_id)",
+            "CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_trial ON hubspot_contacts(hubspot_trial_scheduled_flag, hubspot_trial_date)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_tasks_due ON hubspot_tasks(due_date)",
             "CREATE INDEX IF NOT EXISTS idx_hubspot_activities_time ON hubspot_activities(activity_time)",
             "CREATE INDEX IF NOT EXISTS idx_sms_threads_phone ON dialpad_sms_threads(phone_normalized)",

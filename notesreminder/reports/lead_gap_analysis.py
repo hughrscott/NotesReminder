@@ -2,6 +2,8 @@ import hashlib
 import json
 from collections import Counter
 
+from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
+
 
 GAP_CATEGORIES = (
     "ready_for_review",
@@ -99,6 +101,7 @@ def _safe_int(value):
 
 
 def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
+    register_dashboard_sql_functions(conn)
     params = {"school": school or "", "limit": limit, "start_date": start_date or "", "end_date": end_date or ""}
     rows = conn.execute(
         """
@@ -124,6 +127,21 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             FROM hubspot_deals
             WHERE COALESCE(pike13_person_id, '') != ''
             UNION
+            SELECT d.deal_id, pi.identity_value AS person_id
+            FROM hubspot_deals d
+            JOIN person_identities pi ON pi.person_id = d.person_id
+              AND pi.identity_type = 'pike13_person'
+            WHERE COALESCE(d.person_id, '') != ''
+              AND COALESCE(pi.identity_value, '') != ''
+            UNION
+            SELECT d.deal_id, pi.identity_value AS person_id
+            FROM hubspot_deals d
+            JOIN person_identities hdi ON hdi.identity_type = 'hubspot_deal'
+              AND hdi.identity_value = d.deal_id
+            JOIN person_identities pi ON pi.person_id = hdi.person_id
+              AND pi.identity_type = 'pike13_person'
+            WHERE COALESCE(pi.identity_value, '') != ''
+            UNION
             SELECT im.source_id AS deal_id, im.target_id AS person_id
             FROM identity_matches im
             WHERE im.source_table = 'hubspot_deals'
@@ -135,6 +153,14 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
               ON im.source_table = 'hubspot_contacts'
              AND im.source_id = dc.contact_id
              AND im.target_table = 'pike13_people'
+            UNION
+            SELECT dc.deal_id, pi.identity_value AS person_id
+            FROM deal_contacts dc
+            JOIN person_identities hci ON hci.identity_type = 'hubspot_contact'
+              AND hci.identity_value = dc.contact_id
+            JOIN person_identities pi ON pi.person_id = hci.person_id
+              AND pi.identity_type = 'pike13_person'
+            WHERE COALESCE(pi.identity_value, '') != ''
         ),
         first_visits AS (
             SELECT
@@ -270,14 +296,14 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
           AND (
             :start_date = ''
             OR :end_date = ''
-            OR date(COALESCE(
+            OR dashboard_date(
                 NULLIF(d.trial_date, ''),
                 NULLIF(d.date_entered_scheduled_trial_stage, ''),
                 NULLIF(d.last_activity_date, ''),
                 NULLIF(d.last_contacted, ''),
                 NULLIF(d.create_date, ''),
                 NULLIF(d.updated_at, '')
-            )) BETWEEN date(:start_date) AND date(:end_date)
+            ) BETWEEN dashboard_date(:start_date) AND dashboard_date(:end_date)
             OR EXISTS (
                 SELECT 1
                 FROM pike13_match pm_window

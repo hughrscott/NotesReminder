@@ -2,22 +2,28 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 from lead_followup_schema import ensure_lead_followup_schema, start_import_run, utc_now_iso
 from scripts.discover_dialpad_targets import (
     classify_target_search_result,
+    conversation_history_days_for_target,
     conversation_history_participant_url,
+    expected_conversation_history_scope,
+    filter_voice_rows_to_target_window,
     render_route_map_report,
     render_target_coverage_report,
     route_discovery_summary,
     route_probe_row,
     sanitize_dialpad_url,
     select_target_candidates,
+    school_scope_matches,
     target_hash,
     target_search_summary,
     upsert_route_discovery,
     upsert_target_search,
+    voice_rows_relative_to_lead_date,
 )
 
 
@@ -96,6 +102,7 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(targets[0]["deal_id"], "deal-123")
         self.assertEqual(targets[0]["target_type"], "phone")
         self.assertEqual(targets[0]["target_hash"], target_hash("7135551212"))
+        self.assertEqual(targets[0]["lead_date"], str(conn.execute("SELECT date('now')").fetchone()[0]))
 
     def test_classify_target_search_result(self):
         phone = "7135551212"
@@ -135,6 +142,52 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
             sanitize_dialpad_url(url),
             "https://dialpad.com/conversationhistory?days=0-30",
         )
+
+    def test_conversation_history_days_cover_lead_creation_date(self):
+        self.assertEqual(
+            conversation_history_days_for_target(
+                {"lead_date": "2026-05-21"},
+                today=date(2026, 6, 1),
+            ),
+            "0-30",
+        )
+        self.assertEqual(
+            conversation_history_days_for_target(
+                {"lead_date": "2026-01-15"},
+                today=date(2026, 6, 1),
+            ),
+            "0-138",
+        )
+
+    def test_conversation_history_school_scope_must_match_requested_school(self):
+        self.assertEqual(expected_conversation_history_scope("The Heights"), "The Heights")
+        self.assertEqual(expected_conversation_history_scope("West University Place"), "West U")
+        self.assertTrue(school_scope_matches("The Heights", "The Heights"))
+        self.assertFalse(school_scope_matches("West U", "The Heights"))
+
+    def test_voice_rows_filter_to_lead_creation_date(self):
+        rows = [
+            {"event_at": "2026-05-07T17:13:38", "event_type": "call"},
+            {"event_at": "2026-05-20T14:45:26", "event_type": "call"},
+            {"event_at": "2026-05-22T20:36:29", "event_type": "call"},
+        ]
+
+        filtered = filter_voice_rows_to_target_window(rows, {"lead_date": "2026-05-20"})
+
+        self.assertEqual([row["event_at"] for row in filtered], ["2026-05-20T14:45:26", "2026-05-22T20:36:29"])
+
+    def test_voice_rows_classify_pre_and_post_lead_contact(self):
+        rows = [
+            {"event_at": "2026-05-07T17:13:38", "event_type": "call"},
+            {"event_at": "2026-05-20T14:45:26", "event_type": "call"},
+            {"event_at": None, "event_type": "call"},
+        ]
+
+        grouped = voice_rows_relative_to_lead_date(rows, {"lead_date": "2026-05-20"})
+
+        self.assertEqual(len(grouped["pre_lead"]), 1)
+        self.assertEqual(len(grouped["post_lead"]), 1)
+        self.assertEqual(len(grouped["undated"]), 1)
 
     def test_route_discovery_summary_and_report_are_sanitized(self):
         conn = self.open_db()
