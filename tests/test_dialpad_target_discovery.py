@@ -104,6 +104,65 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(targets[0]["target_hash"], target_hash("7135551212"))
         self.assertEqual(targets[0]["lead_date"], str(conn.execute("SELECT date('now')").fetchone()[0]))
 
+    def test_select_target_candidates_can_use_ytd_hubspot_contact_spine(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, hubspot_deal_name, associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-ytd', 'Sensitive Customer Name', '2026-05-20',
+                    '(832) 555-9090', '8325559090', 'The Heights',
+                    'Sensitive Customer Name | The Heights', 'deal-ytd',
+                    '{"trusted": 1}', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, hubspot_deal_name, associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-wrong-school', 'Other Lead', '2026-05-20',
+                    '(713) 555-9091', '7135559091', 'West University Place',
+                    'Other Lead | West University Place', 'deal-west',
+                    '{"trusted": 1}', ?)
+            """,
+            (now,),
+        )
+
+        targets = select_target_candidates(
+            conn,
+            school="The Heights",
+            candidate_source="hubspot-contacts",
+            start_date="2026-01-01",
+            end_date="2026-06-03",
+            limit=25,
+        )
+
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0]["deal_id"], "deal-ytd")
+        self.assertEqual(targets[0]["contact_id"], "contact-ytd")
+        self.assertEqual(targets[0]["school"], "The Heights")
+        self.assertEqual(targets[0]["target_type"], "phone")
+        self.assertEqual(targets[0]["target_hash"], target_hash("8325559090"))
+        self.assertEqual(targets[0]["lead_date"], "2026-05-20")
+        self.assertEqual(targets[0]["window_start"], "2026-01-01")
+
+    def test_hubspot_contact_target_source_requires_explicit_window(self):
+        conn = self.open_db()
+
+        with self.assertRaises(ValueError):
+            select_target_candidates(
+                conn,
+                school="West U",
+                candidate_source="hubspot-contacts",
+                start_date="2026-01-01",
+            )
+
     def test_classify_target_search_result(self):
         phone = "7135551212"
         self.assertEqual(
@@ -274,6 +333,49 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
             "Sensitive transcript",
         ]:
             self.assertNotIn(forbidden, markdown)
+
+    def test_target_search_summary_counts_school_scope_mismatch_as_blocked(self):
+        conn = self.open_db()
+        run_id = start_import_run(conn, "dialpad_target_search", "test")
+        upsert_target_search(
+            conn,
+            {
+                "search_id": f"{run_id}:deal-123:{target_hash('7135551212')}",
+                "run_id": run_id,
+                "deal_id": "deal-123",
+                "contact_id": "contact-123",
+                "target_hash": target_hash("7135551212"),
+                "target_type": "phone",
+                "school": "The Heights",
+                "searched_at": utc_now_iso(),
+                "search_paths_json": json.dumps(
+                    [
+                        {
+                            "path": "conversation_history",
+                            "outcome": "school_scope_mismatch",
+                            "selector": "active_school_scope",
+                        }
+                    ]
+                ),
+                "outcome": "school_scope_mismatch",
+                "found_sms_count": 0,
+                "found_voice_count": 0,
+                "found_call_review_count": 0,
+                "source_url_count": 0,
+                "first_event_at": None,
+                "latest_event_at": None,
+                "raw_json": "{}",
+                "updated_at": utc_now_iso(),
+            },
+        )
+
+        summary = target_search_summary(conn, run_id)
+        markdown = render_target_coverage_report(summary, school="The Heights", window_days=7)
+
+        self.assertEqual(summary["targets_searched"], 1)
+        self.assertEqual(summary["outcomes"]["school_scope_mismatch"], 1)
+        self.assertEqual(summary["targets_blocked_or_unsupported"], 1)
+        self.assertIn("school_scope_mismatch: 1", markdown)
 
 
 if __name__ == "__main__":

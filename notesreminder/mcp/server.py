@@ -2,7 +2,7 @@ import json
 import os
 import re
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import boto3
@@ -24,6 +24,10 @@ from notesreminder.lib.person_identity import (
 )
 from notesreminder.reports.management_scorecards import build_note_quality_scorecard_for_period
 from notesreminder.reports.communication_insights import generate_insights
+from notesreminder.reports.operations_dashboard import (
+    build_operations_dashboard,
+    instructor_trial_conversions_ytd,
+)
 from notesreminder.reports.source_completeness import build_source_completeness_report
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +56,17 @@ def _connect(db_path=DB_PATH):
 
 def _connect_lead():
     return _connect(LEAD_DB_PATH)
+
+
+def _date_or_today(value: str | None = None) -> date:
+    if value:
+        return date.fromisoformat(value)
+    return date.today()
+
+
+def _ytd_window(as_of: str | None = None) -> tuple[str, str]:
+    day = _date_or_today(as_of)
+    return day.replace(month=1, day=1).isoformat(), day.isoformat()
 
 
 def _rows_as_json(columns, rows, max_rows):
@@ -227,6 +242,125 @@ def monthly_snapshot(as_of: str = "", school: str = "West U", limit: int = 50) -
     finally:
         conn.close()
     return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def lead_dashboard_snapshot(
+    school: str = "West U",
+    period: str = "monthly",
+    as_of: str = "",
+    start_date: str = "",
+    end_date: str = "",
+    limit: int = 50,
+) -> str:
+    """Return a sanitized lead dashboard snapshot, optionally for an explicit date window."""
+    if period not in {"daily", "weekly", "monthly"}:
+        raise ValueError("period must be daily, weekly, or monthly.")
+    if bool(start_date) != bool(end_date):
+        raise ValueError("start_date and end_date must be provided together.")
+    conn = _connect_lead()
+    try:
+        snapshot = build_snapshot(
+            conn,
+            period,
+            start_date=start_date or None,
+            end_date=end_date or None,
+            as_of=as_of or None,
+            school=school,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+    return json.dumps(snapshot, indent=2, default=str)
+
+
+@mcp.tool()
+def operations_scorecard(period: str = "monthly", as_of: str = "", limit: int = 25) -> str:
+    """Return the sanitized operations dashboard scorecard for both schools."""
+    conn = _connect_lead()
+    try:
+        report = build_operations_dashboard(conn, period=period, as_of=as_of or None, limit=limit)
+    finally:
+        conn.close()
+    return json.dumps(report, indent=2, default=str)
+
+
+@mcp.tool()
+def source_coverage_summary(window_days: int = 7, pike13_lookahead_days: int = 30) -> str:
+    """Return sanitized source coverage and freshness diagnostics for dashboard trust."""
+    conn = _connect()
+    try:
+        report = build_source_completeness_report(conn, window_days, pike13_lookahead_days)
+        conn.commit()
+    finally:
+        conn.close()
+    return json.dumps(report, indent=2, default=str)
+
+
+@mcp.tool()
+def lead_followup_pareto(
+    school: str = "West U",
+    start_date: str = "",
+    end_date: str = "",
+    as_of: str = "",
+) -> str:
+    """Return the sanitized lead follow-up Pareto grid and coverage flags for one school."""
+    if bool(start_date) != bool(end_date):
+        raise ValueError("start_date and end_date must be provided together.")
+    conn = _connect_lead()
+    try:
+        snapshot = build_snapshot(
+            conn,
+            "monthly",
+            start_date=start_date or None,
+            end_date=end_date or None,
+            as_of=as_of or None,
+            school=school,
+            limit=1,
+        )
+    finally:
+        conn.close()
+    payload = {
+        "school": school,
+        "window": snapshot.get("window", {}),
+        "lead_followup_pareto": snapshot.get("lead_followup_pareto", {}),
+    }
+    return json.dumps(payload, indent=2, default=str)
+
+
+@mcp.tool()
+def instructor_conversion_table(
+    school: str = "West U",
+    start_date: str = "",
+    end_date: str = "",
+    as_of: str = "",
+    limit: int = 25,
+) -> str:
+    """Return the sanitized instructor trial conversion table for a date window, defaulting to YTD."""
+    if bool(start_date) != bool(end_date):
+        raise ValueError("start_date and end_date must be provided together.")
+    window_start, window_end = (start_date, end_date) if start_date and end_date else _ytd_window(as_of or None)
+    conn = _connect_lead()
+    try:
+        rows = instructor_trial_conversions_ytd(
+            conn,
+            start_date=window_start,
+            end_date=window_end,
+            school=school,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+    return json.dumps(
+        {
+            "school": school,
+            "window": {"start": window_start, "end": window_end},
+            "rows": rows,
+            "row_count": len(rows),
+        },
+        indent=2,
+        default=str,
+    )
 
 
 @mcp.tool()

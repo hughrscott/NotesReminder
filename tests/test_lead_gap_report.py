@@ -2,7 +2,13 @@ import sqlite3
 import unittest
 
 from lead_followup_schema import ensure_lead_followup_schema
-from lead_gap_analysis import classify_gap, fetch_gap_rows, render_gap_markdown, summarize_gap_rows
+from lead_gap_analysis import (
+    classify_gap,
+    customer_groups_for_rows,
+    fetch_gap_rows,
+    render_gap_markdown,
+    summarize_gap_rows,
+)
 from source_completeness import refresh_identity_matches
 
 
@@ -191,7 +197,7 @@ class LeadGapReportTests(unittest.TestCase):
             "targeted_dialpad_not_wired",
         )
 
-    def test_gap_report_flags_complete_and_missing_rows_without_customer_content(self):
+    def test_gap_report_flags_complete_and_missing_rows_grouped_by_customer(self):
         conn = open_db()
 
         insert_deal(conn, "deal-ready", pike13_person_id="person-ready")
@@ -266,7 +272,15 @@ class LeadGapReportTests(unittest.TestCase):
         self.assertEqual(summary["by_diagnostic_area"]["communication"], 2)
         self.assertIn("Lead Intelligence Gap Report", markdown)
         self.assertIn("Diagnostic Areas", markdown)
-        self.assertNotIn("Lead deal-ready", markdown)
+        self.assertIn("By Customer", markdown)
+        self.assertIn("Contact contact-ready", markdown)
+        self.assertIn("Customer", markdown)
+        self.assertEqual(
+            next(row for row in rows if row["gap_category"] == "ready_for_review")["customer_name"],
+            "Contact contact-ready",
+        )
+        groups = customer_groups_for_rows(rows)
+        self.assertTrue(any(group["customer_name"] == "Contact contact-ready" for group in groups))
         self.assertNotIn("7135550001", markdown)
         self.assertNotIn("redacted", markdown)
 

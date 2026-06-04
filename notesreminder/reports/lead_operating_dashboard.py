@@ -546,9 +546,12 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "matched_communication_leads": 0,
         "outbound_7d_leads": 0,
         "inbound_7d_leads": 0,
+        "pre_lead_inbound_origin_leads": 0,
         "sms_7d_leads": 0,
         "outbound_sms_7d_leads": 0,
         "inbound_sms_7d_leads": 0,
+        "pre_lead_inbound_sms_leads": 0,
+        "pre_lead_inbound_call_leads": 0,
         "call_7d_leads": 0,
         "email_7d_leads": 0,
     }
@@ -580,11 +583,19 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
             for communication in communications.values()
             if lead_date <= communication["event_at"].date() <= window_end
         ]
+        pre_lead_communications = [
+            communication
+            for communication in communications.values()
+            if communication["event_at"].date() < lead_date
+        ]
         outbound = [communication for communication in window_communications if _is_outbound(communication["direction"])]
         inbound = [communication for communication in window_communications if _is_inbound(communication["direction"])]
+        pre_lead_inbound = [communication for communication in pre_lead_communications if _is_inbound(communication["direction"])]
         sms = [communication for communication in window_communications if communication.get("channel") == "sms"]
         outbound_sms = [communication for communication in sms if _is_outbound(communication["direction"])]
         inbound_sms = [communication for communication in sms if _is_inbound(communication["direction"])]
+        pre_lead_inbound_sms = [communication for communication in pre_lead_inbound if communication.get("channel") == "sms"]
+        pre_lead_inbound_calls = [communication for communication in pre_lead_inbound if communication.get("channel") == "call"]
         calls = [communication for communication in window_communications if communication.get("channel") == "call"]
         emails = [communication for communication in window_communications if communication.get("channel") == "email"]
         first_outbound_date = min((communication["event_at"].date() for communication in outbound), default=None)
@@ -603,9 +614,12 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         coverage["matched_communication_leads"] += 1 if communications else 0
         coverage["outbound_7d_leads"] += 1 if outbound else 0
         coverage["inbound_7d_leads"] += 1 if inbound else 0
+        coverage["pre_lead_inbound_origin_leads"] += 1 if pre_lead_inbound else 0
         coverage["sms_7d_leads"] += 1 if sms else 0
         coverage["outbound_sms_7d_leads"] += 1 if outbound_sms else 0
         coverage["inbound_sms_7d_leads"] += 1 if inbound_sms else 0
+        coverage["pre_lead_inbound_sms_leads"] += 1 if pre_lead_inbound_sms else 0
+        coverage["pre_lead_inbound_call_leads"] += 1 if pre_lead_inbound_calls else 0
         coverage["call_7d_leads"] += 1 if calls else 0
         coverage["email_7d_leads"] += 1 if emails else 0
 
@@ -633,19 +647,38 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         column_totals[engagement] = _trial_rate_cell(leads, trials)
     coverage["communication_coverage_rate"] = round(coverage["matched_communication_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["outbound_7d_rate"] = round(coverage["outbound_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["pre_lead_inbound_origin_rate"] = round(coverage["pre_lead_inbound_origin_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["sms_7d_rate"] = round(coverage["sms_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["outbound_sms_7d_rate"] = round(coverage["outbound_sms_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["lead_to_trial_rate"] = round(coverage["trials"] / coverage["leads"], 4) if coverage["leads"] else None
     data_quality_flags = []
+    blockers = []
     if coverage["leads"] and coverage["communication_coverage_rate"] is not None and coverage["communication_coverage_rate"] < 0.5:
         data_quality_flags.append("low_matched_communication_coverage")
+    if coverage["leads"] and (coverage["communication_coverage_rate"] or 0) < 0.1:
+        blockers.append("matched_communication_coverage_below_10pct")
     if coverage["leads"] and coverage["outbound_7d_leads"] == 0:
         data_quality_flags.append("no_matched_outbound_followup_7d")
+        blockers.append("no_matched_outbound_followup_7d")
+    grid_status = "ready"
+    if blockers:
+        grid_status = "blocked"
+    elif data_quality_flags:
+        grid_status = "attention"
     return {
         "response_buckets": list(FOLLOWUP_RESPONSE_BUCKETS),
         "engagement_buckets": list(FOLLOWUP_ENGAGEMENT_BUCKETS),
         "coverage": coverage,
         "data_quality_flags": data_quality_flags,
+        "grid_status": grid_status,
+        "blockers": blockers,
+        "recommended_action": (
+            "Run targeted Dialpad/email backfill and matching before using this grid for performance judgment."
+            if blockers
+            else "Review coverage flags before using this grid for performance judgment."
+            if data_quality_flags
+            else "Grid is ready for directional performance review."
+        ),
         "grid": grid,
         "column_totals": column_totals,
         "overall_total": _trial_rate_cell(coverage["leads"], coverage["trials"]),
@@ -796,6 +829,35 @@ def performance_sections(conn, start_date, end_date, school):
     return {"staff_trial_counts": staff, "hubspot_source_counts": sources}
 
 
+def customer_group_key(name):
+    normalized = " ".join(str(name or "").strip().lower().split())
+    return normalized or "unknown customer"
+
+
+def group_exception_items_by_customer(items):
+    groups = {}
+    for item in items:
+        key = customer_group_key(item.get("customer_name"))
+        group = groups.setdefault(
+            key,
+            {
+                "customer_name": item.get("customer_name") or "Unknown customer",
+                "refs": [],
+                "items": [],
+                "reason_codes": [],
+            },
+        )
+        if item.get("lead_ref") and item["lead_ref"] not in group["refs"]:
+            group["refs"].append(item["lead_ref"])
+        if item.get("reason_code") and item["reason_code"] not in group["reason_codes"]:
+            group["reason_codes"].append(item["reason_code"])
+        group["items"].append(item)
+    return sorted(
+        groups.values(),
+        key=lambda group: (len(group["items"]) * -1, str(group["customer_name"]).lower()),
+    )
+
+
 def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, limit=50):
     gap = build_gap_report(
         conn,
@@ -814,6 +876,7 @@ def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, lim
                 "exception_type": row["gap_category"],
                 "diagnostic_area": row["diagnostic_area"],
                 "lead_ref": row["lead_ref"],
+                "customer_name": row.get("customer_name") or "Unknown customer",
                 "school": row["school"],
                 "stage": row["stage"],
                 "reason_code": row["gap_category"],
@@ -827,14 +890,17 @@ def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, lim
                 "exception_type": "trial_followup",
                 "diagnostic_area": "communication",
                 "lead_ref": row["trial_ref"],
+                "customer_name": row.get("customer_name") or "Unknown customer",
                 "school": row["school"],
                 "stage": row["outcome"],
                 "reason_code": row["followup_status"],
             }
         )
+    customer_groups = group_exception_items_by_customer(items)
     return {
         "summary": dict(sorted(Counter(item["reason_code"] for item in items).items())),
         "items": items[:limit],
+        "customer_groups": customer_groups[:limit],
         "truncated": len(items) > limit,
     }
 
@@ -919,6 +985,27 @@ def _markdown_table(rows, columns):
     return "\n".join(lines)
 
 
+def _markdown_exception_groups(groups):
+    if not groups:
+        return "- None."
+    lines = [
+        "| Customer | Refs | Reasons | Rows |",
+        "| --- | --- | --- | ---: |",
+    ]
+    for group in groups:
+        refs = ", ".join(group.get("refs", []))
+        reasons = ", ".join(group.get("reason_codes", []))
+        lines.append(
+            "| {customer} | {refs} | {reasons} | {rows} |".format(
+                customer=str(group.get("customer_name", "")).replace("|", "\\|"),
+                refs=refs.replace("|", "\\|"),
+                reasons=reasons.replace("|", "\\|"),
+                rows=len(group.get("items", [])),
+            )
+        )
+    return "\n".join(lines)
+
+
 def _format_rate(value):
     if value is None:
         return "-"
@@ -935,18 +1022,17 @@ def _markdown_followup_pareto(pareto):
     if not pareto:
         return "- None."
     coverage = pareto.get("coverage", {})
-    if (
-        (coverage.get("communication_coverage_rate") or 0) < 0.1
-        and (coverage.get("outbound_7d_leads") or 0) == 0
-    ):
+    if pareto.get("grid_status") == "blocked":
         return "\n".join(
             [
                 "- Insufficient matched communication data to populate the Pareto grid.",
+                f"- Blockers: {', '.join(pareto.get('blockers', [])) or 'none'}",
                 f"- Leads reviewed: {coverage.get('leads', 0)}",
                 f"- Matched communication leads: {coverage.get('matched_communication_leads', 0)}",
                 f"- Matched outbound communications within 7 days: {coverage.get('outbound_7d_leads', 0)}",
+                f"- Pre-lead inbound-origin leads: {coverage.get('pre_lead_inbound_origin_leads', 0)}",
                 f"- Matched SMS communications within 7 days: {coverage.get('sms_7d_leads', 0)}",
-                "- Recommended action: run a targeted communication backfill before using this grid for performance judgment.",
+                f"- Recommended action: {pareto.get('recommended_action')}",
             ]
         )
     engagement_buckets = pareto.get("engagement_buckets", [])
@@ -1012,7 +1098,13 @@ def render_snapshot_markdown(snapshot):
         "- Engagement buckets: None = no matched outbound touch; Light = one matched outbound touch; Active = two or more matched outbound touches; Two-way = at least one matched outbound and one matched inbound touch.",
         "- Response timing uses the first captured outbound communication in the first 7 days after lead creation.",
         _markdown_counts(snapshot["lead_followup_pareto"].get("coverage", {})),
-        _markdown_counts({"data_quality_flags": ", ".join(snapshot["lead_followup_pareto"].get("data_quality_flags", [])) or "none"}),
+        _markdown_counts(
+            {
+                "grid_status": snapshot["lead_followup_pareto"].get("grid_status", "unknown"),
+                "data_quality_flags": ", ".join(snapshot["lead_followup_pareto"].get("data_quality_flags", [])) or "none",
+                "blockers": ", ".join(snapshot["lead_followup_pareto"].get("blockers", [])) or "none",
+            }
+        ),
         "",
         _markdown_followup_pareto(snapshot["lead_followup_pareto"]),
         "",
@@ -1044,9 +1136,16 @@ def render_snapshot_markdown(snapshot):
         "",
         _markdown_counts(snapshot["exception_queue"]["summary"]),
         "",
+        "### By Customer",
+        "",
+        _markdown_exception_groups(snapshot["exception_queue"].get("customer_groups", [])),
+        "",
+        "### Rows",
+        "",
         _markdown_table(
             snapshot["exception_queue"]["items"],
             [
+                ("customer_name", "Customer"),
                 ("lead_ref", "Lead"),
                 ("school", "School"),
                 ("stage", "Stage"),
@@ -1055,7 +1154,7 @@ def render_snapshot_markdown(snapshot):
             ],
         ),
         "",
-        "_This dashboard is sanitized: broad sections exclude customer names, emails, phones, message bodies, transcripts, raw page text, screenshots, source URLs, and audio paths._",
+        "_This dashboard includes customer names for operational review. It still excludes emails, phones, message bodies, transcripts, raw page text, screenshots, source URLs, and audio paths._",
         "",
     ]
     return "\n".join(lines)

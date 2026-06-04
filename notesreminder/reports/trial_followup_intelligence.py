@@ -272,6 +272,7 @@ def summarize_trial(row, comms, emails=None, phones=None, search_names=None):
     return {
         "trial_ref": opaque_ref("trial", row["visit_id"]),
         "person_ref": opaque_ref("person", row["person_id"]),
+        "customer_name": clean(row["full_name"]) or "Unknown customer",
         "school": row["school"] or "unknown",
         "service_type": "trial" if "trial" in (row["service"] or "").lower() else "visit",
         "starts_at": row["starts_at"],
@@ -309,6 +310,7 @@ def build_trial_followup_report(conn, start_date, end_date, school="West U"):
     identity_counts = {}
     for row in rows:
         identity_counts[row["identity_status"]] = identity_counts.get(row["identity_status"], 0) + 1
+    customer_groups = customer_groups_for_rows(rows)
     return {
         "window_start": start_date,
         "window_end": end_date,
@@ -323,8 +325,23 @@ def build_trial_followup_report(conn, start_date, end_date, school="West U"):
             "by_outcome": dict(sorted(outcome_counts.items())),
             "by_identity_status": dict(sorted(identity_counts.items())),
         },
+        "customer_groups": customer_groups,
         "rows": rows,
     }
+
+
+def customer_groups_for_rows(rows):
+    grouped = {}
+    for row in rows:
+        name = row.get("customer_name") or "Unknown customer"
+        key = " ".join(str(name).strip().lower().split()) or "unknown customer"
+        group = grouped.setdefault(key, {"customer_name": name, "trial_refs": [], "followup_statuses": [], "rows": 0})
+        if row.get("trial_ref") and row["trial_ref"] not in group["trial_refs"]:
+            group["trial_refs"].append(row["trial_ref"])
+        if row.get("followup_status") and row["followup_status"] not in group["followup_statuses"]:
+            group["followup_statuses"].append(row["followup_status"])
+        group["rows"] += 1
+    return sorted(grouped.values(), key=lambda group: (str(group["customer_name"]).lower(), group["trial_refs"]))
 
 
 def render_trial_followup_markdown(report):
@@ -352,15 +369,34 @@ def render_trial_followup_markdown(report):
     lines.extend(
         [
             "",
+            "## By Customer",
+            "",
+            "| Customer | Trial Refs | Follow-Up Statuses | Rows |",
+            "| --- | --- | --- | ---: |",
+        ]
+    )
+    for group in report.get("customer_groups", customer_groups_for_rows(report["rows"])):
+        lines.append(
+            "| {customer} | {refs} | {statuses} | {rows} |".format(
+                customer=clean(group.get("customer_name")),
+                refs=clean(", ".join(group.get("trial_refs", []))),
+                statuses=clean(", ".join(group.get("followup_statuses", []))),
+                rows=group.get("rows", 0),
+            )
+        )
+    lines.extend(
+        [
+            "",
             "## Rows",
             "",
-            "| Trial | Outcome | Start | Identity | Pre-Trial Contact | Last Before | Post-Trial Contact | First After | Status |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Customer | Trial | Outcome | Start | Identity | Pre-Trial Contact | Last Before | Post-Trial Contact | First After | Status |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in report["rows"]:
         lines.append(
-            "| {trial} | {outcome} | {start} | {identity} | {pre} | {before} | {post} | {after} | {status} |".format(
+            "| {customer} | {trial} | {outcome} | {start} | {identity} | {pre} | {before} | {post} | {after} | {status} |".format(
+                customer=clean(row.get("customer_name")),
                 trial=row["trial_ref"],
                 outcome=row["outcome"],
                 start=clean(row["starts_at"]),
@@ -375,7 +411,7 @@ def render_trial_followup_markdown(report):
     lines.extend(
         [
             "",
-            "_This report is sanitized: it excludes customer names, emails, phones, message bodies, notes, transcripts, raw page text, screenshots, and source URLs._",
+            "_This report includes customer names for operational review. It still excludes emails, phones, message bodies, notes, transcripts, raw page text, screenshots, and source URLs._",
             "",
         ]
     )

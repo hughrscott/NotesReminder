@@ -10,6 +10,7 @@ import mcp_server
 from build_reporting_schema import backfill_reporting
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
 from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
+from notesreminder.dashboard.server import _window_kwargs, lead_dashboard_html, normalize_school_slug
 from notesreminder.reports.operations_dashboard import (
     build_operations_dashboard,
     funnel_metrics,
@@ -262,6 +263,9 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["communications"]["school_email"], 1)
         self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["leads"], 1)
         self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["outbound_7d_leads"], 1)
+        self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["pre_lead_inbound_origin_leads"], 0)
+        self.assertEqual(snapshot["lead_followup_pareto"]["grid_status"], "ready")
+        self.assertEqual(snapshot["lead_followup_pareto"]["blockers"], [])
         self.assertEqual(snapshot["lead_followup_pareto"]["overall_total"]["trial_rate"], 1.0)
         pareto_row = snapshot["lead_followup_pareto"]["grid"][0]
         self.assertEqual(pareto_row["response_time"], "Same / next day")
@@ -291,6 +295,112 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         ]
         for value in forbidden:
             self.assertNotIn(value, markdown)
+
+    def test_pareto_blocks_instead_of_showing_misleading_zero_grid(self):
+        conn = open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, email, email_normalized,
+                school, lead_source, raw_json, updated_at
+            )
+            VALUES ('contact-no-followup', 'Private Student', '2026-05-02',
+                    'lead@example.com', 'lead@example.com', 'West University Place',
+                    'Website', '{"trusted": 1}', ?)
+            """,
+            (now,),
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+        markdown = render_snapshot_markdown(snapshot)
+        pareto = snapshot["lead_followup_pareto"]
+
+        self.assertEqual(pareto["grid_status"], "blocked")
+        self.assertIn("matched_communication_coverage_below_10pct", pareto["blockers"])
+        self.assertIn("no_matched_outbound_followup_7d", pareto["blockers"])
+        self.assertEqual(pareto["coverage"]["communication_coverage_rate"], 0.0)
+        self.assertEqual(pareto["coverage"]["outbound_7d_leads"], 0)
+        self.assertIn("Insufficient matched communication data", markdown)
+        self.assertIn("matched_communication_coverage_below_10pct", markdown)
+
+    def test_exception_queue_includes_customer_names_and_groups_by_customer(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_deals (
+                deal_id, deal_name, stage, school, create_date, updated_at
+            )
+            VALUES ('deal-exception', 'Private Student | West University Place',
+                    'Contacted', 'West University Place', '2026-05-02',
+                    '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email, email_normalized, phone, phone_normalized,
+                school, associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-exception', 'Private Student', 'lead@example.com',
+                    'lead@example.com', '7135551212', '7135551212',
+                    'West University Place', 'deal-exception', '{"trusted": 1}',
+                    '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+        markdown = render_snapshot_markdown(snapshot)
+        exception_queue = snapshot["exception_queue"]
+
+        self.assertEqual(exception_queue["items"][0]["customer_name"], "Private Student")
+        self.assertEqual(exception_queue["customer_groups"][0]["customer_name"], "Private Student")
+        self.assertIn("By Customer", markdown)
+        self.assertIn("Private Student", markdown)
+        self.assertRegex(markdown, r"lead_[0-9a-f]{10}")
+        for forbidden in ["lead@example.com", "7135551212"]:
+            self.assertNotIn(forbidden, markdown)
+
+    def test_pareto_keeps_pre_lead_inbound_origin_separate_from_followup(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_type, phone, phone_normalized, contact_name, direction,
+                event_at, school, outcome, updated_at
+            )
+            VALUES ('voice-prelead', 'call', '7135551212', '7135551212', 'Private Student',
+                    'inbound', '2026-05-01T17:00:00', 'West University Place',
+                    'connected', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+        coverage = snapshot["lead_followup_pareto"]["coverage"]
+
+        self.assertEqual(coverage["pre_lead_inbound_origin_leads"], 1)
+        self.assertEqual(coverage["pre_lead_inbound_call_leads"], 1)
+        self.assertEqual(coverage["outbound_7d_leads"], 1)
+        self.assertEqual(snapshot["lead_followup_pareto"]["grid_status"], "ready")
 
     def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
         conn = open_db()
@@ -406,6 +516,65 @@ class LeadOperatingDashboardTests(unittest.TestCase):
             self.assertEqual(mcp_snapshot["funnel_counts"], direct_snapshot["funnel_counts"])
             self.assertEqual(mcp_snapshot["notes_operations"], direct_snapshot["notes_operations"])
 
+    def test_curated_mcp_dashboard_tools_return_sanitized_stable_shapes(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        db_path = Path(tmp.name) / "lead.db"
+        conn = open_db(str(db_path))
+        seed_dashboard_data(conn)
+        conn.commit()
+        conn.close()
+
+        original_db = mcp_server.DB_PATH
+        original_lead = mcp_server.LEAD_DB_PATH
+        mcp_server.DB_PATH = str(db_path)
+        mcp_server.LEAD_DB_PATH = str(db_path)
+        self.addCleanup(setattr, mcp_server, "DB_PATH", original_db)
+        self.addCleanup(setattr, mcp_server, "LEAD_DB_PATH", original_lead)
+
+        lead_snapshot = json.loads(
+            mcp_server.lead_dashboard_snapshot(
+                school="West U",
+                start_date="2026-05-01",
+                end_date="2026-05-09",
+            )
+        )
+        pareto = json.loads(
+            mcp_server.lead_followup_pareto(
+                school="West U",
+                start_date="2026-05-01",
+                end_date="2026-05-09",
+            )
+        )
+        operations = json.loads(mcp_server.operations_scorecard(period="monthly", as_of="2026-05-09"))
+        instructors = json.loads(
+            mcp_server.instructor_conversion_table(
+                school="West U",
+                start_date="2026-05-01",
+                end_date="2026-05-09",
+            )
+        )
+
+        self.assertEqual(lead_snapshot["funnel_counts"]["hubspot_leads"], 1)
+        self.assertIn("lead_to_trial_rate", lead_snapshot["funnel_rates"])
+        self.assertIn("trial_to_conversion_rate", lead_snapshot["funnel_rates"])
+        self.assertEqual(pareto["lead_followup_pareto"]["grid_status"], "ready")
+        self.assertEqual(operations["dashboard_type"], "operations_scorecard")
+        self.assertEqual(instructors["row_count"], 1)
+        self.assertEqual(instructors["rows"][0]["converted_trials"], 1)
+
+        serialized = json.dumps(
+            {
+                "lead_snapshot": lead_snapshot,
+                "pareto": pareto,
+                "operations": operations,
+                "instructors": instructors,
+            }
+        )
+        self.assertIn("Private Student", serialized)
+        for forbidden in ["lead@example.com", "7135551212", "Private SMS body"]:
+            self.assertNotIn(forbidden, serialized)
+
     def test_mcp_defaults_lead_tools_to_main_db(self):
         original_db = os.environ.get("REMINDERS_DB_PATH")
         original_lead = os.environ.get("LEAD_INTELLIGENCE_DB_PATH")
@@ -506,6 +675,29 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(funnel["leads_to_trial"], 1)
         self.assertEqual(funnel["trial_lessons"], 1)
         self.assertEqual(funnel["trials_converted"], 1)
+
+    def test_dashboard_service_helpers_normalize_school_and_escape_html(self):
+        self.assertEqual(normalize_school_slug("heights"), "The Heights")
+        self.assertEqual(normalize_school_slug("west-university-place"), "West U")
+        with self.assertRaises(ValueError):
+            _window_kwargs("yearly")
+        with self.assertRaises(ValueError):
+            _window_kwargs("monthly", start_date="2026-01-01")
+
+        conn = open_db()
+        seed_dashboard_data(conn)
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+        snapshot["school"] = "<script>West U</script>"
+        html = lead_dashboard_html(snapshot)
+
+        self.assertIn("&lt;script&gt;West U&lt;/script&gt;", html)
+        self.assertNotIn("<script>West U</script>", html)
 
 
 if __name__ == "__main__":

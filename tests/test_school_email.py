@@ -165,10 +165,12 @@ class SchoolEmailTests(unittest.TestCase):
 
         self.assertEqual(report["summary"]["trial_rows"], 1)
         self.assertEqual(report["rows"][0]["outcome"], "no_show")
+        self.assertEqual(report["rows"][0]["customer_name"], "Private Name")
         self.assertTrue(report["rows"][0]["pre_trial_outreach_found"])
         self.assertTrue(report["rows"][0]["post_trial_outreach_found"])
+        self.assertIn("By Customer", markdown)
         self.assertIn("post_no_show_followup_found", markdown)
-        self.assertNotIn("Private Name", markdown)
+        self.assertIn("Private Name", markdown)
         self.assertNotIn("lead@example.com", markdown)
         self.assertNotIn("Private body", markdown)
 
@@ -221,10 +223,12 @@ class SchoolEmailTests(unittest.TestCase):
         markdown = render_trial_followup_markdown(report)
 
         self.assertEqual(report["rows"][0]["identity_status"], "name_search_only")
+        self.assertEqual(report["rows"][0]["customer_name"], "Private Student")
         self.assertTrue(report["rows"][0]["pre_trial_outreach_found"])
         self.assertTrue(report["rows"][0]["name_search_used"])
         self.assertIn("Identity Coverage", markdown)
-        self.assertNotIn("Private Student", markdown)
+        self.assertIn("Private Student", markdown)
+        self.assertNotIn("Private body", markdown)
 
     def test_trial_followup_marks_identity_limited_no_outreach(self):
         conn = open_db()

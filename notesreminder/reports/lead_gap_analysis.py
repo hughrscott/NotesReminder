@@ -38,6 +38,11 @@ def lead_ref(deal_id):
     return f"lead_{digest[:10]}"
 
 
+def customer_name_from_deal_name(value):
+    name = str(value or "").split("|", 1)[0].strip()
+    return name or "Unknown customer"
+
+
 def is_excluded_stage(stage):
     lowered = (stage or "").strip().lower()
     return any(marker in lowered for marker in EXCLUDED_STAGE_MARKERS)
@@ -109,7 +114,8 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             SELECT
                 d.deal_id,
                 c.contact_id,
-                c.phone_normalized
+                c.phone_normalized,
+                c.full_name
             FROM hubspot_deals d
             JOIN hubspot_contacts c
               ON instr(COALESCE(c.associated_deal_ids, ''), d.deal_id) > 0
@@ -248,6 +254,11 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
         )
         SELECT
             d.deal_id,
+            COALESCE(
+                NULLIF(MAX(dc.full_name), ''),
+                NULLIF(d.deal_name, ''),
+                d.deal_id
+            ) AS customer_name,
             COALESCE(d.school, '') AS school,
             COALESCE(d.stage, '') AS stage,
             CASE WHEN LOWER(COALESCE(d.stage, '')) LIKE '%closed lost%'
@@ -345,6 +356,7 @@ def fetch_gap_rows(conn, school="", limit=500, start_date=None, end_date=None):
             {
                 "row": index,
                 "lead_ref": lead_ref(data.get("deal_id")),
+                "customer_name": customer_name_from_deal_name(data.get("customer_name")),
                 "school": data.get("school") or "unknown",
                 "stage": data.get("stage") or "unknown",
                 "gap_category": gap_category,
@@ -417,10 +429,30 @@ def summarize_gap_rows(rows, readiness=None):
     }
 
 
+def customer_groups_for_rows(rows):
+    grouped = {}
+    for row in rows:
+        name = row.get("customer_name") or "Unknown customer"
+        key = " ".join(str(name).strip().lower().split()) or "unknown customer"
+        group = grouped.setdefault(key, {"customer_name": name, "lead_refs": [], "gap_categories": [], "rows": 0})
+        if row.get("lead_ref") and row["lead_ref"] not in group["lead_refs"]:
+            group["lead_refs"].append(row["lead_ref"])
+        if row.get("gap_category") and row["gap_category"] not in group["gap_categories"]:
+            group["gap_categories"].append(row["gap_category"])
+        group["rows"] += 1
+    return sorted(grouped.values(), key=lambda group: (str(group["customer_name"]).lower(), group["lead_refs"]))
+
+
 def build_gap_report(conn, school="", limit=500, start_date=None, end_date=None):
     rows = fetch_gap_rows(conn, school, limit, start_date=start_date, end_date=end_date)
     summary = summarize_gap_rows(rows, source_readiness(conn))
-    return {"summary": summary, "rows": rows, "window_start": start_date or "", "window_end": end_date or ""}
+    return {
+        "summary": summary,
+        "customer_groups": customer_groups_for_rows(rows),
+        "rows": rows,
+        "window_start": start_date or "",
+        "window_end": end_date or "",
+    }
 
 
 def render_gap_markdown(report, school=""):
@@ -456,15 +488,34 @@ def render_gap_markdown(report, school=""):
     lines.extend(
         [
             "",
+            "## By Customer",
+            "",
+            "| Customer | Lead Refs | Gap Categories | Rows |",
+            "| --- | --- | --- | ---: |",
+        ]
+    )
+    for group in report.get("customer_groups", customer_groups_for_rows(rows)):
+        lines.append(
+            "| {customer} | {refs} | {gaps} | {rows} |".format(
+                customer=clean_cell(group.get("customer_name")),
+                refs=clean_cell(", ".join(group.get("lead_refs", []))),
+                gaps=clean_cell(", ".join(group.get("gap_categories", []))),
+                rows=group.get("rows", 0),
+            )
+        )
+    lines.extend(
+        [
+            "",
             "## Rows",
             "",
-            "| Lead | School | Stage | Gap | HubSpot Contact | Outreach | Trial Expected | Pike13 Match | First Visit | Attendance | Conversion | Email | Dialpad | Targeted Evidence |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Customer | Lead | School | Stage | Gap | HubSpot Contact | Outreach | Trial Expected | Pike13 Match | First Visit | Attendance | Conversion | Email | Dialpad | Targeted Evidence |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in rows:
         lines.append(
-            "| {lead_ref} | {school} | {stage} | {gap} | {contact} | {outreach} | {trial_expected} | {pike13} | {first_visit} | {attendance} | {conversion} | {email} | {dialpad} | {targeted} |".format(
+            "| {customer} | {lead_ref} | {school} | {stage} | {gap} | {contact} | {outreach} | {trial_expected} | {pike13} | {first_visit} | {attendance} | {conversion} | {email} | {dialpad} | {targeted} |".format(
+                customer=clean_cell(row.get("customer_name")),
                 lead_ref=row["lead_ref"],
                 school=clean_cell(row["school"]),
                 stage=clean_cell(row["stage"]),
@@ -484,7 +535,7 @@ def render_gap_markdown(report, school=""):
     lines.extend(
         [
             "",
-            "_This report is sanitized: it excludes customer names, emails, phones, message bodies, notes, transcripts, raw page text, screenshots, and source URLs._",
+            "_This report includes customer names for operational review. It still excludes emails, phones, message bodies, notes, transcripts, raw page text, screenshots, and source URLs._",
             "",
         ]
     )
