@@ -330,6 +330,26 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertIn("Insufficient matched communication data", markdown)
         self.assertIn("matched_communication_coverage_below_10pct", markdown)
 
+    def test_pareto_blocks_when_contact_spine_has_no_school_leads(self):
+        conn = open_db()
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="The Heights",
+        )
+        markdown = render_snapshot_markdown(snapshot)
+        pareto = snapshot["lead_followup_pareto"]
+
+        self.assertEqual(pareto["coverage"]["leads"], 0)
+        self.assertEqual(pareto["grid_status"], "blocked")
+        self.assertIn("no_contact_spine_leads_for_school_window", pareto["blockers"])
+        self.assertIn("Backfill HubSpot contact lead spine", pareto["recommended_action"])
+        self.assertIn("Insufficient matched communication data", markdown)
+        self.assertIn("no_contact_spine_leads_for_school_window", markdown)
+
     def test_dashboard_handles_legacy_hubspot_contacts_schema(self):
         conn = open_db()
         conn.execute("DROP TABLE hubspot_contacts")

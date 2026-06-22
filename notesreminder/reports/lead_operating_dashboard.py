@@ -694,6 +694,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
     coverage["lead_to_trial_rate"] = round(coverage["trials"] / coverage["leads"], 4) if coverage["leads"] else None
     data_quality_flags = []
     blockers = []
+    if not coverage["leads"]:
+        data_quality_flags.append("no_contact_spine_leads_for_school_window")
+        blockers.append("no_contact_spine_leads_for_school_window")
     if coverage["leads"] and coverage["communication_coverage_rate"] is not None and coverage["communication_coverage_rate"] < 0.5:
         data_quality_flags.append("low_matched_communication_coverage")
     if coverage["leads"] and (coverage["communication_coverage_rate"] or 0) < 0.1:
@@ -714,7 +717,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "grid_status": grid_status,
         "blockers": blockers,
         "recommended_action": (
-            "Run targeted Dialpad/email backfill and matching before using this grid for performance judgment."
+            "Backfill HubSpot contact lead spine for this school/window before using this grid for performance judgment."
+            if "no_contact_spine_leads_for_school_window" in blockers
+            else "Run targeted Dialpad/email backfill and matching before using this grid for performance judgment."
             if blockers
             else "Review coverage flags before using this grid for performance judgment."
             if data_quality_flags
