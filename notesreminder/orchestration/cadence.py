@@ -107,7 +107,12 @@ def build_cadence_plan(run_date: str, root: Path | None = None) -> list[CadenceT
 
 
 def _default_runner(command: list[str], cwd: Path) -> subprocess.CompletedProcess:
-    return subprocess.run(command, cwd=cwd, check=False, text=True, capture_output=True)
+    return subprocess.run(command, cwd=cwd, check=False, text=True, capture_output=True, timeout=3600)
+
+
+def _has_db_backup(root: Path) -> bool:
+    backup_dir = root / "outputs" / "db_backups"
+    return backup_dir.exists() and any(backup_dir.glob("reminders*.bak"))
 
 
 def _task_metadata(task: CadenceTask) -> dict:
@@ -168,8 +173,30 @@ def run_cadence(
                     "ended_at": datetime.now().isoformat(timespec="seconds"),
                 }
             )
+        elif task.mutates_db and not _has_db_backup(root):
+            result.update(
+                {
+                    "status": "failed",
+                    "error": "Mutating DB task requires an existing local reminders DB backup under outputs/db_backups/.",
+                    "ended_at": datetime.now().isoformat(timespec="seconds"),
+                }
+            )
         else:
-            completed = runner(task.command, root)
+            try:
+                completed = runner(task.command, root)
+            except subprocess.TimeoutExpired as exc:
+                result.update(
+                    {
+                        "status": "failed",
+                        "returncode": None,
+                        "stdout_tail": (exc.stdout or "")[-2000:] if isinstance(exc.stdout, str) else "",
+                        "stderr_tail": (exc.stderr or "")[-2000:] if isinstance(exc.stderr, str) else "",
+                        "error": f"Command timed out after {exc.timeout} seconds.",
+                        "ended_at": datetime.now().isoformat(timespec="seconds"),
+                    }
+                )
+                task_results.append(result)
+                continue
             result.update(
                 {
                     "status": "success" if completed.returncode == 0 else "failed",

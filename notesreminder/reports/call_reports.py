@@ -55,12 +55,20 @@ def resolve_school(name):
 def load_tables(conn):
     calls = pd.read_sql_query(
         "SELECT call_id, external_number, date_started, direction, category, name, is_internal "
-        "FROM dialpad_calls",
+        "FROM call_logs",
         conn,
     )
     voicemails = pd.read_sql_query(
-        "SELECT call_id, external_number, date, transcription_text "
-        "FROM dialpad_voicemails",
+        """
+        SELECT
+            call_id,
+            external_number,
+            voicemail_date AS date,
+            voicemail_transcript AS transcription_text
+        FROM call_logs
+        WHERE voicemail_transcript IS NOT NULL
+           OR voicemail_recording_url IS NOT NULL
+        """,
         conn,
     )
     matches = pd.read_sql_query(
@@ -174,7 +182,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Generate voicemail/missed-call CSV reports.")
     parser.add_argument(
         "--db",
-        default="/Users/hughscott/Documents/Coding/NotesReminder/reminders.db",
+        default="reminders.db",
         help="Path to SQLite database",
     )
     return parser.parse_args()
@@ -183,6 +191,8 @@ def parse_args():
 def main():
     args = parse_args()
     db_path = Path(args.db)
+    if not db_path.exists():
+        raise SystemExit(f"DB not found: {db_path}")
     conn = sqlite3.connect(db_path)
     try:
         calls, voicemails, matches = load_tables(conn)

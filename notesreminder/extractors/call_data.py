@@ -21,8 +21,45 @@ def split_multi(value):
 
 
 def create_table(conn, table_name, columns):
-    cols = ", ".join([f"\"{col}\" TEXT" for col in columns])
-    conn.execute(f"CREATE TABLE IF NOT EXISTS \"{table_name}\" ({cols})")
+    if not table_exists(conn, table_name):
+        cols = ", ".join([f"\"{col}\" TEXT" for col in columns])
+        conn.execute(f"CREATE TABLE IF NOT EXISTS \"{table_name}\" ({cols})")
+        return
+    existing = {row[1] for row in conn.execute(f'PRAGMA table_info("{table_name}")').fetchall()}
+    for column in columns:
+        if column not in existing:
+            conn.execute(f'ALTER TABLE "{table_name}" ADD COLUMN "{column}" TEXT')
+
+
+def read_csv_rows(csv_path, required_headers=()):
+    last_error = None
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            with csv_path.open(newline="", encoding=encoding) as f:
+                reader = csv.DictReader(f)
+                headers = reader.fieldnames or []
+                missing = [header for header in required_headers if header not in headers]
+                if missing:
+                    print(f"⚠️ {csv_path} missing expected headers: {', '.join(missing)}")
+                return headers, list(reader)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+    raise last_error
+
+
+def union_headers(header_sets, extra_columns=()):
+    seen = set()
+    headers = []
+    for header_set in header_sets:
+        for header in header_set:
+            if header not in seen:
+                seen.add(header)
+                headers.append(header)
+    for header in extra_columns:
+        if header not in seen:
+            seen.add(header)
+            headers.append(header)
+    return headers
 
 
 def reset_staging_tables(conn):
@@ -53,24 +90,21 @@ def ensure_indexes(conn):
 
 
 def import_csv(conn, table_name, csv_path, extra_columns=None, unique_key=None):
-    with csv_path.open(newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        headers = reader.fieldnames or []
-        if extra_columns:
-            headers = headers + extra_columns
-        create_table(conn, table_name, headers)
-        placeholders = ", ".join(["?"] * len(headers))
-        columns_sql = ", ".join([f"\"{col}\"" for col in headers])
-        insert_sql = f"INSERT INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
-        if unique_key:
-            insert_sql = (
-                f"INSERT OR IGNORE INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
-            )
-        for row in reader:
-            values = []
-            for col in headers:
-                values.append(row.get(col))
-            conn.execute(insert_sql, values)
+    raw_headers, rows = read_csv_rows(csv_path)
+    headers = union_headers([raw_headers], extra_columns or [])
+    create_table(conn, table_name, headers)
+    placeholders = ", ".join(["?"] * len(headers))
+    columns_sql = ", ".join([f"\"{col}\"" for col in headers])
+    insert_sql = f"INSERT INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
+    if unique_key:
+        insert_sql = (
+            f"INSERT OR IGNORE INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
+        )
+    for row in rows:
+        values = []
+        for col in headers:
+            values.append(row.get(col))
+        conn.execute(insert_sql, values)
 
 
 def load_pike13_clients(conn, client_csv):
@@ -142,32 +176,32 @@ def load_pike13_clients(conn, client_csv):
         """
     )
 
-    with client_csv.open(newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            email_lower = normalize_email(row.get("Email"))
-            guardian_email_lower = normalize_email(row.get("Guardian Email"))
-            phone_digits = normalize_phone(row.get("Phone"))
-            mobile_digits = normalize_phone(row.get("Mobile Phone"))
-            emergency_contact_phone_digits = normalize_phone(row.get("Emergency Contact Number"))
-            account_manager_phones = split_multi(row.get("Account Manager Phones"))
-            account_manager_phone_digits = (
-                normalize_phone(account_manager_phones[0]) if account_manager_phones else None
-            )
-            row["email_lower"] = email_lower
-            row["guardian_email_lower"] = guardian_email_lower
-            row["phone_digits"] = phone_digits
-            row["mobile_digits"] = mobile_digits
-            row["account_manager_phone_digits"] = account_manager_phone_digits
-            row["emergency_contact_phone_digits"] = emergency_contact_phone_digits
+    raw_headers, rows = read_csv_rows(client_csv, required_headers=("Client ID",))
+    create_table(conn, "pike13_clients", union_headers([raw_headers], extra))
+    for row in rows:
+        email_lower = normalize_email(row.get("Email"))
+        guardian_email_lower = normalize_email(row.get("Guardian Email"))
+        phone_digits = normalize_phone(row.get("Phone"))
+        mobile_digits = normalize_phone(row.get("Mobile Phone"))
+        emergency_contact_phone_digits = normalize_phone(row.get("Emergency Contact Number"))
+        account_manager_phones = split_multi(row.get("Account Manager Phones"))
+        account_manager_phone_digits = (
+            normalize_phone(account_manager_phones[0]) if account_manager_phones else None
+        )
+        row["email_lower"] = email_lower
+        row["guardian_email_lower"] = guardian_email_lower
+        row["phone_digits"] = phone_digits
+        row["mobile_digits"] = mobile_digits
+        row["account_manager_phone_digits"] = account_manager_phone_digits
+        row["emergency_contact_phone_digits"] = emergency_contact_phone_digits
 
-            cols = list(row.keys())
-            placeholders = ", ".join(["?"] * len(cols))
-            columns_sql = ", ".join([f"\"{col}\"" for col in cols])
-            conn.execute(
-                f"INSERT OR REPLACE INTO pike13_clients ({columns_sql}) VALUES ({placeholders})",
-                [row.get(col) for col in cols],
-            )
+        cols = list(row.keys())
+        placeholders = ", ".join(["?"] * len(cols))
+        columns_sql = ", ".join([f"\"{col}\"" for col in cols])
+        conn.execute(
+            f"INSERT OR REPLACE INTO pike13_clients ({columns_sql}) VALUES ({placeholders})",
+            [row.get(col) for col in cols],
+        )
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_clients_client_id ON pike13_clients(\"Client ID\")"
@@ -176,11 +210,15 @@ def load_pike13_clients(conn, client_csv):
 
 def load_dialpad_calls(conn, call_csvs):
     extra = ["email_lower", "external_number_digits", "internal_number_digits", "name_lower"]
+    loaded = [(*read_csv_rows(path, required_headers=("call_id",)), path) for path in call_csvs]
+    if not loaded:
+        return
+    all_headers = union_headers([headers for headers, _, _ in loaded], extra)
     for path in call_csvs:
-        with path.open(newline="", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            headers = reader.fieldnames or []
-            create_table(conn, "dialpad_calls", headers + extra)
+        for headers, rows, loaded_path in loaded:
+            if loaded_path != path:
+                continue
+            create_table(conn, "dialpad_calls", all_headers)
             conn.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_dialpad_calls_call_id_unique
@@ -188,12 +226,12 @@ def load_dialpad_calls(conn, call_csvs):
                 WHERE call_id IS NOT NULL AND call_id != ''
                 """
             )
-            insert_cols = headers + extra
+            insert_cols = all_headers
             placeholders = ", ".join(["?"] * len(insert_cols))
             columns_sql = ", ".join([f"\"{col}\"" for col in insert_cols])
             insert_sql = f"INSERT OR REPLACE INTO dialpad_calls ({columns_sql}) VALUES ({placeholders})"
 
-            for row in reader:
+            for row in rows:
                 row["email_lower"] = normalize_email(row.get("email"))
                 row["external_number_digits"] = normalize_phone(row.get("external_number"))
                 row["internal_number_digits"] = normalize_phone(row.get("internal_number"))
@@ -202,16 +240,17 @@ def load_dialpad_calls(conn, call_csvs):
 
 
 def load_dialpad_generic(conn, table_name, csvs, key_column=None):
-    for path in csvs:
-        with path.open(newline="", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            headers = reader.fieldnames or []
-            create_table(conn, table_name, headers)
-            placeholders = ", ".join(["?"] * len(headers))
-            columns_sql = ", ".join([f"\"{col}\"" for col in headers])
-            insert_sql = f"INSERT OR IGNORE INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
-            for row in reader:
-                conn.execute(insert_sql, [row.get(col) for col in headers])
+    loaded = [(*read_csv_rows(path, required_headers=((key_column,) if key_column else ())), path) for path in csvs]
+    if not loaded:
+        return
+    headers = union_headers([item[0] for item in loaded])
+    create_table(conn, table_name, headers)
+    placeholders = ", ".join(["?"] * len(headers))
+    columns_sql = ", ".join([f"\"{col}\"" for col in headers])
+    insert_sql = f"INSERT OR IGNORE INTO \"{table_name}\" ({columns_sql}) VALUES ({placeholders})"
+    for _, rows, path in loaded:
+        for row in rows:
+            conn.execute(insert_sql, [row.get(col) for col in headers])
             if key_column:
                 conn.execute(
                     f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{key_column} "

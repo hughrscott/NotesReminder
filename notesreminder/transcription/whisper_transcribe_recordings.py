@@ -214,7 +214,7 @@ def save_result(
     completed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     conn.execute(
         """
-        INSERT OR REPLACE INTO recording_transcripts (
+        INSERT INTO recording_transcripts (
             call_id,
             recording_url,
             transcript_text,
@@ -225,6 +225,14 @@ def save_result(
             created_at,
             completed_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(call_id) DO UPDATE SET
+            recording_url = excluded.recording_url,
+            transcript_text = excluded.transcript_text,
+            transcript_provider = excluded.transcript_provider,
+            transcript_model = excluded.transcript_model,
+            transcript_status = excluded.transcript_status,
+            error_message = excluded.error_message,
+            completed_at = excluded.completed_at
         """,
         (
             call_id,

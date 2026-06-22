@@ -249,21 +249,20 @@ def migrate_lead_intelligence(production_db, lead_db, output_db=None, in_place=F
     if output_db and output_db == lead_db:
         raise ValueError("Output DB must not overwrite the lead source DB.")
 
-    target_db = production_db if in_place else output_db
+    final_db = production_db if in_place else output_db
+    target_db = final_db
+    staged = None
     if not in_place:
-        target_db.parent.mkdir(parents=True, exist_ok=True)
+        final_db.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
-            prefix=f"{target_db.name}.",
+            prefix=f"{final_db.name}.",
             suffix=".tmp",
-            dir=target_db.parent,
+            dir=final_db.parent,
             delete=False,
         ) as tmp:
             staged = Path(tmp.name)
-        try:
-            shutil.copy2(production_db, staged)
-            shutil.move(str(staged), target_db)
-        finally:
-            staged.unlink(missing_ok=True)
+        shutil.copy2(production_db, staged)
+        target_db = staged
 
     conn = sqlite3.connect(target_db)
     conn.row_factory = sqlite3.Row
@@ -287,9 +286,13 @@ def migrate_lead_intelligence(production_db, lead_db, output_db=None, in_place=F
         conn.commit()
     except Exception:
         conn.rollback()
+        if staged:
+            staged.unlink(missing_ok=True)
         raise
     finally:
         conn.close()
+    if staged:
+        shutil.move(str(staged), final_db)
 
     failed = [row for row in table_results if row["status"] != "ok"]
     production_count_changes = {
@@ -300,7 +303,7 @@ def migrate_lead_intelligence(production_db, lead_db, output_db=None, in_place=F
     return {
         "production_db": str(production_db),
         "lead_db": str(lead_db),
-        "output_db": str(target_db),
+        "output_db": str(final_db),
         "mode": "in_place" if in_place else "copy",
         "integrity": integrity,
         "status": "ready" if integrity == "ok" and not failed and not production_count_changes else "blocked",

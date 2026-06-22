@@ -9,6 +9,8 @@ Original file is located at
 
 # instructor_mapping.py
 # Clearly defined instructor contact details
+# Contains real personal contact details. Do not auto-publish this mapping or
+# generated artifacts derived from it without explicit review.
 
 INSTRUCTOR_EMAILS = {
     "John Doe": "john.doe@example.com",

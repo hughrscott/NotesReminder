@@ -82,7 +82,19 @@ def main():
         raise SystemExit(f"source db not found: {source_db}")
 
     source_fingerprint = fingerprint(source_db)
-    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    def deterministic_scored_at(row, lesson_id, score):
+        raw = "|".join(
+            [
+                source_fingerprint,
+                lesson_id,
+                str(score),
+                (row.get("source_justification") or "").strip(),
+                (row.get("source_strength_or_weakness") or "").strip(),
+                (row.get("source_improvement") or "").strip(),
+            ]
+        )
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+        return f"legacy-missing-scored-at-{digest}"
 
     conn = sqlite3.connect(str(db_path))
     try:
@@ -104,9 +116,9 @@ def main():
                 except ValueError:
                     skipped += 1
                     continue
-                scored_at = (
-                    (row.get("source_scored_at") or "").strip() or now_iso
-                )
+                scored_at = (row.get("source_scored_at") or "").strip()
+                if not scored_at:
+                    scored_at = deterministic_scored_at(row, lesson_id, score)
                 values = (
                     lesson_id,
                     (row.get("matched_pike13_lesson_id") or "").strip() or None,

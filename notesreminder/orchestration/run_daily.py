@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import html
 import sqlite3
 from datetime import datetime, timedelta
 import hashlib
@@ -38,6 +39,7 @@ class FatalScoringError(RuntimeError):
 # Email configuration
 SMTP_SERVER = "smtp.mail.me.com"
 SMTP_PORT = 587
+SMTP_TIMEOUT_SECONDS = 30
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
@@ -142,10 +144,13 @@ def format_school_label(school_subdomain):
             .title())
 
 def format_date_range(start_date, end_date):
+    def compact(value):
+        parsed = datetime.strptime(value, "%Y-%m-%d")
+        return f"{parsed.month}/{parsed.day}/{parsed:%y}"
     if start_date == end_date:
-        return datetime.strptime(start_date, "%Y-%m-%d").strftime("%-m/%-d/%y")
-    start_str = datetime.strptime(start_date, "%Y-%m-%d").strftime("%-m/%-d/%y")
-    end_str = datetime.strptime(end_date, "%Y-%m-%d").strftime("%-m/%-d/%y")
+        return compact(start_date)
+    start_str = compact(start_date)
+    end_str = compact(end_date)
     return f"{start_str} and {end_str}"
 
 
@@ -245,7 +250,7 @@ def send_multipart_email(subject, plain_body, html_body, to_recipients, cc_recip
     if normalized_cc:
         print(f"📧 CC: {', '.join(normalized_cc)}")
 
-    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT_SECONDS)
     try:
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
@@ -386,6 +391,9 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     school_label = format_school_label(school_subdomain)
     date_phrase = format_date_range(start_date, end_date)
 
+    def h(value):
+        return html.escape("" if value is None else str(value), quote=True)
+
     # Header totals should reflect true reportable counts, independent of which
     # sections are included in the body.
     missing_count = (
@@ -427,12 +435,12 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
             )
             missing_rows.append(
                 f"<tr>"
-                f"<td>{note['date']}</td>"
-                f"<td>{note['instructor']}</td>"
-                f"<td>{note['time']}</td>"
-                f"<td>{note['students']}</td>"
-                f"<td>{note['lesson_type']}</td>"
-                f"<td>{note.get('location', '') or ''}</td>"
+                f"<td>{h(note['date'])}</td>"
+                f"<td>{h(note['instructor'])}</td>"
+                f"<td>{h(note['time'])}</td>"
+                f"<td>{h(note['students'])}</td>"
+                f"<td>{h(note['lesson_type'])}</td>"
+                f"<td>{h(note.get('location', '') or '')}</td>"
                 f"</tr>"
             )
 
@@ -470,15 +478,15 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
             )
             notes_rows.append(
                 f"<tr>"
-                f"<td>{lesson['date']}</td>"
-                f"<td>{lesson['instructor']}</td>"
-                f"<td>{lesson['time']}</td>"
-                f"<td>{lesson['students']}</td>"
-                f"<td>{lesson['lesson_type']}</td>"
-                f"<td>{lesson.get('location', '') or ''}</td>"
-                f"<td>{lesson.get('note_text', '') or ''}</td>"
-                f"<td>{lesson.get('note_score', '') if lesson.get('note_score') is not None else ''}</td>"
-                f"<td>{lesson.get('note_score_explanation', '') or ''}</td>"
+                f"<td>{h(lesson['date'])}</td>"
+                f"<td>{h(lesson['instructor'])}</td>"
+                f"<td>{h(lesson['time'])}</td>"
+                f"<td>{h(lesson['students'])}</td>"
+                f"<td>{h(lesson['lesson_type'])}</td>"
+                f"<td>{h(lesson.get('location', '') or '')}</td>"
+                f"<td>{h(lesson.get('note_text', '') or '')}</td>"
+                f"<td>{h(lesson.get('note_score', '') if lesson.get('note_score') is not None else '')}</td>"
+                f"<td>{h(lesson.get('note_score_explanation', '') or '')}</td>"
                 f"</tr>"
             )
 

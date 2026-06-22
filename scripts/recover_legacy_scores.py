@@ -81,6 +81,10 @@ def connect_ro(path: Path) -> sqlite3.Connection:
     return conn
 
 
+def quote_identifier(value: str) -> str:
+    return '"' + str(value).replace('"', '""') + '"'
+
+
 def list_tables(conn: sqlite3.Connection) -> List[str]:
     rows = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -89,7 +93,7 @@ def list_tables(conn: sqlite3.Connection) -> List[str]:
 
 
 def table_columns(conn: sqlite3.Connection, table: str) -> List[str]:
-    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    rows = conn.execute(f"PRAGMA table_info({quote_identifier(table)})").fetchall()
     return [r["name"] for r in rows]
 
 
@@ -100,7 +104,9 @@ def is_score_like(col: str) -> bool:
 
 def has_data(conn: sqlite3.Connection, table: str, col: str) -> bool:
     row = conn.execute(
-        f"SELECT COUNT(*) AS c FROM {table} WHERE {col} IS NOT NULL AND TRIM(CAST({col} AS TEXT)) != ''"
+        f"SELECT COUNT(*) AS c FROM {quote_identifier(table)} "
+        f"WHERE {quote_identifier(col)} IS NOT NULL "
+        f"AND TRIM(CAST({quote_identifier(col)} AS TEXT)) != ''"
     ).fetchone()
     return bool(row and row["c"] > 0)
 
@@ -189,8 +195,9 @@ def discover_mode(paths: Iterable[Path], sample: int) -> int:
                 print(f"score_like_columns={score_cols}")
                 select_cols = score_cols[:1] + [c for c in cols if c.lower() in KEY_HINTS][:7]
                 rows = conn.execute(
-                    f"SELECT {', '.join(select_cols)} FROM {table} "
-                    f"WHERE {score_cols[0]} IS NOT NULL LIMIT ?",
+                    f"SELECT {', '.join(quote_identifier(col) for col in select_cols)} "
+                    f"FROM {quote_identifier(table)} "
+                    f"WHERE {quote_identifier(score_cols[0])} IS NOT NULL LIMIT ?",
                     (sample,),
                 ).fetchall()
                 print(f"sample_rows={len(rows)}")
@@ -250,7 +257,11 @@ def build_source_rows(conn: sqlite3.Connection, cfg: SourceConfig) -> List[sqlit
     ]:
         if c and c not in cols:
             cols.append(c)
-    sql = f"SELECT {', '.join(cols)} FROM {cfg.table} WHERE {cfg.score_col} IS NOT NULL"
+    sql = (
+        f"SELECT {', '.join(quote_identifier(col) for col in cols)} "
+        f"FROM {quote_identifier(cfg.table)} "
+        f"WHERE {quote_identifier(cfg.score_col)} IS NOT NULL"
+    )
     return conn.execute(sql).fetchall()
 
 

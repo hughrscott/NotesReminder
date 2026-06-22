@@ -287,11 +287,13 @@ def normalized_note_quality(conn, start_date, end_date, schools=DEFAULT_SCHOOLS)
     }
 
 
-def build_notes_read_path_comparison(conn, start_date, end_date, schools=DEFAULT_SCHOOLS, rebuild=True):
+def build_notes_read_path_comparison(conn, start_date, end_date, schools=DEFAULT_SCHOOLS, rebuild=False):
+    original_row_factory = conn.row_factory
     conn.row_factory = sqlite3.Row
-    if rebuild:
-        backfill_reporting(conn)
-    base_counts = {
+    try:
+        if rebuild:
+            backfill_reporting(conn)
+        base_counts = {
         "reminders": conn.execute("SELECT COUNT(*) FROM reminders").fetchone()[0],
         "lessons": conn.execute("SELECT COUNT(*) FROM lessons").fetchone()[0],
         "lesson_notes": conn.execute("SELECT COUNT(*) FROM lesson_notes").fetchone()[0],
@@ -323,30 +325,32 @@ def build_notes_read_path_comparison(conn, start_date, end_date, schools=DEFAULT
               AND a.lesson_id IS NULL
             """
         ).fetchone()[0],
-    }
-    base_mismatches = []
-    for table in ("lessons", "lesson_notes", "lesson_attendance"):
-        if base_counts[table] != base_counts["reminders"]:
-            base_mismatches.append({"metric": table, "legacy": base_counts["reminders"], "normalized": base_counts[table]})
-    for metric in ("reminders_missing_lessons", "reminders_missing_lesson_notes", "reminders_missing_lesson_attendance"):
-        if base_counts[metric]:
-            base_mismatches.append({"metric": metric, "legacy": 0, "normalized": base_counts[metric]})
+        }
+        base_mismatches = []
+        for table in ("lessons", "lesson_notes", "lesson_attendance"):
+            if base_counts[table] != base_counts["reminders"]:
+                base_mismatches.append({"metric": table, "legacy": base_counts["reminders"], "normalized": base_counts[table]})
+        for metric in ("reminders_missing_lessons", "reminders_missing_lesson_notes", "reminders_missing_lesson_attendance"):
+            if base_counts[metric]:
+                base_mismatches.append({"metric": metric, "legacy": 0, "normalized": base_counts[metric]})
 
-    day_mismatches = compare_dicts(
-        legacy_day_counts(conn, start_date, end_date, schools),
-        normalized_day_counts(conn, start_date, end_date, schools),
-        ("total_lessons", "reportable_lessons", "completed_notes", "missing_notes"),
-    )
-    instructor_mismatches = compare_dicts(
-        legacy_instructor_counts(conn, start_date, end_date, schools),
-        normalized_instructor_counts(conn, start_date, end_date, schools),
-        ("total_reportable_lessons", "completed_notes", "missing_notes"),
-    )
-    note_quality_mismatches = compare_dicts(
-        legacy_note_quality(conn, start_date, end_date, schools),
-        normalized_note_quality(conn, start_date, end_date, schools),
-        ("total_reportable_lessons", "lessons_with_notes", "scored_lessons", "missing_notes", "league_score"),
-    )
+        day_mismatches = compare_dicts(
+            legacy_day_counts(conn, start_date, end_date, schools),
+            normalized_day_counts(conn, start_date, end_date, schools),
+            ("total_lessons", "reportable_lessons", "completed_notes", "missing_notes"),
+        )
+        instructor_mismatches = compare_dicts(
+            legacy_instructor_counts(conn, start_date, end_date, schools),
+            normalized_instructor_counts(conn, start_date, end_date, schools),
+            ("total_reportable_lessons", "completed_notes", "missing_notes"),
+        )
+        note_quality_mismatches = compare_dicts(
+            legacy_note_quality(conn, start_date, end_date, schools),
+            normalized_note_quality(conn, start_date, end_date, schools),
+            ("total_reportable_lessons", "lessons_with_notes", "scored_lessons", "missing_notes", "league_score"),
+        )
+    finally:
+        conn.row_factory = original_row_factory
     mismatch_count = (
         len(base_mismatches)
         + len(day_mismatches)
@@ -402,7 +406,7 @@ def main():
     parser.add_argument("--school", action="append", dest="schools")
     parser.add_argument("--output", default="outputs/progress/notes_read_path_comparison.md")
     parser.add_argument("--json-output", default="outputs/progress/notes_read_path_comparison.json")
-    parser.add_argument("--no-rebuild", action="store_true")
+    parser.add_argument("--rebuild", action="store_true", help="Backfill reporting tables before comparing.")
     args = parser.parse_args()
     schools = tuple(args.schools or DEFAULT_SCHOOLS)
     conn = sqlite3.connect(args.db)
@@ -413,9 +417,10 @@ def main():
             args.start_date,
             args.end_date,
             schools=schools,
-            rebuild=not args.no_rebuild,
+            rebuild=args.rebuild,
         )
-        conn.commit()
+        if args.rebuild:
+            conn.commit()
     finally:
         conn.close()
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

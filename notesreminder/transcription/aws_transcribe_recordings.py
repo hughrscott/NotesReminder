@@ -127,6 +127,9 @@ def download_recording(url, dest_path, default_media_format=None):
     req = urllib.request.Request(url, headers={"User-Agent": "NotesReminder/1.0"})
     ssl_context = ssl.create_default_context(cafile=certifi.where())
     with urllib.request.urlopen(req, context=ssl_context) as response:
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if "text/html" in content_type:
+            raise RuntimeError("Recording URL returned HTML; auth may be expired.")
         media_format = guess_media_format(url, response.headers, response.geturl())
         with open(dest_path, "wb") as f:
             while True:
@@ -150,13 +153,16 @@ def start_transcription_job(client, job_name, media_uri, media_format, language_
     )
 
 
-def wait_for_job(client, job_name, poll_seconds):
+def wait_for_job(client, job_name, poll_seconds, timeout_seconds=1800):
+    started = time.monotonic()
     while True:
         response = client.get_transcription_job(TranscriptionJobName=job_name)
         job = response["TranscriptionJob"]
         status = job["TranscriptionJobStatus"]
         if status in ("COMPLETED", "FAILED"):
             return job
+        if time.monotonic() - started > timeout_seconds:
+            raise TimeoutError(f"Timed out waiting for transcription job {job_name}")
         time.sleep(poll_seconds)
 
 
@@ -189,6 +195,7 @@ def process_recording(
     verbose,
     preview_chars,
     default_media_format,
+    wait_timeout_seconds,
 ):
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     tmp_dir = Path("/tmp/notesreminder_recordings")
@@ -228,7 +235,7 @@ def process_recording(
             transcript_key,
         )
 
-        job = wait_for_job(transcribe, job_name, poll_seconds)
+        job = wait_for_job(transcribe, job_name, poll_seconds, wait_timeout_seconds)
         status = job["TranscriptionJobStatus"].lower()
         if status == "failed":
             error_message = job.get("FailureReason")
@@ -248,7 +255,7 @@ def process_recording(
         completed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         conn.execute(
             """
-            INSERT OR REPLACE INTO recording_transcripts (
+            INSERT INTO recording_transcripts (
                 call_id,
                 recording_url,
                 recording_duration,
@@ -264,6 +271,19 @@ def process_recording(
                 created_at,
                 completed_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(call_id) DO UPDATE SET
+                recording_url = excluded.recording_url,
+                recording_duration = excluded.recording_duration,
+                s3_bucket = excluded.s3_bucket,
+                s3_key = excluded.s3_key,
+                transcript_bucket = excluded.transcript_bucket,
+                transcript_key = excluded.transcript_key,
+                transcript_uri = excluded.transcript_uri,
+                transcript_text = excluded.transcript_text,
+                transcript_provider = excluded.transcript_provider,
+                transcript_status = excluded.transcript_status,
+                error_message = excluded.error_message,
+                completed_at = excluded.completed_at
             """,
             (
                 call_id,
@@ -348,6 +368,12 @@ def parse_args():
         help="Fallback media format if none detected (e.g., mp3)",
     )
     parser.add_argument(
+        "--wait-timeout-seconds",
+        type=int,
+        default=1800,
+        help="Maximum seconds to wait for each AWS Transcribe job.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Re-transcribe even if a completed transcript already exists",
@@ -386,6 +412,7 @@ def main():
                 args.verbose,
                 args.preview_chars,
                 args.default_media_format,
+                args.wait_timeout_seconds,
             )
             if args.verbose:
                 if status == "failed":

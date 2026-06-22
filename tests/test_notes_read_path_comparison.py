@@ -13,7 +13,7 @@ class NotesReadPathComparisonTests(unittest.TestCase):
         create_reminders_schema(conn)
         seed_lessons(conn)
 
-        report = build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01")
+        report = build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01", rebuild=True)
 
         self.assertEqual(report["status"], "ready")
         self.assertEqual(report["mismatch_count"], 0)
@@ -26,7 +26,7 @@ class NotesReadPathComparisonTests(unittest.TestCase):
         self.addCleanup(conn.close)
         create_reminders_schema(conn)
         seed_lessons(conn)
-        build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01")
+        build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01", rebuild=True)
         conn.execute("DELETE FROM lesson_notes WHERE lesson_id = 'lesson-1'")
 
         report = build_notes_read_path_comparison(
@@ -62,7 +62,7 @@ class NotesReadPathComparisonTests(unittest.TestCase):
             """
         )
 
-        report = build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01")
+        report = build_notes_read_path_comparison(conn, "2026-05-01", "2026-05-01", rebuild=True)
 
         self.assertEqual(report["status"], "ready")
         self.assertEqual(report["mismatch_count"], 0)

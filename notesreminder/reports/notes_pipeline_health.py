@@ -155,17 +155,21 @@ def build_notes_pipeline_health(
     log_sends = scan_notes_send_logs(logs_dir)
     closures = closure_calendar if closure_calendar is not None else load_closure_calendar(closures_path)
 
+    original_row_factory = conn.row_factory
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        """
-        SELECT school, instructor_name, lesson_date, lesson_time, lesson_type, students,
-               note_completed, last_checked
-        FROM reminders
-        WHERE lesson_date BETWEEN ? AND ?
-          AND school IN ({})
-        """.format(",".join("?" for _ in schools)),
-        [start_date.isoformat(), end_date.isoformat(), *schools],
-    ).fetchall()
+    try:
+        rows = conn.execute(
+            """
+            SELECT school, instructor_name, lesson_date, lesson_time, lesson_type, students,
+                   note_completed, last_checked
+            FROM reminders
+            WHERE lesson_date BETWEEN ? AND ?
+              AND school IN ({})
+            """.format(",".join("?" for _ in schools)),
+            [start_date.isoformat(), end_date.isoformat(), *schools],
+        ).fetchall()
+    finally:
+        conn.row_factory = original_row_factory
 
     by_school_date: dict[tuple[str, str], dict] = {}
     seen = set()
