@@ -67,7 +67,7 @@ def ensure_table(conn):
     )
 
 
-def get_pending_recordings(conn, limit=None):
+def get_pending_recordings(conn, limit=None, force=False):
     sql = """
         SELECT r.call_id, r.recording_url, r.duration
         FROM (
@@ -84,14 +84,15 @@ def get_pending_recordings(conn, limit=None):
               AND recording_url != ''
         ) r
         LEFT JOIN recording_transcripts t ON t.call_id = r.call_id
-        WHERE t.call_id IS NULL
+        WHERE (t.call_id IS NULL OR t.transcript_status != 'completed' OR :force = 1)
           AND r.rn = 1
         ORDER BY r.call_id
     """
+    params = {"force": 1 if force else 0}
     if limit:
-        sql += " LIMIT ?"
-        return conn.execute(sql, (limit,)).fetchall()
-    return conn.execute(sql).fetchall()
+        sql += " LIMIT :limit"
+        return conn.execute(sql, {**params, "limit": limit}).fetchall()
+    return conn.execute(sql, params).fetchall()
 
 
 def guess_media_format(url, headers, final_url=None):
@@ -346,6 +347,11 @@ def parse_args():
         default=None,
         help="Fallback media format if none detected (e.g., mp3)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-transcribe even if a completed transcript already exists",
+    )
     return parser.parse_args()
 
 
@@ -357,7 +363,7 @@ def main():
     conn = sqlite3.connect(args.db)
     try:
         ensure_table(conn)
-        rows = get_pending_recordings(conn, limit=args.limit or None)
+        rows = get_pending_recordings(conn, limit=args.limit or None, force=args.force)
         if not rows:
             print("No new recordings to transcribe.")
             return

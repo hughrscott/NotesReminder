@@ -5,7 +5,8 @@ import json
 import re
 from collections import Counter, defaultdict
 
-from notesreminder.schema.lead_followup import ensure_lead_followup_schema, normalize_email, normalize_phone, utc_now_iso
+from notesreminder.lib.phone import normalize_phone
+from notesreminder.schema.lead_followup import ensure_lead_followup_schema, normalize_email, utc_now_iso
 
 
 SOR_EMAIL_RE = re.compile(r"@schoolofrock\.com$", re.IGNORECASE)
@@ -256,7 +257,6 @@ def refresh_person_identities(conn):
     now = utc_now_iso()
     source_to_person = {}
     person_count = 0
-    identity_count = 0
     conflict_count = 0
     for component in components.values():
         identities = sorted(component["identities"])
@@ -276,7 +276,38 @@ def refresh_person_identities(conn):
         for singleton_type in ("pike13_person", "hubspot_contact"):
             if len(set(by_type.get(singleton_type, []))) > 1:
                 conflict_types.append(f"multiple_{singleton_type}")
-        resolution_status = "conflict" if conflict_types else "resolved"
+        if conflict_types:
+            for conflict_type in conflict_types:
+                conn.execute(
+                    """
+                    INSERT INTO person_resolution_conflicts (
+                        conflict_type, person_ids_json, evidence_json, status, created_at
+                    )
+                    VALUES (?, ?, ?, 'open', ?)
+                    """,
+                    (
+                        conflict_type,
+                        json.dumps([]),
+                        json.dumps(
+                            {
+                                "identity_keys": identities,
+                                "sources": [
+                                    {
+                                        "source_table": record["source_table"],
+                                        "source_id": str(record["source_id"]),
+                                    }
+                                    for record in records_for_person
+                                ],
+                                "resolution": "unresolved_multiple_strong_anchors",
+                            },
+                            sort_keys=True,
+                        ),
+                        now,
+                    ),
+                )
+                conflict_count += 1
+            continue
+        resolution_status = "resolved"
         conn.execute(
             """
             INSERT INTO persons (
@@ -325,23 +356,6 @@ def refresh_person_identities(conn):
                         now,
                     ),
                 )
-                identity_count += conn.total_changes
-        for conflict_type in conflict_types:
-            conn.execute(
-                """
-                INSERT INTO person_resolution_conflicts (
-                    conflict_type, person_ids_json, evidence_json, status, created_at
-                )
-                VALUES (?, ?, ?, 'open', ?)
-                """,
-                (
-                    conflict_type,
-                    json.dumps([person_id]),
-                    json.dumps({"identity_keys": identities}, sort_keys=True),
-                    now,
-                ),
-            )
-            conflict_count += 1
 
     for (source_table, source_id), person_id in source_to_person.items():
         column = _source_update_column(source_table)

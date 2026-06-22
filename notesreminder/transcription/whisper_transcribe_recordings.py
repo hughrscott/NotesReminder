@@ -66,45 +66,57 @@ def get_recording_url(conn, call_id):
 
 def claim_recording(conn, call_id, recording_url, model_name, force):
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    row = conn.execute(
-        "SELECT transcript_status FROM recording_transcripts WHERE call_id = ?",
-        (call_id,),
-    ).fetchone()
-    if row and not force:
-        return False
-    if row and force:
-        conn.execute(
+    conn.execute("PRAGMA busy_timeout = 5000")
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT transcript_status FROM recording_transcripts WHERE call_id = ?",
+            (call_id,),
+        ).fetchone()
+        if row and not force and row[0] == "completed":
+            conn.rollback()
+            return False
+        if row:
+            conn.execute(
+                """
+                UPDATE recording_transcripts
+                SET transcript_status = ?, transcript_provider = ?, transcript_model = ?, error_message = NULL, created_at = ?
+                WHERE call_id = ?
+                """,
+                ("in_progress", "whisper-local", model_name, created_at, call_id),
+            )
+            conn.commit()
+            return True
+        cur = conn.execute(
             """
-            UPDATE recording_transcripts
-            SET transcript_status = ?, transcript_provider = ?, transcript_model = ?, error_message = NULL, created_at = ?
-            WHERE call_id = ?
+            INSERT OR IGNORE INTO recording_transcripts (
+                call_id,
+                recording_url,
+                transcript_provider,
+                transcript_model,
+                transcript_status,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
             """,
-            ("in_progress", "whisper-local", model_name, created_at, call_id),
+            (
+                call_id,
+                recording_url,
+                "whisper-local",
+                model_name,
+                "in_progress",
+                created_at,
+            ),
         )
         conn.commit()
-        return True
-    cur = conn.execute(
-        """
-        INSERT OR IGNORE INTO recording_transcripts (
-            call_id,
-            recording_url,
-            transcript_provider,
-            transcript_model,
-            transcript_status,
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            call_id,
-            recording_url,
-            "whisper-local",
-            model_name,
-            "in_progress",
-            created_at,
-        ),
-    )
-    conn.commit()
-    return cur.rowcount == 1
+        return cur.rowcount == 1
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            return False
+        raise
 
 
 def chunk_list(items: List[str], chunks: int) -> List[List[str]]:

@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sqlite3
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -29,6 +30,7 @@ from notesreminder.reports.operations_dashboard import (
     instructor_trial_conversions_ytd,
 )
 from notesreminder.reports.source_completeness import build_source_completeness_report
+from scripts.db_guard import db_meta, verify_replace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB_PATH = str(PROJECT_ROOT / "reminders.db")
@@ -43,7 +45,27 @@ mcp = FastMCP("notesreminder")
 
 def _download_db():
     s3 = boto3.client("s3")
-    s3.download_file(S3_BUCKET, S3_KEY, DB_PATH)
+    destination = Path(DB_PATH)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{destination.name}.",
+        suffix=".download",
+        dir=str(destination.parent),
+        delete=False,
+    ) as tmp:
+        temp_path = Path(tmp.name)
+    try:
+        s3.download_file(S3_BUCKET, S3_KEY, str(temp_path))
+        if destination.exists():
+            verify_replace(destination, temp_path, force=False)
+        else:
+            meta = db_meta(temp_path)
+            if meta.get("table_count") in (None, 0) or meta.get("integrity_check") != "ok":
+                raise RuntimeError(f"Downloaded DB failed verification: {meta}")
+        temp_path.replace(destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def _connect(db_path=None, *, read_only=False):

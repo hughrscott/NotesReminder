@@ -11,6 +11,27 @@ from openai import OpenAI
 load_dotenv()
 
 
+def is_retryable_openai_error(exc):
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {429, 500, 502, 503, 504}:
+        return True
+    message = str(exc).lower()
+    return any(marker in message for marker in ("rate limit", "429", "500", "502", "503", "504", "temporarily"))
+
+
+def call_with_backoff(fn, attempts=3, base_sleep=1.0):
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:
+            last_exc = exc
+            if not is_retryable_openai_error(exc) or attempt == attempts - 1:
+                raise
+            time.sleep(base_sleep * (2 ** attempt))
+    raise last_exc
+
+
 def ensure_table(conn):
     conn.execute(
         """
@@ -69,7 +90,7 @@ def claim_recording(conn, call_id, recording_url, model_name, force):
     ).fetchone()
     if row:
         status = row[0]
-        if not force and status in ("completed", "in_progress"):
+        if not force and status in ("completed", "in_progress", "failed_permanent"):
             return False
         conn.execute(
             """
@@ -231,7 +252,7 @@ def main():
                     call_id,
                     recording_url,
                     None,
-                    "failed",
+                    "failed_permanent",
                     f"Missing file: {path}",
                     args.model,
                 )
@@ -241,9 +262,11 @@ def main():
             print(f"Transcribing {call_id}")
             try:
                 with path.open("rb") as f:
-                    result = client.audio.transcriptions.create(
-                        model=args.model,
-                        file=f,
+                    result = call_with_backoff(
+                        lambda: client.audio.transcriptions.create(
+                            model=args.model,
+                            file=f,
+                        )
                     )
                 transcript_text = (result.text or "").strip()
                 save_result(
@@ -261,7 +284,7 @@ def main():
                     call_id,
                     recording_url,
                     None,
-                    "failed",
+                    "failed_permanent",
                     str(exc),
                     args.model,
                 )

@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from lead_followup_schema import ensure_lead_followup_schema  # noqa: E402
-from notesreminder.lib.raw_capture import mark_capture_parsed  # noqa: E402
 from scripts.extract_hubspot_leads import parse_deal_text, upsert_deal  # noqa: E402
 from scripts.extract_pike13_leads import (  # noqa: E402
     capture_related_rows,
@@ -66,6 +65,39 @@ def replay_capture(source_conn, scratch_conn, row):
     return {"rows_written": 0, "parser": capture_type, "status": "unsupported"}
 
 
+def open_readonly_db(path):
+    resolved = Path(path).expanduser().resolve()
+    return sqlite3.connect(resolved.as_uri() + "?mode=ro", uri=True)
+
+
+def ensure_replay_log(scratch_conn):
+    scratch_conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS raw_capture_replay_results (
+            capture_id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            result_json TEXT,
+            replayed_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def record_replay_status(scratch_conn, capture_id, status, result):
+    scratch_conn.execute(
+        """
+        INSERT INTO raw_capture_replay_results (
+            capture_id, status, result_json, replayed_at
+        ) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(capture_id) DO UPDATE SET
+            status = excluded.status,
+            result_json = excluded.result_json,
+            replayed_at = excluded.replayed_at
+        """,
+        (capture_id, status, json.dumps(result, sort_keys=True, default=str)),
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Replay saved raw captures into a scratch DB.")
     parser.add_argument("--source-db", default="reminders.db")
@@ -76,11 +108,12 @@ def main():
     parser.add_argument("--limit", type=int, default=50)
     args = parser.parse_args()
 
-    source_conn = sqlite3.connect(args.source_db)
+    source_conn = open_readonly_db(args.source_db)
     source_conn.row_factory = sqlite3.Row
     scratch_conn = sqlite3.connect(args.scratch_db)
     scratch_conn.row_factory = sqlite3.Row
     ensure_lead_followup_schema(scratch_conn)
+    ensure_replay_log(scratch_conn)
     params = {}
     filters = []
     if args.capture_id:
@@ -113,9 +146,8 @@ def main():
         except Exception as exc:
             result = {"rows_written": 0, "error": str(exc)[:240]}
             status = "replay_error"
-        mark_capture_parsed(source_conn, row["capture_id"], status)
+        record_replay_status(scratch_conn, row["capture_id"], status, result)
         results.append({"capture_id": row["capture_id"], "status": status, **result})
-    source_conn.commit()
     scratch_conn.commit()
     source_conn.close()
     scratch_conn.close()

@@ -170,10 +170,14 @@ class PersonIdentityTests(unittest.TestCase):
             )
 
         summary = refresh_person_identities(conn)
-        self.assertEqual(summary["persons"], 1)
+        self.assertEqual(summary["persons"], 0)
         self.assertEqual(summary["conflicts"], 1)
         conflict = conn.execute("SELECT conflict_type FROM person_resolution_conflicts").fetchone()
         self.assertEqual(conflict["conflict_type"], "multiple_pike13_person")
+        linked = conn.execute(
+            "SELECT COUNT(*) FROM pike13_people WHERE person_identity_id IS NOT NULL"
+        ).fetchone()[0]
+        self.assertEqual(linked, 0)
 
 
 if __name__ == "__main__":

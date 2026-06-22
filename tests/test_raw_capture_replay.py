@@ -103,7 +103,12 @@ Trial Date
         source = sqlite3.connect(source_db)
         self.addCleanup(source.close)
         status = source.execute("SELECT parse_status FROM raw_captures").fetchone()[0]
-        self.assertEqual(status, "replayed")
+        self.assertEqual(status, "captured")
+        replay_status = scratch.execute(
+            "SELECT status FROM raw_capture_replay_results WHERE capture_id = ?",
+            (payload["results"][0]["capture_id"],),
+        ).fetchone()[0]
+        self.assertEqual(replay_status, "replayed")
 
     def test_retention_dry_run_identifies_old_files_without_deleting(self):
         tmp = tempfile.TemporaryDirectory()

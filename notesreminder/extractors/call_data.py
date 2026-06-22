@@ -4,21 +4,13 @@ import re
 import sqlite3
 from pathlib import Path
 
+from notesreminder.lib.phone import normalize_phone
+
 
 def normalize_email(value):
     if not value:
         return None
     return value.strip().lower()
-
-
-def normalize_phone(value):
-    if not value:
-        return None
-    digits = re.sub(r"\D", "", value)
-    if not digits:
-        return None
-    # Use last 10 digits to normalize country codes.
-    return digits[-10:] if len(digits) >= 10 else digits
 
 
 def split_multi(value):
@@ -57,6 +49,7 @@ def ensure_indexes(conn):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_clients_phone ON pike13_clients(phone_digits)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_clients_mobile ON pike13_clients(mobile_digits)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_clients_account_phone ON pike13_clients(account_manager_phone_digits)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_clients_emergency_phone ON pike13_clients(emergency_contact_phone_digits)")
 
 
 def import_csv(conn, table_name, csv_path, extra_columns=None, unique_key=None):
@@ -87,6 +80,7 @@ def load_pike13_clients(conn, client_csv):
         "phone_digits",
         "mobile_digits",
         "account_manager_phone_digits",
+        "emergency_contact_phone_digits",
     ]
     create_table(
         conn,
@@ -155,6 +149,7 @@ def load_pike13_clients(conn, client_csv):
             guardian_email_lower = normalize_email(row.get("Guardian Email"))
             phone_digits = normalize_phone(row.get("Phone"))
             mobile_digits = normalize_phone(row.get("Mobile Phone"))
+            emergency_contact_phone_digits = normalize_phone(row.get("Emergency Contact Number"))
             account_manager_phones = split_multi(row.get("Account Manager Phones"))
             account_manager_phone_digits = (
                 normalize_phone(account_manager_phones[0]) if account_manager_phones else None
@@ -164,6 +159,7 @@ def load_pike13_clients(conn, client_csv):
             row["phone_digits"] = phone_digits
             row["mobile_digits"] = mobile_digits
             row["account_manager_phone_digits"] = account_manager_phone_digits
+            row["emergency_contact_phone_digits"] = emergency_contact_phone_digits
 
             cols = list(row.keys())
             placeholders = ", ".join(["?"] * len(cols))
@@ -277,7 +273,7 @@ def build_matches(conn, enable_fuzzy=False):
              c.external_number_digits = p.phone_digits
              OR c.external_number_digits = p.mobile_digits
              OR c.external_number_digits = p.account_manager_phone_digits
-             OR c.external_number_digits = REPLACE(REPLACE(REPLACE(p."Emergency Contact Number", '-', ''), '(', ''), ')', '')
+             OR c.external_number_digits = p.emergency_contact_phone_digits
          )
         """
     ).fetchall()

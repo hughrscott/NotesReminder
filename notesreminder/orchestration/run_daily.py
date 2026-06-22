@@ -13,12 +13,16 @@ import argparse
 import boto3
 import os
 import re
+import tempfile
+from pathlib import Path
 from dotenv import load_dotenv
+from botocore.exceptions import ClientError
 
 load_dotenv()
 
 from notesreminder.schema.reporting import backfill_reporting  # noqa: E402
 from notesreminder.extractors.noteschecker import scrape_lessons
+from scripts.db_guard import db_meta, verify_replace
 
 VERBOSE = False
 DELAY_NOTICE_FALLBACK_EMAIL = "hughrscott@mac.com"
@@ -524,6 +528,41 @@ def send_email_report(missing_notes, completed_notes, school_subdomain, start_da
     )
     print("✅ Email report sent successfully")
 
+def _timestamped_backup_key(s3_key):
+    stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    name = Path(s3_key).name
+    return f"backups/{name}.before-upload-{stamp}.bak"
+
+
+def _backup_s3_object(s3, bucket, s3_key):
+    backup_key = _timestamped_backup_key(s3_key)
+    try:
+        s3.copy_object(
+            Bucket=bucket,
+            CopySource={"Bucket": bucket, "Key": s3_key},
+            Key=backup_key,
+        )
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code in {"NoSuchKey", "404", "NotFound"}:
+            raise RuntimeError(
+                f"Cannot upload production DB: existing s3://{bucket}/{s3_key} was not found for backup."
+            ) from exc
+        raise
+    return backup_key
+
+
+def _verify_downloaded_db(current_path, incoming_path):
+    current = Path(current_path)
+    incoming = Path(incoming_path)
+    if current.exists():
+        verify_replace(current, incoming, force=False)
+    else:
+        meta = db_meta(incoming)
+        if meta.get("table_count") in (None, 0) or meta.get("integrity_check") != "ok":
+            raise RuntimeError(f"Downloaded DB failed verification: {meta}")
+
+
 def upload_db_to_s3(local_path, bucket, s3_key):
     """Upload the database to S3"""
     log("\n🔍 Checking AWS credentials...")
@@ -533,6 +572,8 @@ def upload_db_to_s3(local_path, bucket, s3_key):
     
     try:
         s3 = boto3.client('s3')
+        backup_key = _backup_s3_object(s3, bucket, s3_key)
+        log(f"Created S3 backup s3://{bucket}/{backup_key}", force=True)
         log(f"\n📤 Uploading {local_path} to s3://{bucket}/{s3_key}")
         s3.upload_file(local_path, bucket, s3_key)
         log("✅ Database uploaded successfully")
@@ -543,7 +584,22 @@ def upload_db_to_s3(local_path, bucket, s3_key):
 def download_db_from_s3(local_path, bucket, s3_key):
     s3 = boto3.client('s3')
     try:
-        s3.download_file(bucket, s3_key, local_path)
+        destination = Path(local_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{destination.name}.",
+            suffix=".download",
+            dir=str(destination.parent),
+            delete=False,
+        ) as tmp:
+            temp_path = Path(tmp.name)
+        try:
+            s3.download_file(bucket, s3_key, str(temp_path))
+            _verify_downloaded_db(destination, temp_path)
+            temp_path.replace(destination)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
         log(f"✅ Downloaded {s3_key} from s3://{bucket} to {local_path}")
     except Exception as e:
         print(f"⚠️ Could not download {s3_key} from s3://{bucket}: {e}")
@@ -992,8 +1048,11 @@ async def main():
             })
 
     if not args.skip_reporting_sync:
-        sync_reporting_tables(DB_PATH)
-        log("✅ Normalized reporting tables synced from reminders.", force=args.verbose)
+        try:
+            sync_reporting_tables(DB_PATH)
+            log("✅ Normalized reporting tables synced from reminders.", force=args.verbose)
+        except Exception as exc:
+            print(f"⚠️ Shadow reporting sync failed; continuing to email/S3: {exc}")
 
     # Now, retrieve missing notes from the DB within the requested window
     all_missing_notes = get_lessons_without_notes(school_subdomain, start_date, end_date)

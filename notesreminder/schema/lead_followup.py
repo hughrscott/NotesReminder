@@ -5,6 +5,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from notesreminder.lib.phone import normalize_phone
+
 
 DEFAULT_INITIAL_LOAD_START = "2025-01-01"
 
@@ -18,15 +20,6 @@ def normalize_email(value):
         return None
     value = str(value).strip().lower()
     return value or None
-
-
-def normalize_phone(value):
-    if not value:
-        return None
-    digits = re.sub(r"\D", "", str(value))
-    if not digits:
-        return None
-    return digits[-10:] if len(digits) >= 10 else digits
 
 
 def _execute_many(conn, statements):

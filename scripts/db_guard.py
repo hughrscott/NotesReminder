@@ -31,11 +31,14 @@ def db_meta(path: Path):
     }
     try:
         conn = sqlite3.connect(str(path))
+        integrity = conn.execute("PRAGMA integrity_check").fetchone()
         row = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         meta["table_count"] = len(row)
+        meta["integrity_check"] = integrity[0] if integrity else None
         conn.close()
     except sqlite3.Error:
         meta["table_count"] = None
+        meta["integrity_check"] = None
     return meta
 
 
@@ -61,6 +64,7 @@ def verify_replace(current: Path, incoming: Path, force: bool):
     older = inc["mtime_epoch"] < cur["mtime_epoch"]
     smaller = inc["size_bytes"] < cur["size_bytes"]
     same_hash = inc["sha256"] == cur["sha256"]
+    invalid_sqlite = inc.get("table_count") in (None, 0) or inc.get("integrity_check") != "ok"
 
     print("current:")
     print(json.dumps(cur, indent=2))
@@ -70,6 +74,11 @@ def verify_replace(current: Path, incoming: Path, force: bool):
     if same_hash:
         print("result=allowed (identical)")
         return
+    if invalid_sqlite:
+        raise SystemExit(
+            "result=blocked reasons=invalid_sqlite "
+            f"(table_count={inc.get('table_count')}, integrity_check={inc.get('integrity_check')})"
+        )
     if (older or smaller) and not force:
         reasons = []
         if older:

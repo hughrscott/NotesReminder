@@ -18,6 +18,27 @@ ANALYSIS_FIELDS = (
 )
 
 
+def is_retryable_openai_error(exc):
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {429, 500, 502, 503, 504}:
+        return True
+    message = str(exc).lower()
+    return any(marker in message for marker in ("rate limit", "429", "500", "502", "503", "504", "temporarily"))
+
+
+def call_with_backoff(fn, attempts=3, base_sleep=1.0):
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:
+            last_exc = exc
+            if not is_retryable_openai_error(exc) or attempt == attempts - 1:
+                raise
+            time.sleep(base_sleep * (2 ** attempt))
+    raise last_exc
+
+
 def get_pending_transcripts(conn, limit=None, force=False):
     base_sql = """
         SELECT call_id, transcript_text
@@ -110,6 +131,21 @@ def store_analysis(conn, call_id, analysis):
     conn.commit()
 
 
+def store_analysis_failure(conn, call_id, error_message):
+    completed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    conn.execute(
+        """
+        UPDATE recording_transcripts
+        SET intent = 'analysis_failed',
+            error_message = ?,
+            completed_at = ?
+        WHERE call_id = ?
+        """,
+        (str(error_message)[:500], completed_at, call_id),
+    )
+    conn.commit()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Analyze call transcripts with OpenAI and store tags."
@@ -161,10 +197,12 @@ def main():
                 continue
             prompt = build_prompt(transcript)
             try:
-                response = client.responses.create(
-                    model=args.model,
-                    input=prompt,
-                    temperature=0,
+                response = call_with_backoff(
+                    lambda: client.responses.create(
+                        model=args.model,
+                        input=prompt,
+                        temperature=0,
+                    )
                 )
                 text = response.output_text
                 payload = parse_json_response(text)
@@ -172,6 +210,7 @@ def main():
                 store_analysis(conn, call_id, analysis)
             except Exception as exc:
                 print(f"Call {call_id} failed: {exc}")
+                store_analysis_failure(conn, call_id, exc)
                 time.sleep(args.sleep)
                 continue
             time.sleep(args.sleep)

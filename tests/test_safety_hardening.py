@@ -6,7 +6,10 @@ from pathlib import Path
 
 import mcp_server
 from notesreminder.extractors.call_data import run_import
+from notesreminder.lib.phone import normalize_phone
 from notesreminder.schema.init_db import initialize_db
+from notesreminder.transcription.analyze_transcripts_openai import call_with_backoff
+from scripts.db_guard import verify_replace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,3 +172,47 @@ def test_call_data_import_is_idempotent_and_aggregates_call_logs(tmp_path):
         )
     finally:
         conn.close()
+
+
+def test_db_guard_rejects_larger_corrupt_incoming_file(tmp_path):
+    current = tmp_path / "current.db"
+    incoming = tmp_path / "incoming.db"
+    conn = sqlite3.connect(current)
+    conn.execute("CREATE TABLE reminders (lesson_id TEXT)")
+    conn.commit()
+    conn.close()
+    incoming.write_bytes(b"not sqlite" * 10000)
+
+    try:
+        verify_replace(current, incoming, force=True)
+    except SystemExit as exc:
+        assert "invalid_sqlite" in str(exc)
+    else:
+        raise AssertionError("Corrupt incoming DB was allowed")
+
+
+def test_shared_phone_normalization_handles_extensions_and_international_numbers():
+    assert normalize_phone("+1 (713) 555-1212 ext. 44") == "7135551212"
+    assert normalize_phone("713-555-1212 x9") == "7135551212"
+    assert normalize_phone("+44 20 7946 0958") == "442079460958"
+    assert normalize_phone("") is None
+
+
+def test_openai_backoff_retries_transient_errors_once(monkeypatch):
+    calls = {"count": 0}
+    sleeps = []
+
+    class RetryableError(Exception):
+        status_code = 429
+
+    def flaky():
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RetryableError("rate limited")
+        return "ok"
+
+    monkeypatch.setattr("notesreminder.transcription.analyze_transcripts_openai.time.sleep", sleeps.append)
+
+    assert call_with_backoff(flaky, attempts=2, base_sleep=0.5) == "ok"
+    assert calls["count"] == 2
+    assert sleeps == [0.5]
