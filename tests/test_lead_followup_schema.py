@@ -807,7 +807,7 @@ class LeadFollowupSchemaTests(unittest.TestCase):
             (now,),
         )
 
-        report = build_source_completeness_report(conn, window_days=51, pike13_lookahead_days=30)
+        report = build_source_completeness_report(conn, window_days=90, pike13_lookahead_days=30)
         dialpad = report["sources"]["dialpad"]
         self.assertEqual(dialpad["conversation_history_recording_or_transcript_url_rows"], 1)
 

@@ -47,6 +47,8 @@ def parse_args():
     parser.add_argument('--start-date', type=str, help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end-date', type=str, help='End date in YYYY-MM-DD format')
     parser.add_argument('--init-db', action='store_true', help='Initialize and upload a fresh database')
+    parser.add_argument('--confirm-init-db-upload', action='store_true',
+                        help='Allow --init-db to upload the fresh DB to production S3.')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging output')
     parser.add_argument('--summary', choices=['none', 'notes', 'missing', 'both'], default='both',
                         help='Select which sections to include in the summary email')
@@ -673,8 +675,13 @@ async def main():
     if args.init_db:
         log("Initializing fresh database...")
         from notesreminder.schema.init_db import initialize_db
-        initialize_db()
+        initialize_db(DB_PATH)
         if not args.skip_s3_sync:
+            if not args.confirm_init_db_upload:
+                raise SystemExit(
+                    "--init-db initialized the local DB only. Re-run with "
+                    "--confirm-init-db-upload to upload a fresh DB to production S3."
+                )
             upload_db_to_s3(DB_PATH, S3_BUCKET, S3_KEY)
             log("Fresh database initialized and uploaded to S3")
         else:

@@ -46,10 +46,15 @@ def _download_db():
     s3.download_file(S3_BUCKET, S3_KEY, DB_PATH)
 
 
-def _connect(db_path=DB_PATH):
+def _connect(db_path=None, *, read_only=False):
+    db_path = db_path or DB_PATH
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"{db_path} not found.")
-    conn = sqlite3.connect(db_path)
+    if read_only:
+        uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+        conn = sqlite3.connect(uri, uri=True)
+    else:
+        conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -84,7 +89,7 @@ def _rows_as_json(columns, rows, max_rows):
 
 
 def _query_rows(sql, params=None, max_rows=MAX_ROWS_DEFAULT):
-    conn = _connect()
+    conn = _connect(read_only=True)
     try:
         cursor = conn.execute(sql, params or {})
         rows = cursor.fetchmany(max_rows)
@@ -125,7 +130,7 @@ def db_status() -> str:
 @mcp.tool()
 def list_tables() -> str:
     """List tables available in the SQLite database."""
-    conn = _connect()
+    conn = _connect(read_only=True)
     try:
         rows = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -141,7 +146,7 @@ def describe_table(table_name: str) -> str:
     """Describe columns for a given table."""
     if not re.fullmatch(r"[A-Za-z0-9_]+", table_name):
         raise ValueError("Table name must be alphanumeric or underscore only.")
-    conn = _connect()
+    conn = _connect(read_only=True)
     try:
         rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     finally:
@@ -169,14 +174,13 @@ def query_sql(sql: str, max_rows: int = MAX_ROWS_DEFAULT) -> str:
         raise ValueError("Only SELECT queries (including CTEs) are allowed.")
     if ";" in cleaned:
         raise ValueError("Only a single SQL statement is allowed.")
-    conn = _connect()
+    conn = _connect(read_only=True)
     try:
         cursor = conn.execute(cleaned)
         rows = cursor.fetchmany(max_rows)
         columns = [col[0] for col in cursor.description] if cursor.description else []
     finally:
         conn.close()
-    data = [list(row) for row in rows]
     return _rows_as_json(columns, rows, max_rows)
 
 

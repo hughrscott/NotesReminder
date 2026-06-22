@@ -33,6 +33,20 @@ def create_table(conn, table_name, columns):
     conn.execute(f"CREATE TABLE IF NOT EXISTS \"{table_name}\" ({cols})")
 
 
+def reset_staging_tables(conn):
+    for table_name in (
+        "pike13_clients",
+        "dialpad_calls",
+        "dialpad_recordings",
+        "dialpad_voicemails",
+    ):
+        conn.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+    if table_exists(conn, "call_client_matches"):
+        conn.execute("DELETE FROM call_client_matches")
+    if table_exists(conn, "call_logs"):
+        conn.execute("DELETE FROM call_logs")
+
+
 def ensure_indexes(conn):
     if table_exists(conn, "dialpad_calls"):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_calls_email ON dialpad_calls(email_lower)")
@@ -126,6 +140,13 @@ def load_pike13_clients(conn, client_csv):
         ]
         + extra,
     )
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_pike13_clients_client_id_unique
+        ON pike13_clients("Client ID")
+        WHERE "Client ID" IS NOT NULL AND "Client ID" != ''
+        """
+    )
 
     with client_csv.open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -148,7 +169,7 @@ def load_pike13_clients(conn, client_csv):
             placeholders = ", ".join(["?"] * len(cols))
             columns_sql = ", ".join([f"\"{col}\"" for col in cols])
             conn.execute(
-                f"INSERT INTO pike13_clients ({columns_sql}) VALUES ({placeholders})",
+                f"INSERT OR REPLACE INTO pike13_clients ({columns_sql}) VALUES ({placeholders})",
                 [row.get(col) for col in cols],
             )
 
@@ -164,10 +185,17 @@ def load_dialpad_calls(conn, call_csvs):
             reader = csv.DictReader(f)
             headers = reader.fieldnames or []
             create_table(conn, "dialpad_calls", headers + extra)
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_dialpad_calls_call_id_unique
+                ON dialpad_calls(call_id)
+                WHERE call_id IS NOT NULL AND call_id != ''
+                """
+            )
             insert_cols = headers + extra
             placeholders = ", ".join(["?"] * len(insert_cols))
             columns_sql = ", ".join([f"\"{col}\"" for col in insert_cols])
-            insert_sql = f"INSERT OR IGNORE INTO dialpad_calls ({columns_sql}) VALUES ({placeholders})"
+            insert_sql = f"INSERT OR REPLACE INTO dialpad_calls ({columns_sql}) VALUES ({placeholders})"
 
             for row in reader:
                 row["email_lower"] = normalize_email(row.get("email"))
@@ -383,6 +411,24 @@ def build_reporting_call_logs(conn):
             voicemail_date,
             recording_date
         )
+        WITH voicemail_one AS (
+            SELECT
+                call_id,
+                MAX(transcription_text) AS transcription_text,
+                MAX(recording_url) AS recording_url,
+                MAX(date) AS date
+            FROM dialpad_voicemails
+            GROUP BY call_id
+        ),
+        recording_one AS (
+            SELECT
+                call_id,
+                MAX(recording_url) AS recording_url,
+                MAX(duration) AS duration,
+                MAX(date) AS date
+            FROM dialpad_recordings
+            GROUP BY call_id
+        )
         SELECT
             c.call_id,
             c.office_id,
@@ -419,8 +465,8 @@ def build_reporting_call_logs(conn):
             v.date,
             r.date
         FROM dialpad_calls c
-        LEFT JOIN dialpad_voicemails v ON v.call_id = c.call_id
-        LEFT JOIN dialpad_recordings r ON r.call_id = c.call_id
+        LEFT JOIN voicemail_one v ON v.call_id = c.call_id
+        LEFT JOIN recording_one r ON r.call_id = c.call_id
         """
     )
 
@@ -438,6 +484,7 @@ def run_import(clients_path, dialpad_dir, db_path="reminders.db", enable_fuzzy=F
 
     conn = sqlite3.connect(db_path)
     try:
+        reset_staging_tables(conn)
         load_pike13_clients(conn, client_csv)
         load_dialpad_calls(conn, call_csvs)
         load_dialpad_generic(conn, "dialpad_recordings", recording_csvs, key_column="call_id")
