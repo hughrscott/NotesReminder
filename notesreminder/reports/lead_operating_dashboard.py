@@ -120,20 +120,26 @@ def school_clause(alias, school):
     return f"LOWER(COALESCE({alias}.school, '')) IN ({placeholders})", params
 
 
-def hubspot_contact_school_clause(school):
+def hubspot_contact_school_clause(school, conn=None):
     aliases = school_aliases(school)
     if not aliases:
         return "1=1", {}
     params = {f"contact_school_{index}": value for index, value in enumerate(aliases)}
     exact_placeholders = ", ".join(f":{key}" for key in params)
     like_params = {f"contact_school_like_{index}": f"%{value}%" for index, value in enumerate(aliases)}
+    school_expr = "LOWER(COALESCE(c.school, ''))"
+    deal_name_expr = "c.hubspot_deal_name"
+    if conn is not None:
+        school_column = contact_column(conn, "school", fallback="''")
+        school_expr = f"LOWER(COALESCE({school_column}, ''))"
+        deal_name_expr = contact_column(conn, "hubspot_deal_name", fallback="''")
     like_sql = " OR ".join(
-        f"LOWER(COALESCE(c.hubspot_deal_name, '')) LIKE :contact_school_like_{index}"
+        f"LOWER(COALESCE({deal_name_expr}, '')) LIKE :contact_school_like_{index}"
         for index in range(len(aliases))
     )
     return (
         f"""(
-            LOWER(COALESCE(c.school, '')) IN ({exact_placeholders})
+            {school_expr} IN ({exact_placeholders})
             OR LOWER(COALESCE(pp.school, '')) IN ({exact_placeholders})
             OR {like_sql}
         )""",
@@ -148,6 +154,35 @@ def table_exists(conn, name):
             (name,),
         ).fetchone()
     )
+
+
+def column_exists(conn, table, column):
+    if not table_exists(conn, table):
+        return False
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})").fetchall())
+
+
+def contact_column(conn, column, alias="c", fallback="NULL"):
+    return f"{alias}.{column}" if column_exists(conn, "hubspot_contacts", column) else fallback
+
+
+def contact_date_expr(conn, alias="c"):
+    if column_exists(conn, "hubspot_contacts", "create_date"):
+        return f"dashboard_date(NULLIF({alias}.create_date, ''), NULLIF({alias}.updated_at, ''))"
+    return f"dashboard_date(NULLIF({alias}.updated_at, ''))"
+
+
+def contact_person_expr(conn, alias="c"):
+    parts = []
+    if column_exists(conn, "hubspot_contacts", "pike13_person_id"):
+        parts.append(f"NULLIF({alias}.pike13_person_id, '')")
+    if column_exists(conn, "hubspot_contacts", "person_id"):
+        parts.append(f"NULLIF({alias}.person_id, '')")
+    if not parts:
+        return "NULL"
+    if len(parts) == 1:
+        return parts[0]
+    return "COALESCE(" + ", ".join(parts) + ")"
 
 
 def scalar(conn, sql, params=None):
@@ -324,19 +359,21 @@ def trial_cohort_conversion_count(conn, start_date, end_date, school):
 
 def hubspot_lead_count(conn, start_date, end_date, school):
     if table_exists(conn, "hubspot_contacts"):
-        school_sql, school_params = hubspot_contact_school_clause(school)
+        school_sql, school_params = hubspot_contact_school_clause(school, conn)
+        lead_date_sql = contact_date_expr(conn)
+        person_sql = contact_person_expr(conn)
         params = {"start": start_date, "end": end_date, **school_params}
         count = int(
             scalar(
                 conn,
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM hubspot_contacts c
-                LEFT JOIN pike13_people pp ON pp.person_id = c.pike13_person_id
-                WHERE dashboard_date(NULLIF(c.create_date, ''), NULLIF(c.updated_at, ''))
+                LEFT JOIN pike13_people pp ON pp.person_id = {person_sql}
+                WHERE {lead_date_sql}
                     BETWEEN dashboard_date(:start) AND dashboard_date(:end)
                   AND {school_sql}
-                """.format(school_sql=school_sql),
+                """,
                 params,
             )
             or 0
@@ -441,22 +478,26 @@ def _is_inbound(direction):
 def _lead_followup_rows(conn, start_date, end_date, school):
     if not table_exists(conn, "hubspot_contacts"):
         return []
-    school_sql, school_params = hubspot_contact_school_clause(school)
+    school_sql, school_params = hubspot_contact_school_clause(school, conn)
+    lead_date_sql = contact_date_expr(conn)
+    person_sql = contact_person_expr(conn)
+    pike13_person_sql = contact_column(conn, "pike13_person_id")
+    person_id_sql = contact_column(conn, "person_id")
     return conn.execute(
         f"""
         SELECT
             c.contact_id,
-            dashboard_date(NULLIF(c.create_date, ''), NULLIF(c.updated_at, '')) AS lead_date,
+            {lead_date_sql} AS lead_date,
             c.email_normalized AS contact_email,
             c.phone_normalized AS contact_phone,
-            c.pike13_person_id,
-            c.person_id,
+            {pike13_person_sql} AS pike13_person_id,
+            {person_id_sql} AS person_id,
             pp.email_normalized AS pike13_email,
             pp.phone_normalized AS pike13_phone
         FROM hubspot_contacts c
         LEFT JOIN pike13_people pp
-          ON pp.person_id = COALESCE(NULLIF(c.pike13_person_id, ''), NULLIF(c.person_id, ''))
-        WHERE dashboard_date(NULLIF(c.create_date, ''), NULLIF(c.updated_at, ''))
+          ON pp.person_id = {person_sql}
+        WHERE {lead_date_sql}
             BETWEEN dashboard_date(:start) AND dashboard_date(:end)
           AND {school_sql}
         """,
@@ -794,17 +835,28 @@ def performance_sections(conn, start_date, end_date, school):
         )
     sources = []
     if table_exists(conn, "hubspot_contacts"):
-        school_sql, school_params = hubspot_contact_school_clause(school)
+        school_sql, school_params = hubspot_contact_school_clause(school, conn)
+        lead_date_sql = contact_date_expr(conn)
+        person_sql = contact_person_expr(conn)
+        lead_source_sql = contact_column(conn, "lead_source", fallback="''")
+        marketing_source_sql = contact_column(conn, "marketing_source", fallback="''")
+        record_source_sql = contact_column(conn, "record_source_detail", fallback="''")
+        source_expr = (
+            f"COALESCE(NULLIF({lead_source_sql}, ''), "
+            f"NULLIF({marketing_source_sql}, ''), "
+            f"NULLIF({record_source_sql}, ''), "
+            "'unknown')"
+        )
         sources = top_counts(
             conn,
             f"""
-            SELECT COALESCE(NULLIF(c.lead_source, ''), NULLIF(c.marketing_source, ''), NULLIF(c.record_source_detail, ''), 'unknown') AS source, COUNT(*) AS leads
+            SELECT {source_expr} AS source, COUNT(*) AS leads
             FROM hubspot_contacts c
-            LEFT JOIN pike13_people pp ON pp.person_id = c.pike13_person_id
-            WHERE dashboard_date(NULLIF(c.create_date, ''), NULLIF(c.updated_at, ''))
+            LEFT JOIN pike13_people pp ON pp.person_id = {person_sql}
+            WHERE {lead_date_sql}
                 BETWEEN dashboard_date(:start) AND dashboard_date(:end)
               AND {school_sql}
-            GROUP BY COALESCE(NULLIF(c.lead_source, ''), NULLIF(c.marketing_source, ''), NULLIF(c.record_source_detail, ''), 'unknown')
+            GROUP BY {source_expr}
             ORDER BY leads DESC, source
             LIMIT 10
             """,

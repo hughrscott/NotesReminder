@@ -330,6 +330,55 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertIn("Insufficient matched communication data", markdown)
         self.assertIn("matched_communication_coverage_below_10pct", markdown)
 
+    def test_dashboard_handles_legacy_hubspot_contacts_schema(self):
+        conn = open_db()
+        conn.execute("DROP TABLE hubspot_contacts")
+        conn.execute(
+            """
+            CREATE TABLE hubspot_contacts (
+                contact_id TEXT PRIMARY KEY,
+                full_name TEXT,
+                email_normalized TEXT,
+                phone_normalized TEXT,
+                school TEXT,
+                associated_deal_ids TEXT,
+                raw_json TEXT,
+                updated_at TEXT NOT NULL,
+                person_id TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email_normalized, phone_normalized,
+                school, associated_deal_ids, raw_json, updated_at, person_id
+            )
+            VALUES ('legacy-contact-1', 'Private Student', 'lead@example.com',
+                    '7135551212', 'West University Place', '', '{"trusted": 1}',
+                    '2026-05-02', 'person-1')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, email_normalized, phone_normalized, school, updated_at
+            )
+            VALUES ('person-1', 'lead@example.com', '7135551212', 'West U', '2026-05-02T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "monthly",
+            start_date="2026-01-01",
+            end_date="2026-06-22",
+            school="West U",
+        )
+
+        self.assertEqual(snapshot["funnel_counts"]["hubspot_leads"], 1)
+        self.assertEqual(snapshot["performance"]["hubspot_source_counts"][0]["source"], "unknown")
+
     def test_exception_queue_includes_customer_names_and_groups_by_customer(self):
         conn = open_db()
         conn.execute(
