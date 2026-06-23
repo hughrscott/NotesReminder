@@ -418,6 +418,30 @@ class HubSpotExtractorTests(unittest.TestCase):
         self.assertEqual(matched["pike13_person_id"], "pike-person-1")
         self.assertEqual(matched["pike13_loaded_flag"], 1)
         self.assertEqual(matched["pike13_match_method"], "existing_pike13_email")
+        self.assertEqual(matched["school"], "West U")
+
+    def test_contact_row_fills_blank_school_from_existing_pike13_match(self):
+        conn = sqlite3.connect(":memory:")
+        ensure_lead_followup_schema(conn)
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, email, email_normalized, school, updated_at
+            )
+            VALUES ('pike-school-fill', 'School Fill', 'fill@example.com',
+                    'fill@example.com', 'The Heights', '2026-05-31T00:00:00+00:00')
+            """
+        )
+        row = {
+            "contact_id": "contact-school-fill",
+            "email_normalized": "fill@example.com",
+            "pike13_loaded_flag": 0,
+        }
+
+        matched = apply_pike13_match_from_db(conn, row)
+
+        self.assertEqual(matched["pike13_person_id"], "pike-school-fill")
+        self.assertEqual(matched["school"], "The Heights")
 
     def test_contact_row_marks_existing_pike13_person_by_name_and_school(self):
         conn = sqlite3.connect(":memory:")

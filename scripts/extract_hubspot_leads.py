@@ -967,34 +967,47 @@ def apply_pike13_match_from_db(conn, row):
     if row.get("pike13_loaded_flag"):
         return row
     match = None
+    match_school = None
     method = None
     school = contact_school_context(row)
     if row.get("pike13_person_id"):
-        match = conn.execute("SELECT person_id FROM pike13_people WHERE person_id = ?", (row["pike13_person_id"],)).fetchone()
+        match = conn.execute(
+            "SELECT person_id, school FROM pike13_people WHERE person_id = ?",
+            (row["pike13_person_id"],),
+        ).fetchone()
         method = "pike13_person_id"
     if not match and row.get("email_normalized"):
-        matches = conn.execute("SELECT person_id FROM pike13_people WHERE email_normalized = ?", (row["email_normalized"],)).fetchall()
+        matches = conn.execute(
+            "SELECT person_id, school FROM pike13_people WHERE email_normalized = ?",
+            (row["email_normalized"],),
+        ).fetchall()
         match = matches[0] if len(matches) == 1 else None
         method = "email"
     if not match and row.get("phone_normalized"):
-        matches = conn.execute("SELECT person_id FROM pike13_people WHERE phone_normalized = ?", (row["phone_normalized"],)).fetchall()
+        matches = conn.execute(
+            "SELECT person_id, school FROM pike13_people WHERE phone_normalized = ?",
+            (row["phone_normalized"],),
+        ).fetchall()
         match = matches[0] if len(matches) == 1 else None
         method = "phone"
     if not match and row.get("full_name"):
         candidate = pike13_person_by_normalized_name(conn, row.get("full_name"), school, row.get("create_date"))
         if candidate:
-            match = (candidate[0],)
+            match = (candidate[0], candidate[2])
             method = "name_school"
     deal_person_name = person_name_from_deal_name(row.get("hubspot_deal_name"))
     if not match and deal_person_name:
         candidate = pike13_person_by_normalized_name(conn, deal_person_name, school, row.get("create_date"))
         if candidate:
-            match = (candidate[0],)
+            match = (candidate[0], candidate[2])
             method = "deal_name_school"
     if match:
+        match_school = match[1] if len(match) > 1 else None
         row["pike13_person_id"] = row.get("pike13_person_id") or match[0]
         row["pike13_loaded_flag"] = 1
         row["pike13_match_method"] = f"existing_pike13_{method}"
+        if match_school and not contact_school_context(row):
+            row["school"] = match_school
     return row
 
 
