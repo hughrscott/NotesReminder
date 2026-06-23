@@ -274,6 +274,66 @@ def source_freshness(conn):
     return {"status": status, "runs": [dict(row) for row in rows], "counts": counts}
 
 
+def max_dashboard_date(conn, table, expression):
+    if not table_exists(conn, table):
+        return None
+    try:
+        return scalar(conn, f"SELECT MAX(dashboard_date({expression})) FROM {table}")
+    except sqlite3.OperationalError:
+        return None
+
+
+def source_data_freshness(conn, end_date, school):
+    latest = {
+        "lessons": max_dashboard_date(conn, "lessons", "lesson_date"),
+        "hubspot_contacts": (
+            max_dashboard_date(conn, "hubspot_contacts", contact_date_expr(conn, "hubspot_contacts"))
+            if table_exists(conn, "hubspot_contacts")
+            else None
+        ),
+        "pike13_visits": max_dashboard_date(conn, "pike13_visits", "starts_at"),
+        "school_email": max_dashboard_date(conn, "school_email_messages", "message_at"),
+    }
+    if table_exists(conn, "vw_dialpad_communications"):
+        latest["dialpad_calls"] = scalar(
+            conn,
+            "SELECT MAX(dashboard_date(event_at)) FROM vw_dialpad_communications WHERE channel = 'call'",
+        )
+        latest["dialpad_sms"] = scalar(
+            conn,
+            "SELECT MAX(dashboard_date(event_at)) FROM vw_dialpad_communications WHERE channel = 'sms'",
+        )
+    else:
+        latest["dialpad_calls"] = None
+        latest["dialpad_sms"] = None
+    flags = []
+    for source, latest_date in latest.items():
+        if not latest_date:
+            flags.append(f"missing_{source}_data")
+        elif latest_date < end_date:
+            flags.append(f"stale_{source}_data_latest_{latest_date}")
+    if table_exists(conn, "vw_dialpad_communications"):
+        school_sql, school_params = school_clause("v", school)
+        sms_rows = int(
+            scalar(
+                conn,
+                f"""
+                SELECT COUNT(*)
+                FROM vw_dialpad_communications v
+                WHERE v.channel = 'sms'
+                  AND {school_sql}
+                """,
+                school_params,
+            )
+            or 0
+        )
+        latest["school_sms_rows"] = sms_rows
+        if sms_rows == 0:
+            flags.append("missing_school_sms_data")
+    status = "ready" if not flags else "attention"
+    return {"status": status, "latest_dates": latest, "flags": flags}
+
+
 def pike13_outcomes(conn, start_date, end_date, school):
     if not table_exists(conn, "pike13_visits"):
         return {}
@@ -585,6 +645,7 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "leads": 0,
         "trials": 0,
         "matched_communication_leads": 0,
+        "communication_7d_leads": 0,
         "outbound_7d_leads": 0,
         "inbound_7d_leads": 0,
         "pre_lead_inbound_origin_leads": 0,
@@ -594,7 +655,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "pre_lead_inbound_sms_leads": 0,
         "pre_lead_inbound_call_leads": 0,
         "call_7d_leads": 0,
+        "outbound_call_7d_leads": 0,
         "email_7d_leads": 0,
+        "outbound_email_7d_leads": 0,
     }
     for row in rows:
         lead_date = parse_date(row["lead_date"])
@@ -638,7 +701,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         pre_lead_inbound_sms = [communication for communication in pre_lead_inbound if communication.get("channel") == "sms"]
         pre_lead_inbound_calls = [communication for communication in pre_lead_inbound if communication.get("channel") == "call"]
         calls = [communication for communication in window_communications if communication.get("channel") == "call"]
+        outbound_calls = [communication for communication in calls if _is_outbound(communication["direction"])]
         emails = [communication for communication in window_communications if communication.get("channel") == "email"]
+        outbound_emails = [communication for communication in emails if _is_outbound(communication["direction"])]
         first_outbound_date = min((communication["event_at"].date() for communication in outbound), default=None)
         response_bucket = _followup_response_bucket(first_outbound_date, lead_date)
         engagement_bucket = _followup_engagement_bucket(len(outbound), len(inbound))
@@ -653,6 +718,7 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         coverage["leads"] += 1
         coverage["trials"] += 1 if trial_scheduled else 0
         coverage["matched_communication_leads"] += 1 if communications else 0
+        coverage["communication_7d_leads"] += 1 if window_communications else 0
         coverage["outbound_7d_leads"] += 1 if outbound else 0
         coverage["inbound_7d_leads"] += 1 if inbound else 0
         coverage["pre_lead_inbound_origin_leads"] += 1 if pre_lead_inbound else 0
@@ -662,7 +728,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         coverage["pre_lead_inbound_sms_leads"] += 1 if pre_lead_inbound_sms else 0
         coverage["pre_lead_inbound_call_leads"] += 1 if pre_lead_inbound_calls else 0
         coverage["call_7d_leads"] += 1 if calls else 0
+        coverage["outbound_call_7d_leads"] += 1 if outbound_calls else 0
         coverage["email_7d_leads"] += 1 if emails else 0
+        coverage["outbound_email_7d_leads"] += 1 if outbound_emails else 0
 
     grid = []
     for response in FOLLOWUP_RESPONSE_BUCKETS:
@@ -687,10 +755,13 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         trials = sum(cells[(response, engagement)]["trials"] for response in FOLLOWUP_RESPONSE_BUCKETS)
         column_totals[engagement] = _trial_rate_cell(leads, trials)
     coverage["communication_coverage_rate"] = round(coverage["matched_communication_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["communication_7d_rate"] = round(coverage["communication_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["outbound_7d_rate"] = round(coverage["outbound_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["pre_lead_inbound_origin_rate"] = round(coverage["pre_lead_inbound_origin_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["sms_7d_rate"] = round(coverage["sms_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["outbound_sms_7d_rate"] = round(coverage["outbound_sms_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["outbound_call_7d_rate"] = round(coverage.get("outbound_call_7d_leads", 0) / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["outbound_email_7d_rate"] = round(coverage.get("outbound_email_7d_leads", 0) / coverage["leads"], 4) if coverage["leads"] else None
     coverage["lead_to_trial_rate"] = round(coverage["trials"] / coverage["leads"], 4) if coverage["leads"] else None
     data_quality_flags = []
     blockers = []
@@ -701,6 +772,8 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         data_quality_flags.append("low_matched_communication_coverage")
     if coverage["leads"] and (coverage["communication_coverage_rate"] or 0) < 0.1:
         blockers.append("matched_communication_coverage_below_10pct")
+    if coverage["leads"] and coverage["communication_7d_leads"] == 0:
+        data_quality_flags.append("no_matched_communication_7d")
     if coverage["leads"] and coverage["outbound_7d_leads"] == 0:
         data_quality_flags.append("no_matched_outbound_followup_7d")
         blockers.append("no_matched_outbound_followup_7d")
@@ -975,12 +1048,25 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
     communications = communication_counts(conn, start_date, end_date, school)
     notes = notes_operations(conn, start_date, end_date, school)
     recordings = recording_status(conn, start_date, end_date, school)
-    contacted = sum(1 for row in gap["rows"] if row.get("outreach_evidence_found"))
+    lead_followup_pareto = lead_followup_pareto_grid(conn, start_date, end_date, school)
+    followup_coverage = lead_followup_pareto.get("coverage", {})
+    legacy_deal_contacted = sum(1 for row in gap["rows"] if row.get("outreach_evidence_found"))
+    contacted = followup_coverage.get("communication_7d_leads", 0)
     trial_expected = sum(1 for row in gap["rows"] if row.get("trial_expected"))
     trial_cohort_converted = trial_cohort_conversion_count(conn, start_date, end_date, school)
     funnel_counts = {
         "hubspot_leads": hubspot_lead_count(conn, start_date, end_date, school),
         "contacted": contacted,
+        "any_matched_communication": followup_coverage.get("matched_communication_leads", 0),
+        "communication_contacted_7d": followup_coverage.get("communication_7d_leads", 0),
+        "outbound_contacted_7d": followup_coverage.get("outbound_7d_leads", 0),
+        "call_contacted_7d": followup_coverage.get("call_7d_leads", 0),
+        "sms_contacted_7d": followup_coverage.get("sms_7d_leads", 0),
+        "email_contacted_7d": followup_coverage.get("email_7d_leads", 0),
+        "outbound_call_contacted_7d": followup_coverage.get("outbound_call_7d_leads", 0),
+        "outbound_sms_contacted_7d": followup_coverage.get("outbound_sms_7d_leads", 0),
+        "outbound_email_contacted_7d": followup_coverage.get("outbound_email_7d_leads", 0),
+        "legacy_deal_contacted": legacy_deal_contacted,
         "trial_scheduled_or_expected": trial_expected,
         "pike13_first_visits": pike13.get("first_visits", 0),
         "attended": pike13.get("attended", 0),
@@ -999,6 +1085,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
         "school": school,
         "window": {"start": start_date, "end": end_date},
         "source_freshness": source_freshness(conn),
+        "source_data_freshness": source_data_freshness(conn, end_date, school),
         "funnel_counts": funnel_counts,
         "funnel_rates": funnel_rates,
         "outreach_health": {
@@ -1013,7 +1100,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
             "converted": conversion_count(conn, start_date, end_date, school),
         },
         "communications": communications,
-        "lead_followup_pareto": lead_followup_pareto_grid(conn, start_date, end_date, school),
+        "lead_followup_pareto": lead_followup_pareto,
         "notes_operations": notes,
         "dialpad_recordings": recordings["downloads"],
         "transcription_queue": recordings["transcription_queue"],
@@ -1120,6 +1207,16 @@ def render_snapshot_markdown(snapshot):
         "",
         f"- Status: {snapshot['source_freshness']['status']}",
         _markdown_counts(snapshot["source_freshness"].get("counts", {})),
+        "",
+        "### Source Data Recency",
+        "",
+        f"- Status: {snapshot.get('source_data_freshness', {}).get('status', 'unknown')}",
+        _markdown_counts(snapshot.get("source_data_freshness", {}).get("latest_dates", {})),
+        _markdown_counts(
+            {
+                "flags": ", ".join(snapshot.get("source_data_freshness", {}).get("flags", [])) or "none",
+            }
+        ),
         "",
         "## Funnel Counts",
         "",

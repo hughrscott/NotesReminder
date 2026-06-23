@@ -86,7 +86,7 @@ DEPARTMENT_LABELS = {
     "WESTU": ("West U", "WESTU"),
     "WEST U": ("West U", "WESTU"),
     "WEST UNIVERSITY": ("West University Place", "WESTU"),
-    "HEIGHTS": ("Heights", "HEIGHTS"),
+    "HEIGHTS": ("The Heights", "HEIGHTS"),
 }
 
 

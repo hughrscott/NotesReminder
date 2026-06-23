@@ -471,6 +471,39 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(coverage["outbound_7d_leads"], 1)
         self.assertEqual(snapshot["lead_followup_pareto"]["grid_status"], "ready")
 
+    def test_contacted_headline_counts_unknown_direction_communication(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute("DELETE FROM dialpad_sms_messages")
+        conn.execute("DELETE FROM school_email_messages")
+        conn.execute("DELETE FROM dialpad_voice_events")
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_type, phone, phone_normalized, contact_name, direction,
+                event_at, school, outcome, updated_at
+            )
+            VALUES ('voice-unknown-direction', 'call', '7135551212', '7135551212',
+                    'Private Student', 'unknown', '2026-05-02T11:00:00',
+                    'West University Place', 'connected', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+        )
+        coverage = snapshot["lead_followup_pareto"]["coverage"]
+
+        self.assertEqual(snapshot["funnel_counts"]["contacted"], 1)
+        self.assertEqual(snapshot["funnel_counts"]["communication_contacted_7d"], 1)
+        self.assertEqual(snapshot["funnel_counts"]["outbound_contacted_7d"], 0)
+        self.assertEqual(coverage["communication_7d_leads"], 1)
+        self.assertEqual(coverage["outbound_7d_leads"], 0)
+
     def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
         conn = open_db()
         seed_dashboard_data(conn)

@@ -16,6 +16,7 @@ from notesreminder.reports.lead_operating_dashboard import (
     hubspot_lead_count,
     pike13_outcomes,
     school_aliases,
+    source_data_freshness,
     source_freshness,
     table_exists,
     trial_cohort_conversion_count,
@@ -345,9 +346,11 @@ def build_operations_dashboard(
         exception_summary.update(exceptions.get("summary", {}))
         mtd_funnel = funnel_metrics(conn, start_date=mtd["start"], end_date=mtd["end"], school=school)
         ytd_funnel = funnel_metrics(conn, start_date=ytd["start"], end_date=ytd["end"], school=school)
+        data_freshness = source_data_freshness(conn, mtd["end"], school)
         school_reports.append(
             {
                 "school": school,
+                "source_data_freshness": data_freshness,
                 "notes_mtd": instructor_note_scores(
                     conn, start_date=mtd["start"], end_date=mtd["end"], school=school, limit=limit
                 ),
@@ -382,7 +385,14 @@ def build_operations_dashboard(
     totals["mtd_lead_to_trial_rate"] = _rate(totals["mtd_leads_to_trial"], totals["mtd_new_leads"])
     totals["mtd_trial_to_conversion_rate"] = _rate(totals["mtd_conversions"], totals["mtd_leads_to_trial"])
 
-    status = "ready" if freshness.get("status") == "ready" and not exception_summary else "attention"
+    data_freshness_flags = sorted(
+        {
+            flag
+            for item in school_reports
+            for flag in item.get("source_data_freshness", {}).get("flags", [])
+        }
+    )
+    status = "ready" if freshness.get("status") == "ready" and not exception_summary and not data_freshness_flags else "attention"
     return {
         "dashboard_type": "operations_scorecard",
         "generated_at": utc_now_iso(),
@@ -394,6 +404,10 @@ def build_operations_dashboard(
         "school_reports": school_reports,
         "exception_summary": dict(sorted(exception_summary.items())),
         "source_freshness": freshness,
+        "source_data_freshness": {
+            "status": "ready" if not data_freshness_flags else "attention",
+            "flags": data_freshness_flags,
+        },
     }
 
 
@@ -478,6 +492,8 @@ def render_operations_dashboard_html(report: dict) -> str:
     status = report["overall_status"]
     source_counts = report.get("source_freshness", {}).get("counts", {})
     source_rows = [[key, value] for key, value in sorted(source_counts.items())]
+    source_flags = report.get("source_data_freshness", {}).get("flags", [])
+    source_flag_rows = [[flag] for flag in source_flags] or [["none"]]
     exception_rows = [[key, value] for key, value in report.get("exception_summary", {}).items()]
 
     school_sections = []
@@ -666,6 +682,10 @@ def render_operations_dashboard_html(report: dict) -> str:
       <section class="panel">
         <h2>Source Freshness Counts</h2>
         {_table(["Source", "Rows"], source_rows)}
+      </section>
+      <section class="panel">
+        <h2>Source Data Recency Flags</h2>
+        {_table(["Flag"], source_flag_rows)}
       </section>
     </div>
     <footer>

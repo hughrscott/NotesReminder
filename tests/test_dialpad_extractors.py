@@ -91,6 +91,7 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(sms_extraction_source("https://dialpad.com/app/feed/123456"), "thread_detail")
         self.assertEqual(sms_extraction_source("https://dialpad.com/app/history/messages"), "message_list")
         self.assertEqual(detect_sms_department("Departments\nWESTU\nMessages"), ("West U", "WESTU"))
+        self.assertEqual(detect_sms_department("Departments\nHEIGHTS\nMessages"), ("The Heights", "HEIGHTS"))
 
     def test_extractors_detect_dialpad_login_pages(self):
         login_text = "Log in to Dialpad\nWORK EMAIL\nPASSWORD"
