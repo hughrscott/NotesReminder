@@ -161,6 +161,42 @@ def _rows(conn: sqlite3.Connection, sql: str, params: dict | None = None) -> lis
     return [dict(row) for row in conn.execute(sql, params or {}).fetchall()]
 
 
+def metric_status_from_freshness(data_freshness: dict) -> dict[str, dict[str, object]]:
+    flags = list(data_freshness.get("flags", []))
+
+    def blocked_by(*prefixes: str) -> dict[str, object]:
+        blockers = [
+            flag
+            for flag in flags
+            if any(flag.startswith(prefix) for prefix in prefixes)
+        ]
+        return {
+            "status": "blocked" if blockers else "ready",
+            "blockers": blockers,
+        }
+
+    communications = blocked_by(
+        "missing_school_email",
+        "stale_school_email",
+        "missing_dialpad_calls",
+        "stale_dialpad_calls",
+        "missing_dialpad_sms",
+        "stale_dialpad_sms",
+        "missing_school_sms",
+    )
+    return {
+        "leads": blocked_by("missing_hubspot_contacts", "stale_hubspot_contacts"),
+        "notes": blocked_by("missing_lessons", "stale_lessons"),
+        "trials": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
+        "conversions": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
+        "no_shows": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
+        "communications": communications,
+        "contacted": communications,
+        "response": communications,
+        "outbound_calls": communications,
+    }
+
+
 def instructor_note_scores(
     conn: sqlite3.Connection,
     *,
@@ -428,10 +464,12 @@ def build_operations_dashboard(
         mtd_funnel = funnel_metrics(conn, start_date=mtd["start"], end_date=mtd["end"], school=school)
         ytd_funnel = funnel_metrics(conn, start_date=ytd["start"], end_date=ytd["end"], school=school)
         data_freshness = source_data_freshness(conn, mtd["end"], school)
+        metric_status = metric_status_from_freshness(data_freshness)
         school_reports.append(
             {
                 "school": school,
                 "source_data_freshness": data_freshness,
+                "metric_status": metric_status,
                 "notes_mtd": instructor_note_scores(
                     conn, start_date=mtd["start"], end_date=mtd["end"], school=school, limit=limit
                 ),
@@ -520,6 +558,13 @@ def _metric_card(label: str, value, detail: str = "") -> str:
     )
 
 
+def _blocked_card(label: str, blockers: list[str], detail: str = "source data blocked") -> str:
+    blocker_text = ", ".join(blockers[:2])
+    if len(blockers) > 2:
+        blocker_text += f", +{len(blockers) - 2} more"
+    return _metric_card(label, "Blocked", blocker_text or detail)
+
+
 def _status_class(value: str) -> str:
     return "ready" if str(value).lower() == "ready" else "attention"
 
@@ -585,6 +630,22 @@ def _school_flags(item: dict) -> str:
     )
 
 
+def _metric_ready(item: dict, metric: str) -> bool:
+    return item.get("metric_status", {}).get(metric, {}).get("status") != "blocked"
+
+
+def _metric_blockers(item: dict, metric: str) -> list[str]:
+    return list(item.get("metric_status", {}).get(metric, {}).get("blockers", []))
+
+
+def _blocked_table(metric_name: str, blockers: list[str]) -> str:
+    rows = [[flag] for flag in blockers] or [["Source data is not current for this metric."]]
+    return (
+        f'<p class="empty">{_h(metric_name)} is blocked until source data is refreshed.</p>'
+        + _table(["Blocker"], rows)
+    )
+
+
 def _notes_rows(rows: list[dict]) -> list[list]:
     return [
         [
@@ -636,6 +697,42 @@ def render_operations_dashboard_html(report: dict) -> str:
     source_flag_rows = [[flag] for flag in source_flags] or [["none"]]
     exception_rows = [[key, value] for key, value in report.get("exception_summary", {}).items()]
 
+    def aggregate_blockers(metric: str) -> list[str]:
+        blockers = []
+        for item in report.get("school_reports", []):
+            blockers.extend(_metric_blockers(item, metric))
+        return sorted(set(blockers))
+
+    top_leads_card = (
+        _blocked_card("MTD Leads", aggregate_blockers("leads"))
+        if aggregate_blockers("leads")
+        else _metric_card(
+            "MTD Leads",
+            totals["mtd_new_leads"],
+            "trial rate blocked" if aggregate_blockers("trials") else f"{totals['mtd_lead_to_trial_rate']:.1f}% to trial",
+        )
+    )
+    top_trial_card = (
+        _blocked_card("MTD Trial Conv.", aggregate_blockers("conversions"))
+        if aggregate_blockers("conversions")
+        else _metric_card("MTD Trial Conv.", f"{totals['mtd_trial_to_conversion_rate']:.1f}%", f"{totals['mtd_conversions']} conversions")
+    )
+    top_outbound_card = (
+        _blocked_card("Outbound Calls", aggregate_blockers("outbound_calls"))
+        if aggregate_blockers("outbound_calls")
+        else _metric_card("Outbound Calls", totals["mtd_outbound_calls"], "MTD")
+    )
+    top_noshow_card = (
+        _blocked_card("No-Shows", aggregate_blockers("no_shows"))
+        if aggregate_blockers("no_shows")
+        else _metric_card("No-Shows", totals["mtd_no_shows"], "MTD")
+    )
+    top_response_card = (
+        _blocked_card("Response Leads", aggregate_blockers("response"))
+        if aggregate_blockers("response")
+        else _metric_card("Response Leads", totals["response_leads"], f"{totals['response_no_response']} no response")
+    )
+
     school_sections = []
     for item in report["school_reports"]:
         response = item["lead_response"]
@@ -644,6 +741,91 @@ def render_operations_dashboard_html(report: dict) -> str:
             f"avg {response_average:.1f} min, {response['no_response']} no response"
             if response_average is not None
             else f"{response['no_response']} no response"
+        )
+        leads_card = (
+            _blocked_card("MTD Leads", _metric_blockers(item, "leads"))
+            if not _metric_ready(item, "leads")
+            else _metric_card(
+                "MTD Leads",
+                item["funnel_mtd"]["new_leads"],
+                (
+                    "trial rate blocked"
+                    if not _metric_ready(item, "trials")
+                    else f"{item['funnel_mtd']['lead_to_trial_rate']:.1f}% to trial"
+                ),
+            )
+        )
+        ytd_leads_card = (
+            _blocked_card("YTD Leads", _metric_blockers(item, "leads"))
+            if not _metric_ready(item, "leads")
+            else _metric_card(
+                "YTD Leads",
+                item["funnel_ytd"]["new_leads"],
+                (
+                    "trial rate blocked"
+                    if not _metric_ready(item, "trials")
+                    else f"{item['funnel_ytd']['lead_to_trial_rate']:.1f}% to trial"
+                ),
+            )
+        )
+        trial_card = (
+            _blocked_card("MTD Trial Conv.", _metric_blockers(item, "conversions"))
+            if not _metric_ready(item, "conversions")
+            else _metric_card(
+                "MTD Trial Conv.",
+                f"{item['funnel_mtd']['trial_to_conversion_rate']:.1f}%",
+                f"{item['funnel_mtd']['trials_converted']} conversions",
+            )
+        )
+        outbound_card = (
+            _blocked_card("Outbound Calls", _metric_blockers(item, "outbound_calls"))
+            if not _metric_ready(item, "outbound_calls")
+            else _metric_card("Outbound Calls", item["outbound_calls_mtd"], "MTD")
+        )
+        noshow_card = (
+            _blocked_card("No-Shows", _metric_blockers(item, "no_shows"))
+            if not _metric_ready(item, "no_shows")
+            else _metric_card("No-Shows", item["no_shows_mtd"], "MTD")
+        )
+        response_card = (
+            _blocked_card("First Response", _metric_blockers(item, "response"))
+            if not _metric_ready(item, "response")
+            else _metric_card("First Response", response["lead_count"], response_detail)
+        )
+        notes_mtd_table = (
+            _blocked_table("Instructor Notes Ranking MTD", _metric_blockers(item, "notes"))
+            if not _metric_ready(item, "notes")
+            else _table(["Instructor", "Lessons", "Done", "Missing", "Avg Score"], _notes_rows(item["notes_mtd"]))
+        )
+        notes_ytd_table = (
+            _blocked_table("Instructor Notes Ranking YTD", _metric_blockers(item, "notes"))
+            if not _metric_ready(item, "notes")
+            else _table(["Instructor", "Lessons", "Done", "Missing", "Avg Score"], _notes_rows(item["notes_ytd"]))
+        )
+        conversion_table = (
+            _blocked_table("Instructor Trial Conversion YTD", _metric_blockers(item, "conversions"))
+            if not _metric_ready(item, "conversions")
+            else _table(["Instructor", "Trials", "Converted", "Rate"], _conversion_rows(item["conversion_ytd"]))
+        )
+        mtd_funnel_table = (
+            _blocked_table("MTD Funnel trial/conversion metrics", _metric_blockers(item, "trials"))
+            if not _metric_ready(item, "trials")
+            else _table(["Metric", "Value"], _funnel_rows(item["funnel_mtd"]))
+        )
+        ytd_funnel_table = (
+            _blocked_table("YTD Funnel trial/conversion metrics", _metric_blockers(item, "trials"))
+            if not _metric_ready(item, "trials")
+            else _table(["Metric", "Value"], _funnel_rows(item["funnel_ytd"]))
+        )
+        response_table = (
+            _blocked_table("Lead To First Response", _metric_blockers(item, "response"))
+            if not _metric_ready(item, "response")
+            else _table(["Bucket", "Leads"], _bucket_rows(response))
+        )
+        lead_created_table = (
+            _blocked_table("Lead Created Distribution", _metric_blockers(item, "response"))
+            if not _metric_ready(item, "response")
+            else _table(["Day / Hour", "Leads"], [[row["lead_created"], row["leads"]] for row in response["lead_created_distribution"]])
         )
         school_sections.append(
             f"""
@@ -654,41 +836,41 @@ def render_operations_dashboard_html(report: dict) -> str:
               </div>
               {_school_flags(item)}
               <div class="mini-grid">
-                {_metric_card("MTD Leads", item["funnel_mtd"]["new_leads"], f"{item['funnel_mtd']['lead_to_trial_rate']:.1f}% to trial")}
-                {_metric_card("MTD Trial Conv.", f"{item['funnel_mtd']['trial_to_conversion_rate']:.1f}%", f"{item['funnel_mtd']['trials_converted']} conversions")}
-                {_metric_card("YTD Leads", item["funnel_ytd"]["new_leads"], f"{item['funnel_ytd']['lead_to_trial_rate']:.1f}% to trial")}
-                {_metric_card("Outbound Calls", item["outbound_calls_mtd"], "MTD")}
-                {_metric_card("No-Shows", item["no_shows_mtd"], "MTD")}
-                {_metric_card("First Response", response["lead_count"], response_detail)}
+                {leads_card}
+                {trial_card}
+                {ytd_leads_card}
+                {outbound_card}
+                {noshow_card}
+                {response_card}
               </div>
               <div class="table-grid">
                 <section>
                   <h3>Instructor Notes Ranking MTD</h3>
-                  {_table(["Instructor", "Lessons", "Done", "Missing", "Avg Score"], _notes_rows(item["notes_mtd"]))}
+                  {notes_mtd_table}
                 </section>
                 <section>
                   <h3>Instructor Notes Ranking YTD</h3>
-                  {_table(["Instructor", "Lessons", "Done", "Missing", "Avg Score"], _notes_rows(item["notes_ytd"]))}
+                  {notes_ytd_table}
                 </section>
                 <section>
                   <h3>Instructor Trial Conversion YTD</h3>
-                  {_table(["Instructor", "Trials", "Converted", "Rate"], _conversion_rows(item["conversion_ytd"]))}
+                  {conversion_table}
                 </section>
                 <section>
                   <h3>MTD Funnel</h3>
-                  {_table(["Metric", "Value"], _funnel_rows(item["funnel_mtd"]))}
+                  {mtd_funnel_table}
                 </section>
                 <section>
                   <h3>YTD Funnel</h3>
-                  {_table(["Metric", "Value"], _funnel_rows(item["funnel_ytd"]))}
+                  {ytd_funnel_table}
                 </section>
                 <section>
                   <h3>Lead To First Response</h3>
-                  {_table(["Bucket", "Leads"], _bucket_rows(response))}
+                  {response_table}
                 </section>
                 <section>
                   <h3>Lead Created Distribution</h3>
-                  {_table(["Day / Hour", "Leads"], [[row["lead_created"], row["leads"]] for row in response["lead_created_distribution"]])}
+                  {lead_created_table}
                 </section>
                 <section>
                   <h3>Open Follow-Up Queue</h3>
@@ -835,11 +1017,11 @@ def render_operations_dashboard_html(report: dict) -> str:
   <main>
     {_flags_panel(report)}
     <section class="metrics">
-      {_metric_card("MTD Leads", totals["mtd_new_leads"], f"{totals['mtd_lead_to_trial_rate']:.1f}% to trial")}
-      {_metric_card("MTD Trial Conv.", f"{totals['mtd_trial_to_conversion_rate']:.1f}%", f"{totals['mtd_conversions']} conversions")}
-      {_metric_card("Outbound Calls", totals["mtd_outbound_calls"], "MTD")}
-      {_metric_card("No-Shows", totals["mtd_no_shows"], "MTD")}
-      {_metric_card("Response Leads", totals["response_leads"], f"{totals['response_no_response']} no response")}
+      {top_leads_card}
+      {top_trial_card}
+      {top_outbound_card}
+      {top_noshow_card}
+      {top_response_card}
       {_metric_card("Open Exceptions", sum(report.get("exception_summary", {}).values()), "YTD follow-up queue")}
     </section>
     {''.join(school_sections)}

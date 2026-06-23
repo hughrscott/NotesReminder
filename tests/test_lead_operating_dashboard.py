@@ -814,6 +814,37 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         for value in forbidden:
             self.assertNotIn(value, html)
 
+    def test_operations_dashboard_blocks_stale_source_metrics(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            UPDATE hubspot_contacts
+            SET create_date = '2026-06-23',
+                updated_at = '2026-06-23T00:00:00+00:00'
+            """
+        )
+
+        report = build_operations_dashboard(
+            conn,
+            period="monthly",
+            as_of="2026-06-23",
+            schools=("West U",),
+        )
+        html = render_operations_dashboard_html(report)
+        metric_status = report["school_reports"][0]["metric_status"]
+
+        self.assertEqual(metric_status["notes"]["status"], "blocked")
+        self.assertEqual(metric_status["leads"]["status"], "ready")
+        self.assertEqual(metric_status["trials"]["status"], "blocked")
+        self.assertEqual(metric_status["contacted"]["status"], "blocked")
+        self.assertIn("stale_lessons_data_latest_2026-05-03", metric_status["notes"]["blockers"])
+        self.assertIn("stale_pike13_visits_data_latest_2026-05-03", metric_status["trials"]["blockers"])
+        self.assertIn("Blocked", html)
+        self.assertIn("trial rate blocked", html)
+        self.assertIn("Instructor Notes Ranking MTD is blocked", html)
+        self.assertIn("Lead To First Response is blocked", html)
+
     def test_operations_dashboard_reports_only_unassigned_hubspot_school_blockers(self):
         conn = open_db()
         seed_dashboard_data(conn)

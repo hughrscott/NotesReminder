@@ -1,8 +1,10 @@
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 from notesreminder.orchestration.refresh_all_sources import (
+    RefreshTask,
     build_daily_refresh_plan,
     build_weekly_completeness_plan,
     run_refresh_plan,
@@ -64,6 +66,8 @@ class RefreshAllSourcesTests(unittest.TestCase):
 
         self.assertNotIn("--interactive-login", hubspot.command)
         self.assertIn("--reauth-if-needed", pike13.command)
+        self.assertGreater(hubspot.timeout_seconds, 0)
+        self.assertGreater(pike13.timeout_seconds, 0)
 
     def test_weekly_plan_is_read_only(self):
         plan = build_weekly_completeness_plan(
@@ -112,6 +116,24 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "success")
         self.assertGreater(len(calls), 0)
         self.assertTrue(all(task["status"] == "success" for task in metadata["tasks"]))
+
+    def test_execute_timeout_returns_action_required(self):
+        metadata = run_refresh_plan(
+            [
+                RefreshTask(
+                    name="slow_verification",
+                    command=[sys.executable, "-c", "import time; time.sleep(2)"],
+                    category="verification",
+                    timeout_seconds=1,
+                )
+            ],
+            root=Path.cwd(),
+            execute_verification=True,
+        )
+
+        self.assertEqual(metadata["status"], "action_required")
+        self.assertEqual(metadata["tasks"][0]["status"], "timeout")
+        self.assertIn("Timed out after 1 seconds", metadata["tasks"][0]["error"])
 
 
 if __name__ == "__main__":

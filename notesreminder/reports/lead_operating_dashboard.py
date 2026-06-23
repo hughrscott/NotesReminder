@@ -357,6 +357,42 @@ def source_data_freshness(conn, end_date, school):
     return {"status": status, "latest_dates": latest, "flags": flags}
 
 
+def metric_status_from_freshness(data_freshness):
+    flags = list(data_freshness.get("flags", []))
+
+    def blocked_by(*prefixes):
+        blockers = [
+            flag
+            for flag in flags
+            if any(flag.startswith(prefix) for prefix in prefixes)
+        ]
+        return {
+            "status": "blocked" if blockers else "ready",
+            "blockers": blockers,
+        }
+
+    communications = blocked_by(
+        "missing_school_email",
+        "stale_school_email",
+        "missing_dialpad_calls",
+        "stale_dialpad_calls",
+        "missing_dialpad_sms",
+        "stale_dialpad_sms",
+        "missing_school_sms",
+    )
+    trials = blocked_by("missing_pike13_visits", "stale_pike13_visits")
+    return {
+        "leads": blocked_by("missing_hubspot_contacts", "stale_hubspot_contacts"),
+        "contacted": communications,
+        "communications": communications,
+        "pareto": communications,
+        "response": communications,
+        "trials": trials,
+        "conversions": trials,
+        "notes": blocked_by("missing_lessons", "stale_lessons"),
+    }
+
+
 def pike13_outcomes(conn, start_date, end_date, school):
     if not table_exists(conn, "pike13_visits"):
         return {}
@@ -1079,6 +1115,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
     notes = notes_operations(conn, start_date, end_date, school)
     recordings = recording_status(conn, start_date, end_date, school)
     lead_followup_pareto = lead_followup_pareto_grid(conn, start_date, end_date, school)
+    data_freshness = source_data_freshness(conn, end_date, school)
     followup_coverage = lead_followup_pareto.get("coverage", {})
     legacy_deal_contacted = sum(1 for row in gap["rows"] if row.get("outreach_evidence_found"))
     contacted = followup_coverage.get("communication_7d_leads", 0)
@@ -1115,7 +1152,8 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
         "school": school,
         "window": {"start": start_date, "end": end_date},
         "source_freshness": source_freshness(conn),
-        "source_data_freshness": source_data_freshness(conn, end_date, school),
+        "source_data_freshness": data_freshness,
+        "metric_status": metric_status_from_freshness(data_freshness),
         "funnel_counts": funnel_counts,
         "funnel_rates": funnel_rates,
         "outreach_health": {

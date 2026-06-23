@@ -405,6 +405,12 @@ def select_department_messages(page, department):
     selected = page.locator(f"[data-qa='leftbar-links-cc-{department}'][data-qa-selected='true']")
     if selected.count() != 1:
         raise RuntimeError(f"Dialpad department {department} was not selected after click.")
+    try:
+        page.locator("[data-qa='contact-row']").first.wait_for(state="visible", timeout=10000)
+    except PlaywrightTimeoutError:
+        # Some departments can legitimately have no visible rows in a narrow filter. Let the caller
+        # decide whether zero rows is acceptable for that run.
+        pass
     return department
 
 
@@ -664,6 +670,8 @@ def main():
                     department,
                     args.url,
                 )
+                if rows_seen == 0:
+                    raise RuntimeError(f"No Dialpad SMS/contact rows were visible for department {department}.")
             else:
                 thread_links = capture_thread_links(page, args.thread_limit)
                 urls = [link["href"] for _, link in thread_links] or [page.url]

@@ -35,6 +35,7 @@ class RefreshTask:
     uploads_s3: bool = False
     requires_auth: bool = False
     enabled_flag: str = ""
+    timeout_seconds: int = 0
 
 
 def _python(root: Path) -> str:
@@ -75,6 +76,10 @@ def backup_local_db(db_path: str, output_dir: Path, stamp: str) -> Path | None:
     return target
 
 
+def _timeout_at_least(*values: int) -> int:
+    return max(values)
+
+
 def build_daily_refresh_plan(
     run_date: str,
     *,
@@ -111,6 +116,7 @@ def build_daily_refresh_plan(
                 uploads_s3=True,
                 requires_auth=True,
                 enabled_flag="--execute-production-notes",
+                timeout_seconds=3600,
             )
         )
     elif not skip_notes_validation:
@@ -141,6 +147,7 @@ def build_daily_refresh_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 300, 600),
                 )
             )
 
@@ -173,6 +180,7 @@ def build_daily_refresh_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 300, 600),
                 ),
                 RefreshTask(
                     name=f"school_email_{slug}",
@@ -200,6 +208,7 @@ def build_daily_refresh_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 300, 600),
                 ),
                 RefreshTask(
                     name=f"hubspot_leads_{slug}",
@@ -224,6 +233,10 @@ def build_daily_refresh_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(
+                        login_timeout + hubspot_detail_limit * 5 + 180,
+                        900,
+                    ),
                 ),
                 RefreshTask(
                     name=f"pike13_leads_{slug}",
@@ -254,6 +267,7 @@ def build_daily_refresh_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 600, 900),
                 ),
             ]
         )
@@ -279,6 +293,10 @@ def build_daily_refresh_plan(
                 mutates_db=True,
                 requires_auth=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=_timeout_at_least(
+                    login_timeout + call_review_limit * 15 + 180,
+                    900,
+                ),
             ),
             RefreshTask(
                 name="refresh_person_identities",
@@ -286,6 +304,7 @@ def build_daily_refresh_plan(
                 category="post_refresh",
                 mutates_db=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=300,
             ),
             RefreshTask(
                 name="build_reporting_schema",
@@ -293,6 +312,7 @@ def build_daily_refresh_plan(
                 category="post_refresh",
                 mutates_db=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=600,
             ),
             RefreshTask(
                 name="db_integrity",
@@ -472,8 +492,19 @@ def build_weekly_completeness_plan(
     return tasks
 
 
-def _default_runner(command: list[str], cwd: Path) -> subprocess.CompletedProcess:
-    return subprocess.run(command, cwd=cwd, check=False, text=True, capture_output=True)
+def _default_runner(
+    command: list[str],
+    cwd: Path,
+    timeout_seconds: int = 0,
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        text=True,
+        capture_output=True,
+        timeout=timeout_seconds or None,
+    )
 
 
 def _task_metadata(task: RefreshTask) -> dict:
@@ -486,6 +517,7 @@ def _task_metadata(task: RefreshTask) -> dict:
         "uploads_s3": task.uploads_s3,
         "requires_auth": task.requires_auth,
         "enabled_flag": task.enabled_flag,
+        "timeout_seconds": task.timeout_seconds,
     }
 
 
@@ -514,19 +546,36 @@ def run_refresh_plan(
                 }
             )
         else:
-            completed = runner(task.command, root)
-            result.update(
-                {
-                    "status": "success" if completed.returncode == 0 else "failed",
-                    "returncode": completed.returncode,
-                    "stdout_tail": (completed.stdout or "")[-2000:],
-                    "stderr_tail": (completed.stderr or "")[-2000:],
-                    "ended_at": datetime.now().isoformat(timespec="seconds"),
-                }
-            )
+            try:
+                if runner is _default_runner:
+                    completed = _default_runner(task.command, root, task.timeout_seconds)
+                else:
+                    completed = runner(task.command, root)
+                result.update(
+                    {
+                        "status": "success" if completed.returncode == 0 else "failed",
+                        "returncode": completed.returncode,
+                        "stdout_tail": (completed.stdout or "")[-2000:],
+                        "stderr_tail": (completed.stderr or "")[-2000:],
+                        "ended_at": datetime.now().isoformat(timespec="seconds"),
+                    }
+                )
+            except subprocess.TimeoutExpired as exc:
+                stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+                stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+                result.update(
+                    {
+                        "status": "timeout",
+                        "returncode": None,
+                        "stdout_tail": stdout[-2000:],
+                        "stderr_tail": stderr[-2000:],
+                        "error": f"Timed out after {task.timeout_seconds} seconds.",
+                        "ended_at": datetime.now().isoformat(timespec="seconds"),
+                    }
+                )
         task_results.append(result)
 
-    if any(task["status"] == "failed" for task in task_results):
+    if any(task["status"] in {"failed", "timeout"} for task in task_results):
         status = "action_required"
     elif execute_refresh or execute_verification:
         status = "success"

@@ -76,6 +76,8 @@ class HistoricalBackfillTests(unittest.TestCase):
 
         self.assertNotIn("--interactive-login", hubspot.command)
         self.assertIn("--reauth-if-needed", pike13.command)
+        self.assertGreater(hubspot.timeout_seconds, 0)
+        self.assertGreater(pike13.timeout_seconds, 0)
 
 
 if __name__ == "__main__":

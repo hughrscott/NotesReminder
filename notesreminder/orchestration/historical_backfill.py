@@ -12,6 +12,7 @@ from notesreminder.orchestration.refresh_all_sources import (
     RefreshTask,
     _python,
     _school_filter,
+    _timeout_at_least,
 )
 
 
@@ -125,6 +126,7 @@ def build_monthly_backfill_plan(
                         mutates_db=True,
                         requires_auth=True,
                         enabled_flag="--execute-refresh",
+                        timeout_seconds=_timeout_at_least(login_timeout + 300, 600),
                     )
                 )
         tasks.extend(
@@ -155,6 +157,7 @@ def build_monthly_backfill_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 300, 600),
                 ),
                 RefreshTask(
                     name=f"hubspot_leads_{slug}",
@@ -179,6 +182,10 @@ def build_monthly_backfill_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(
+                        login_timeout + hubspot_detail_limit * 5 + 180,
+                        900,
+                    ),
                 ),
                 RefreshTask(
                     name=f"pike13_leads_{slug}",
@@ -209,6 +216,7 @@ def build_monthly_backfill_plan(
                     mutates_db=True,
                     requires_auth=True,
                     enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + 600, 900),
                 ),
             ]
         )
@@ -238,6 +246,7 @@ def build_monthly_backfill_plan(
                 mutates_db=True,
                 requires_auth=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=_timeout_at_least(login_timeout + 900, 1200),
             ),
             RefreshTask(
                 name="dialpad_sms",
@@ -260,6 +269,10 @@ def build_monthly_backfill_plan(
                 mutates_db=True,
                 requires_auth=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=_timeout_at_least(
+                    login_timeout + dialpad_sms_thread_limit * 5 + 180,
+                    900,
+                ),
             ),
             RefreshTask(
                 name="dialpad_call_reviews",
@@ -280,6 +293,10 @@ def build_monthly_backfill_plan(
                 mutates_db=True,
                 requires_auth=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=_timeout_at_least(
+                    login_timeout + call_review_limit * 15 + 180,
+                    900,
+                ),
             ),
             RefreshTask(
                 name="refresh_person_identities",
@@ -287,6 +304,7 @@ def build_monthly_backfill_plan(
                 category="checkpoint",
                 mutates_db=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=300,
             ),
             RefreshTask(
                 name="build_reporting_schema",
@@ -294,6 +312,7 @@ def build_monthly_backfill_plan(
                 category="checkpoint",
                 mutates_db=True,
                 enabled_flag="--execute-refresh",
+                timeout_seconds=600,
             ),
             RefreshTask(
                 name="db_integrity",
