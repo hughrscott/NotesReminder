@@ -93,6 +93,16 @@ def school_aliases(school):
     return [normalized]
 
 
+def school_label_matches(value, school):
+    aliases = school_aliases(school)
+    if not aliases:
+        return True
+    normalized = " ".join(str(value or "").strip().lower().split())
+    if not normalized:
+        return True
+    return any(alias == normalized or alias in normalized for alias in aliases)
+
+
 def hubspot_school(school):
     aliases = school_aliases(school)
     if "west university place" in aliases:
@@ -590,7 +600,7 @@ def _lead_communications_by_identity(conn):
     if table_exists(conn, "vw_school_email_communications"):
         for row in conn.execute(
             """
-            SELECT communication_id, direction, event_at, external_email_normalized
+            SELECT communication_id, direction, event_at, external_email_normalized, school
             FROM vw_school_email_communications
             WHERE COALESCE(external_email_normalized, '') != ''
               AND COALESCE(event_at, '') != ''
@@ -606,12 +616,13 @@ def _lead_communications_by_identity(conn):
                     "channel": "email",
                     "direction": row["direction"],
                     "event_at": event_at,
+                    "school": row["school"],
                 }
             )
     if table_exists(conn, "vw_dialpad_communications"):
         for row in conn.execute(
             """
-            SELECT communication_id, channel, direction, event_at, phone_normalized
+            SELECT communication_id, channel, direction, event_at, phone_normalized, school
             FROM vw_dialpad_communications
             WHERE COALESCE(phone_normalized, '') != ''
               AND COALESCE(event_at, '') != ''
@@ -627,6 +638,7 @@ def _lead_communications_by_identity(conn):
                     "channel": row["channel"],
                     "direction": row["direction"],
                     "event_at": event_at,
+                    "school": row["school"],
                 }
             )
     return by_email, by_phone
@@ -680,6 +692,11 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         for phone in phones:
             for communication in communications_by_phone.get(phone, []):
                 communications[communication["id"]] = communication
+        communications = {
+            communication_id: communication
+            for communication_id, communication in communications.items()
+            if school_label_matches(communication.get("school"), school)
+        }
 
         window_end = lead_date + timedelta(days=7)
         window_communications = [

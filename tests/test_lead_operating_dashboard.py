@@ -504,6 +504,45 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(coverage["communication_7d_leads"], 1)
         self.assertEqual(coverage["outbound_7d_leads"], 0)
 
+    def test_followup_matching_rejects_cross_school_dialpad_rows(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, raw_json, updated_at
+            )
+            VALUES ('heights-contact', 'Heights Student', '2026-05-02',
+                    '7135551212', '7135551212', 'The Heights',
+                    '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_type, phone, phone_normalized, contact_name, direction,
+                event_at, school, outcome, updated_at
+            )
+            VALUES ('westu-call-same-phone', 'call', '7135551212', '7135551212',
+                    'Heights Student', 'outbound', '2026-05-02T11:00:00',
+                    'West U', 'connected', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="The Heights",
+        )
+        coverage = snapshot["lead_followup_pareto"]["coverage"]
+
+        self.assertEqual(snapshot["funnel_counts"]["hubspot_leads"], 1)
+        self.assertEqual(snapshot["funnel_counts"]["contacted"], 0)
+        self.assertEqual(coverage["matched_communication_leads"], 0)
+        self.assertEqual(coverage["communication_7d_leads"], 0)
+
     def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
         conn = open_db()
         seed_dashboard_data(conn)
