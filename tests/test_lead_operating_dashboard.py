@@ -543,6 +543,52 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(coverage["matched_communication_leads"], 0)
         self.assertEqual(coverage["communication_7d_leads"], 0)
 
+    def test_source_data_freshness_uses_school_specific_sms_dates(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, raw_json, updated_at
+            )
+            VALUES ('heights-contact', 'Heights Student', '2026-05-02',
+                    '7135551212', '7135551212', 'The Heights',
+                    '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, contact_name, school, updated_at
+            )
+            VALUES ('westu-thread', '7135551212', '7135551212', 'West U Student',
+                    'West U', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, updated_at
+            )
+            VALUES ('westu-message', 'westu-thread', '2026-05-02T10:00:00',
+                    'outbound', 'Private SMS body', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="The Heights",
+        )
+        freshness = snapshot["source_data_freshness"]
+
+        self.assertIsNone(freshness["latest_dates"]["dialpad_sms"])
+        self.assertEqual(freshness["latest_dates"]["school_sms_rows"], 0)
+        self.assertIn("missing_dialpad_sms_data", freshness["flags"])
+        self.assertIn("missing_school_sms_data", freshness["flags"])
+
     def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
         conn = open_db()
         seed_dashboard_data(conn)

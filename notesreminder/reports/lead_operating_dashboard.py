@@ -305,13 +305,26 @@ def source_data_freshness(conn, end_date, school):
         "school_email": max_dashboard_date(conn, "school_email_messages", "message_at"),
     }
     if table_exists(conn, "vw_dialpad_communications"):
+        school_sql, school_params = school_clause("v", school)
         latest["dialpad_calls"] = scalar(
             conn,
-            "SELECT MAX(dashboard_date(event_at)) FROM vw_dialpad_communications WHERE channel = 'call'",
+            f"""
+            SELECT MAX(dashboard_date(v.event_at))
+            FROM vw_dialpad_communications v
+            WHERE v.channel = 'call'
+              AND {school_sql}
+            """,
+            school_params,
         )
         latest["dialpad_sms"] = scalar(
             conn,
-            "SELECT MAX(dashboard_date(event_at)) FROM vw_dialpad_communications WHERE channel = 'sms'",
+            f"""
+            SELECT MAX(dashboard_date(v.event_at))
+            FROM vw_dialpad_communications v
+            WHERE v.channel = 'sms'
+              AND {school_sql}
+            """,
+            school_params,
         )
     else:
         latest["dialpad_calls"] = None
