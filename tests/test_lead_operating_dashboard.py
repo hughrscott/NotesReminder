@@ -814,6 +814,46 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         for value in forbidden:
             self.assertNotIn(value, html)
 
+    def test_operations_dashboard_reports_only_unassigned_hubspot_school_blockers(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, school, updated_at
+            )
+            VALUES ('person-blank-school', 'Blank School Lead', 'West U', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, school, create_date, pike13_person_id, raw_json, updated_at
+            )
+            VALUES
+                ('contact-blank-inferred', 'Blank School Lead', NULL, '2026-05-04',
+                 'person-blank-school', '{"trusted": 1}', '2026-05-08T00:00:00+00:00'),
+                ('contact-blank-unassigned', 'Unassigned Lead', NULL, '2026-05-05',
+                 NULL, '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        report = build_operations_dashboard(
+            conn,
+            period="weekly",
+            as_of="2026-05-09",
+            schools=("West U",),
+        )
+
+        quality = report["hubspot_school_assignment"]
+        self.assertEqual(quality["total"], 3)
+        self.assertEqual(quality["assigned_school"], 1)
+        self.assertEqual(quality["blank_school"], 2)
+        self.assertEqual(quality["usable_for_dashboard_schools"], 2)
+        self.assertEqual(quality["unassigned_to_dashboard_school"], 1)
+        self.assertIn("hubspot_contacts_unassigned_school_1", quality["flags"])
+        self.assertNotIn("hubspot_contacts_blank_school_2", quality["flags"])
+
     def test_operations_funnel_parses_hubspot_dates_and_maps_unified_person_ids(self):
         conn = open_db()
         conn.execute(

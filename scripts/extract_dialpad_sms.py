@@ -88,6 +88,17 @@ DEPARTMENT_LABELS = {
     "WEST UNIVERSITY": ("West University Place", "WESTU"),
     "HEIGHTS": ("The Heights", "HEIGHTS"),
 }
+SCHOOL_DEPARTMENTS = {
+    "west u": "WESTU",
+    "west university": "WESTU",
+    "west university place": "WESTU",
+    "westu": "WESTU",
+    "westu-sor": "WESTU",
+    "the heights": "HEIGHTS",
+    "heights": "HEIGHTS",
+    "theheights": "HEIGHTS",
+    "theheights-sor": "HEIGHTS",
+}
 
 
 def stable_id(prefix, *parts):
@@ -165,6 +176,22 @@ def detect_department(text):
     return (None, None)
 
 
+def normalize_department(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    direct = DEPARTMENT_LABELS.get(value.upper())
+    if direct:
+        return direct[1]
+    return SCHOOL_DEPARTMENTS.get(value.lower())
+
+
+def department_school(department):
+    if not department:
+        return (None, None)
+    return DEPARTMENT_LABELS.get(department.upper(), (None, None))
+
+
 def sms_extraction_source(url):
     if "/history/messages" in url:
         return "message_list"
@@ -212,14 +239,14 @@ def is_dialpad_app_page(url, text):
     )
 
 
-def extract_message_lines(text, now=None, default_direction="unknown"):
+def extract_message_lines(text, now=None, default_direction="unknown", date_follows_message=True):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     messages = []
     current_date = None
     for line in lines:
         normalized_date = normalize_dialpad_date(line, now=now)
         if normalized_date:
-            if messages and not messages[-1]["message_at"]:
+            if date_follows_message and messages and not messages[-1]["message_at"]:
                 messages[-1]["message_at"] = normalized_date
                 messages[-1]["timestamp_source"] = "visible_date"
                 current_date = None
@@ -315,7 +342,7 @@ def capture_thread_links(page, limit):
     return list(seen.items())[:limit]
 
 
-def parse_thread(page):
+def parse_thread(page, expected_department=None):
     text = page.locator("body").inner_text(timeout=30000)
     if is_login_page(page.url, text):
         raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
@@ -323,8 +350,13 @@ def parse_thread(page):
     thread_id = thread_id_from_url(page.url, text)
     extraction_source = sms_extraction_source(page.url)
     default_direction = "inbound" if extraction_source == "message_list" else "unknown"
-    messages = extract_message_lines(text, default_direction=default_direction)
-    school, department = detect_department(text)
+    messages = extract_message_lines(
+        text,
+        default_direction=default_direction,
+        date_follows_message=extraction_source == "message_list",
+    )
+    forced_department = normalize_department(expected_department)
+    school, department = department_school(forced_department) if forced_department else detect_department(text)
     return {
         "thread": {
             "thread_id": thread_id,
@@ -344,6 +376,7 @@ def parse_thread(page):
                     "extraction_source": extraction_source,
                     "default_direction": default_direction,
                     "department_detected": department,
+                    "department_forced": bool(forced_department),
                     "timestamp_policy": "source visible dates normalized to most recent non-future date",
                 },
                 sort_keys=True,
@@ -353,6 +386,94 @@ def parse_thread(page):
         "messages": messages,
         "extraction_source": extraction_source,
     }
+
+
+def select_department_messages(page, department):
+    department = normalize_department(department)
+    if not department:
+        return None
+    department_link = page.locator(f"[data-qa='leftbar-links-cc-{department}']")
+    if department_link.count() != 1:
+        raise RuntimeError(f"Dialpad department selector not found or ambiguous for {department}.")
+    department_link.click(timeout=10000)
+    page.wait_for_timeout(1500)
+    messages_tab = page.locator(".d-tab, button.d-tab").filter(has_text="Messages")
+    if messages_tab.count() != 1:
+        raise RuntimeError(f"Dialpad Messages tab not found after selecting department {department}.")
+    messages_tab.click(timeout=10000)
+    page.wait_for_timeout(2000)
+    selected = page.locator(f"[data-qa='leftbar-links-cc-{department}'][data-qa-selected='true']")
+    if selected.count() != 1:
+        raise RuntimeError(f"Dialpad department {department} was not selected after click.")
+    return department
+
+
+def upsert_parsed_messages(conn, parsed, source_url, include_unknown_direction=False):
+    rows_written = 1
+    upsert_thread(conn, parsed["thread"])
+    for message in parsed["messages"]:
+        if not message["message_at"]:
+            continue
+        if message["direction"] == "unknown" and not include_unknown_direction:
+            continue
+        row = {
+            "message_id": message_id(parsed["thread"]["thread_id"], message["message_at"], message["body"], message["direction"]),
+            "thread_id": parsed["thread"]["thread_id"],
+            "message_at": message["message_at"],
+            "direction": message["direction"],
+            "sender": None,
+            "recipient": None,
+            "body": message["body"],
+            "source_url": source_url,
+            "raw_text": message["body"],
+            "raw_json": json.dumps(
+                {
+                    "extraction": "message_line",
+                    "extraction_source": parsed["extraction_source"],
+                    "direction_source": message["direction_source"],
+                    "timestamp_source": message["timestamp_source"],
+                    "source_timestamp_field": "message_at",
+                    "import_timestamp_field": "updated_at",
+                },
+                sort_keys=True,
+            ),
+            "updated_at": utc_now_iso(),
+        }
+        upsert_message(conn, row)
+        rows_written += 1
+    return rows_written
+
+
+def extract_selected_department_rows(conn, page, thread_limit, department, base_url=None):
+    rows_seen = rows_written = 0
+    department = normalize_department(department)
+    index = 0
+    while rows_seen < thread_limit:
+        contact_rows = page.locator("[data-qa='contact-row']")
+        if index >= contact_rows.count():
+            break
+        try:
+            row = contact_rows.nth(index)
+            row.scroll_into_view_if_needed(timeout=5000)
+            row.click(timeout=10000)
+        except PlaywrightTimeoutError:
+            index += 1
+            continue
+        rows_seen += 1
+        page.wait_for_timeout(1500)
+        parsed = parse_thread(page, expected_department=department)
+        rows_written += upsert_parsed_messages(
+            conn,
+            parsed,
+            page.url,
+            include_unknown_direction=True,
+        )
+        index += 1
+        if base_url and rows_seen < thread_limit:
+            page.goto(base_url, wait_until="domcontentloaded", timeout=60000)
+            wait_until_ready(page)
+            select_department_messages(page, department)
+    return rows_seen, rows_written
 
 
 def delete_known_sms_noise(conn):
@@ -444,7 +565,10 @@ def delete_known_sms_noise(conn):
 
 
 def wait_until_ready(page, timeout=30000):
-    page.wait_for_load_state("load", timeout=timeout)
+    try:
+        page.wait_for_load_state("load", timeout=timeout)
+    except PlaywrightTimeoutError:
+        pass
     try:
         page.wait_for_load_state("networkidle", timeout=5000)
     except PlaywrightTimeoutError:
@@ -452,14 +576,21 @@ def wait_until_ready(page, timeout=30000):
 
 
 def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
-    text = page.locator("body").inner_text(timeout=30000)
-    if is_dialpad_app_page(page.url, text):
-        return
-    if not interactive_login:
-        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
-    print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
     deadline = time.time() + timeout_seconds
+    if interactive_login:
+        print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
     while time.time() < deadline:
+        try:
+            text = page.locator("body").inner_text(timeout=5000)
+        except PlaywrightTimeoutError:
+            text = ""
+        if is_dialpad_app_page(page.url, text):
+            return
+        if is_login_page(page.url, text) and not interactive_login:
+            raise RuntimeError(f"Dialpad profile is not authenticated; final_url={page.url}")
+        if not interactive_login:
+            time.sleep(2)
+            continue
         time.sleep(2)
         try:
             text = page.locator("body").inner_text(timeout=5000)
@@ -482,7 +613,7 @@ def wait_for_authenticated_page(page, target_url, interactive_login=False, timeo
             text = page.locator("body").inner_text(timeout=30000)
             if is_dialpad_app_page(page.url, text):
                 return
-    raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+    raise RuntimeError(f"Timed out waiting for Dialpad app page; final_url={page.url}")
 
 
 def main():
@@ -495,12 +626,22 @@ def main():
     parser.add_argument("--login-timeout", type=int, default=300, help="Seconds to wait for interactive Dialpad login.")
     parser.add_argument("--thread-limit", type=int, default=20)
     parser.add_argument("--start-date", default=DEFAULT_INITIAL_LOAD_START)
+    parser.add_argument("--department", help="Dialpad department to select before extracting messages, e.g. HEIGHTS or WESTU.")
+    parser.add_argument("--school", help="School label used to infer the Dialpad department, e.g. The Heights or West U.")
     args = parser.parse_args()
+    department = normalize_department(args.department) or normalize_department(args.school)
 
     conn = sqlite3.connect(args.db)
     ensure_lead_followup_schema(conn)
     delete_known_sms_noise(conn)
-    run_id = start_import_run(conn, "dialpad_sms", Path(__file__).name, args.start_date, None, {"url": args.url})
+    run_id = start_import_run(
+        conn,
+        "dialpad_sms",
+        Path(__file__).name,
+        args.start_date,
+        None,
+        {"url": args.url, "department": department},
+    )
     conn.commit()
     rows_seen = rows_written = 0
     try:
@@ -514,45 +655,26 @@ def main():
             page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)
             wait_for_authenticated_page(page, args.url, args.interactive_login, args.login_timeout)
-            thread_links = capture_thread_links(page, args.thread_limit)
-            urls = [link["href"] for _, link in thread_links] or [page.url]
-            for url in urls[: args.thread_limit]:
-                rows_seen += 1
-                thread_page = context.new_page()
-                thread_page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                wait_until_ready(thread_page)
-                parsed = parse_thread(thread_page)
-                upsert_thread(conn, parsed["thread"])
-                rows_written += 1
-                for message in parsed["messages"]:
-                    if not message["message_at"] or message["direction"] == "unknown":
-                        continue
-                    row = {
-                        "message_id": message_id(parsed["thread"]["thread_id"], message["message_at"], message["body"], message["direction"]),
-                        "thread_id": parsed["thread"]["thread_id"],
-                        "message_at": message["message_at"],
-                        "direction": message["direction"],
-                        "sender": None,
-                        "recipient": None,
-                        "body": message["body"],
-                        "source_url": thread_page.url,
-                        "raw_text": message["body"],
-                        "raw_json": json.dumps(
-                            {
-                                "extraction": "message_line",
-                                "extraction_source": parsed["extraction_source"],
-                                "direction_source": message["direction_source"],
-                                "timestamp_source": message["timestamp_source"],
-                                "source_timestamp_field": "message_at",
-                                "import_timestamp_field": "updated_at",
-                            },
-                            sort_keys=True,
-                        ),
-                        "updated_at": utc_now_iso(),
-                    }
-                    upsert_message(conn, row)
-                    rows_written += 1
-                thread_page.close()
+            if department:
+                select_department_messages(page, department)
+                rows_seen, rows_written = extract_selected_department_rows(
+                    conn,
+                    page,
+                    args.thread_limit,
+                    department,
+                    args.url,
+                )
+            else:
+                thread_links = capture_thread_links(page, args.thread_limit)
+                urls = [link["href"] for _, link in thread_links] or [page.url]
+                for url in urls[: args.thread_limit]:
+                    rows_seen += 1
+                    thread_page = context.new_page()
+                    thread_page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                    wait_until_ready(thread_page)
+                    parsed = parse_thread(thread_page)
+                    rows_written += upsert_parsed_messages(conn, parsed, thread_page.url)
+                    thread_page.close()
             context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0)
         conn.commit()

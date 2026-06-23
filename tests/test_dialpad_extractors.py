@@ -7,7 +7,9 @@ from scripts.extract_dialpad_sms import (
     extract_message_lines,
     is_dialpad_app_page as is_sms_app_page,
     is_login_page as is_sms_login_page,
+    normalize_department,
     normalize_dialpad_date as normalize_sms_date,
+    department_school,
     sms_extraction_source,
 )
 from scripts.extract_dialpad_voice import (
@@ -57,6 +59,26 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(messages[1]["message_at"], "2025-04-17")
         self.assertEqual(messages[1]["direction"], "outbound")
 
+    def test_sms_parser_handles_feed_detail_dates_before_messages(self):
+        messages = extract_message_lines(
+            "\n".join(
+                [
+                    "5/23/2024",
+                    "(713) 555-1212",
+                    "5:29 pm",
+                    "Hi, this is a message from the department.",
+                    "6/26/2024",
+                    "(713) 555-1212",
+                    "3:45 pm",
+                    "Reply STOP to opt-out.",
+                ]
+            ),
+            date_follows_message=False,
+        )
+        self.assertEqual(messages[0]["message_at"], "2024-05-23")
+        self.assertEqual(messages[0]["body"], "Hi, this is a message from the department.")
+        self.assertEqual(messages[1]["message_at"], "2024-06-26")
+
     def test_sms_parser_ignores_app_shell_and_parses_history_list_snippets(self):
         messages = extract_message_lines(
             "\n".join(
@@ -92,6 +114,9 @@ class DialpadExtractorTests(unittest.TestCase):
         self.assertEqual(sms_extraction_source("https://dialpad.com/app/history/messages"), "message_list")
         self.assertEqual(detect_sms_department("Departments\nWESTU\nMessages"), ("West U", "WESTU"))
         self.assertEqual(detect_sms_department("Departments\nHEIGHTS\nMessages"), ("The Heights", "HEIGHTS"))
+        self.assertEqual(normalize_department("The Heights"), "HEIGHTS")
+        self.assertEqual(normalize_department("westu-sor"), "WESTU")
+        self.assertEqual(department_school("HEIGHTS"), ("The Heights", "HEIGHTS"))
 
     def test_extractors_detect_dialpad_login_pages(self):
         login_text = "Log in to Dialpad\nWORK EMAIL\nPASSWORD"

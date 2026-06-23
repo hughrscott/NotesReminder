@@ -13,7 +13,9 @@ from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
 from notesreminder.reports.lead_operating_dashboard import (
     DEFAULT_SCHOOL,
     build_exception_queue,
+    contact_person_expr,
     hubspot_lead_count,
+    hubspot_contact_school_clause,
     pike13_outcomes,
     school_aliases,
     source_data_freshness,
@@ -74,6 +76,85 @@ def _school_filter(
 
 def _rate(numerator: int | float, denominator: int | float) -> float:
     return round(100.0 * numerator / denominator, 1) if denominator else 0.0
+
+
+def _hubspot_school_assignment_quality(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str,
+    end_date: str,
+    schools: tuple[str, ...] = DEFAULT_SCHOOLS,
+) -> dict:
+    if not table_exists(conn, "hubspot_contacts"):
+        return {
+            "status": "missing",
+            "total": 0,
+            "usable_for_dashboard_schools": 0,
+            "assigned_school": 0,
+            "blank_school": 0,
+            "other_school": 0,
+            "unassigned_to_dashboard_school": 0,
+            "missing_create_date": 0,
+        }
+    aliases = {alias for school in schools for alias in school_aliases(school)}
+    person_sql = contact_person_expr(conn)
+    rows = conn.execute(
+        """
+        SELECT LOWER(TRIM(COALESCE(school, ''))) AS school, COUNT(*) AS rows
+        FROM hubspot_contacts c
+        WHERE date(c.create_date) BETWEEN date(:start) AND date(:end)
+        GROUP BY LOWER(TRIM(COALESCE(school, '')))
+        """,
+        {"start": start_date, "end": end_date},
+    ).fetchall()
+    missing_create_date = int(
+        conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM hubspot_contacts c
+            WHERE COALESCE(c.create_date, '') = ''
+              AND date(c.updated_at) BETWEEN date(:start) AND date(:end)
+            """,
+            {"start": start_date, "end": end_date},
+        ).fetchone()[0]
+        or 0
+    )
+    total = sum(int(row["rows"] or 0) for row in rows)
+    blank = sum(int(row["rows"] or 0) for row in rows if not row["school"])
+    assigned = sum(int(row["rows"] or 0) for row in rows if row["school"] in aliases)
+    other = total - blank - assigned
+    usable_contact_ids = set()
+    for school in schools:
+        school_sql, school_params = hubspot_contact_school_clause(school, conn)
+        for row in conn.execute(
+            f"""
+            SELECT c.contact_id
+            FROM hubspot_contacts c
+            LEFT JOIN pike13_people pp ON pp.person_id = {person_sql}
+            WHERE date(c.create_date) BETWEEN date(:start) AND date(:end)
+              AND {school_sql}
+            """,
+            {"start": start_date, "end": end_date, **school_params},
+        ).fetchall():
+            usable_contact_ids.add(row["contact_id"])
+    usable = len(usable_contact_ids)
+    unassigned = max(total - usable, 0)
+    flags = []
+    if unassigned:
+        flags.append(f"hubspot_contacts_unassigned_school_{unassigned}")
+    if other:
+        flags.append(f"hubspot_contacts_unrecognized_school_{other}")
+    return {
+        "status": "ready" if not flags else "attention",
+        "total": total,
+        "usable_for_dashboard_schools": usable,
+        "assigned_school": assigned,
+        "blank_school": blank,
+        "other_school": other,
+        "unassigned_to_dashboard_school": unassigned,
+        "missing_create_date": missing_create_date,
+        "flags": flags,
+    }
 
 
 def _rows(conn: sqlite3.Connection, sql: str, params: dict | None = None) -> list[dict]:
@@ -384,6 +465,12 @@ def build_operations_dashboard(
     }
     totals["mtd_lead_to_trial_rate"] = _rate(totals["mtd_leads_to_trial"], totals["mtd_new_leads"])
     totals["mtd_trial_to_conversion_rate"] = _rate(totals["mtd_conversions"], totals["mtd_leads_to_trial"])
+    hubspot_quality = _hubspot_school_assignment_quality(
+        conn,
+        start_date=ytd["start"],
+        end_date=ytd["end"],
+        schools=schools,
+    )
 
     data_freshness_flags = sorted(
         {
@@ -392,7 +479,8 @@ def build_operations_dashboard(
             for flag in item.get("source_data_freshness", {}).get("flags", [])
         }
     )
-    status = "ready" if freshness.get("status") == "ready" and not exception_summary and not data_freshness_flags else "attention"
+    data_quality_flags = sorted(data_freshness_flags + hubspot_quality.get("flags", []))
+    status = "ready" if freshness.get("status") == "ready" and not exception_summary and not data_quality_flags else "attention"
     return {
         "dashboard_type": "operations_scorecard",
         "generated_at": utc_now_iso(),
@@ -404,9 +492,10 @@ def build_operations_dashboard(
         "school_reports": school_reports,
         "exception_summary": dict(sorted(exception_summary.items())),
         "source_freshness": freshness,
+        "hubspot_school_assignment": hubspot_quality,
         "source_data_freshness": {
-            "status": "ready" if not data_freshness_flags else "attention",
-            "flags": data_freshness_flags,
+            "status": "ready" if not data_quality_flags else "attention",
+            "flags": data_quality_flags,
         },
     }
 
@@ -443,6 +532,57 @@ def _table(headers: list[str], rows: list[list]) -> str:
     for row in rows:
         row_html.append("<tr>" + "".join(f"<td>{_h(value)}</td>" for value in row) + "</tr>")
     return f"<table><thead><tr>{header_html}</tr></thead><tbody>{''.join(row_html)}</tbody></table>"
+
+
+def _flags_panel(report: dict) -> str:
+    flags = report.get("source_data_freshness", {}).get("flags", [])
+    if not flags:
+        return ""
+    hubspot_quality = report.get("hubspot_school_assignment", {})
+    rows = [[flag] for flag in flags]
+    return f"""
+    <section class="warning-panel">
+      <h2>Data Quality Blockers</h2>
+      <p>
+        This dashboard is in validation mode. Treat lead counts as HubSpot-derived, but do not use note,
+        trial, conversion, contacted, or response-rate metrics for management decisions until these blockers
+        are cleared.
+      </p>
+      <div class="warning-grid">
+        <div>
+          <h3>Active blockers</h3>
+          {_table(["Flag"], rows)}
+        </div>
+        <div>
+          <h3>HubSpot lead spine</h3>
+          {_table(
+              ["Metric", "Rows"],
+              [
+                  ["YTD contacts", hubspot_quality.get("total", 0)],
+                  ["Usable by dashboard school filter", hubspot_quality.get("usable_for_dashboard_schools", 0)],
+                  ["Explicit school column match", hubspot_quality.get("assigned_school", 0)],
+                  ["Blank school column", hubspot_quality.get("blank_school", 0)],
+                  ["Unassigned to dashboard school", hubspot_quality.get("unassigned_to_dashboard_school", 0)],
+                  ["Unrecognized school", hubspot_quality.get("other_school", 0)],
+                  ["Missing create date excluded", hubspot_quality.get("missing_create_date", 0)],
+              ],
+          )}
+        </div>
+      </div>
+    </section>
+    """
+
+
+def _school_flags(item: dict) -> str:
+    flags = item.get("source_data_freshness", {}).get("flags", [])
+    if not flags:
+        return '<p class="school-health ready-text">Source data current for this school.</p>'
+    return (
+        '<div class="school-health attention-text">'
+        '<strong>Source data is not current for this school.</strong>'
+        + _table(["Flag"], [[flag] for flag in flags])
+        + "</div>"
+    )
 
 
 def _notes_rows(rows: list[dict]) -> list[list]:
@@ -512,6 +652,7 @@ def render_operations_dashboard_html(report: dict) -> str:
                 <h2>{_h(item["school"])}</h2>
                 <span class="pill attention">Scorecard</span>
               </div>
+              {_school_flags(item)}
               <div class="mini-grid">
                 {_metric_card("MTD Leads", item["funnel_mtd"]["new_leads"], f"{item['funnel_mtd']['lead_to_trial_rate']:.1f}% to trial")}
                 {_metric_card("MTD Trial Conv.", f"{item['funnel_mtd']['trial_to_conversion_rate']:.1f}%", f"{item['funnel_mtd']['trials_converted']} conversions")}
@@ -574,6 +715,9 @@ def render_operations_dashboard_html(report: dict) -> str:
       --line: #d9dee7;
       --green: #147d4f;
       --amber: #9a5b00;
+      --red: #9f1d20;
+      --red-bg: #fff0f0;
+      --red-line: #f0b8ba;
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -612,6 +756,30 @@ def render_operations_dashboard_html(report: dict) -> str:
     }}
     .pill.ready {{ color: var(--green); background: #ecf8f1; border-color: #b8dec7; }}
     .pill.attention {{ color: var(--amber); background: #fff7e5; border-color: #efd08f; }}
+    .warning-panel {{
+      background: var(--red-bg);
+      border: 1px solid var(--red-line);
+      border-radius: 6px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }}
+    .warning-panel h2 {{ color: var(--red); margin-bottom: 6px; }}
+    .warning-panel p {{ max-width: 980px; }}
+    .warning-grid {{
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr);
+      gap: 16px;
+      margin-top: 12px;
+    }}
+    .school-health {{
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+    }}
+    .school-health table {{ margin-top: 8px; }}
+    .ready-text {{ color: var(--green); background: #ecf8f1; border-color: #b8dec7; }}
+    .attention-text {{ color: var(--red); background: var(--red-bg); border-color: var(--red-line); }}
     .metrics, .mini-grid {{
       display: grid;
       grid-template-columns: repeat(6, minmax(120px, 1fr));
@@ -646,7 +814,7 @@ def render_operations_dashboard_html(report: dict) -> str:
     footer {{ color: var(--muted); margin-top: 18px; font-size: 12px; }}
     @media (max-width: 1120px) {{
       .metrics, .mini-grid {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
-      .table-grid, .supporting {{ grid-template-columns: 1fr; }}
+      .table-grid, .supporting, .warning-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 680px) {{
       header {{ display: block; padding: 16px; }}
@@ -665,6 +833,7 @@ def render_operations_dashboard_html(report: dict) -> str:
     <span class="pill {_status_class(status)}">{_h(status)}</span>
   </header>
   <main>
+    {_flags_panel(report)}
     <section class="metrics">
       {_metric_card("MTD Leads", totals["mtd_new_leads"], f"{totals['mtd_lead_to_trial_rate']:.1f}% to trial")}
       {_metric_card("MTD Trial Conv.", f"{totals['mtd_trial_to_conversion_rate']:.1f}%", f"{totals['mtd_conversions']} conversions")}
