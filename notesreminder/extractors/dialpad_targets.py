@@ -118,7 +118,7 @@ def _first_associated_deal_id(value):
     return None
 
 
-def _contact_school_clause(school):
+def _contact_school_clause(school, alias=""):
     value = (school or "").lower()
     if "height" in value:
         aliases = ("the heights", "heights")
@@ -131,35 +131,103 @@ def _contact_school_clause(school):
     params = {f"school_{index}": alias for index, alias in enumerate(aliases)}
     exact = ", ".join(f":{key}" for key in params)
     like_params = {f"school_like_{index}": f"%{alias}%" for index, alias in enumerate(aliases)}
+    deal_column = f"{alias}.hubspot_deal_name" if alias else "hubspot_deal_name"
     like_sql = " OR ".join(
-        f"LOWER(COALESCE(hubspot_deal_name, '')) LIKE :school_like_{index}"
+        f"LOWER(COALESCE({deal_column}, '')) LIKE :school_like_{index}"
         for index in range(len(aliases))
     )
+    school_column = f"{alias}.school" if alias else "school"
     return (
-        f"(LOWER(COALESCE(school, '')) IN ({exact}) OR {like_sql})",
+        f"(LOWER(COALESCE({school_column}, '')) IN ({exact}) OR {like_sql})",
         {**params, **like_params},
+    )
+
+
+def _table_exists(conn, name):
+    return bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (name,),
+        ).fetchone()
+    )
+
+
+def _column_exists(conn, table, column):
+    if not _table_exists(conn, table):
+        return False
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})").fetchall())
+
+
+def _contact_person_expr(conn):
+    parts = []
+    if _column_exists(conn, "hubspot_contacts", "pike13_person_id"):
+        parts.append("h.pike13_person_id")
+    if _column_exists(conn, "hubspot_contacts", "person_id"):
+        parts.append("h.person_id")
+    if not parts:
+        return "NULL"
+    return parts[0] if len(parts) == 1 else "COALESCE(" + ", ".join(parts) + ")"
+
+
+def _contact_school_filter(conn, school):
+    _, params = _contact_school_clause(school, alias="h")
+    aliases = [
+        value
+        for key, value in params.items()
+        if key.startswith("school_") and not key.startswith("school_like_")
+    ]
+    if not _table_exists(conn, "pike13_people"):
+        join_sql = ""
+        pp_sql = ""
+    else:
+        person_expr = _contact_person_expr(conn)
+        join_sql = f"LEFT JOIN pike13_people pp ON pp.person_id = {person_expr}"
+        pp_sql = " OR ".join(
+            f"LOWER(COALESCE(pp.school, '')) = :school_{index}"
+            for index in range(len(aliases))
+        )
+    if not aliases:
+        return "1=1", params, join_sql
+    exact = ", ".join(f":school_{index}" for index in range(len(aliases)))
+    deal_sql = " OR ".join(
+        f"LOWER(COALESCE(h.hubspot_deal_name, '')) LIKE :school_like_{index}"
+        for index in range(len(aliases))
+    )
+    blank_school_fallbacks = [deal_sql]
+    if pp_sql:
+        blank_school_fallbacks.append(pp_sql)
+    fallback_sql = " OR ".join(f"({part})" for part in blank_school_fallbacks if part)
+    return (
+        f"""(
+            LOWER(COALESCE(h.school, '')) IN ({exact})
+            OR (COALESCE(h.school, '') = '' AND ({fallback_sql}))
+        )""",
+        params,
+        join_sql,
     )
 
 
 def select_hubspot_contact_targets(conn, school, start_date, end_date, limit=500):
     register_dashboard_sql_functions(conn)
-    school_sql, school_params = _contact_school_clause(school)
+    school_sql, school_params, school_join = _contact_school_filter(conn, school)
+    school_select = "COALESCE(NULLIF(h.school, ''), NULLIF(pp.school, ''))" if school_join else "h.school"
     rows = conn.execute(
         f"""
         SELECT
-            contact_id,
-            full_name,
-            school,
-            dashboard_date(NULLIF(create_date, ''), NULLIF(updated_at, '')) AS lead_date,
-            phone_normalized,
-            phone,
-            associated_deal_ids
-        FROM hubspot_contacts
-        WHERE dashboard_date(NULLIF(create_date, ''), NULLIF(updated_at, ''))
+            h.contact_id,
+            h.full_name,
+            {school_select} AS school,
+            dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')) AS lead_date,
+            h.phone_normalized,
+            h.phone,
+            h.associated_deal_ids
+        FROM hubspot_contacts h
+        {school_join}
+        WHERE dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, ''))
             BETWEEN dashboard_date(:start) AND dashboard_date(:end)
           AND {school_sql}
-          AND COALESCE(phone_normalized, phone, '') != ''
-        ORDER BY dashboard_date(NULLIF(create_date, ''), NULLIF(updated_at, '')), contact_id
+          AND COALESCE(h.phone_normalized, h.phone, '') != ''
+        ORDER BY dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')), h.contact_id
         LIMIT :limit
         """,
         {"start": start_date, "end": end_date, "limit": limit, **school_params},

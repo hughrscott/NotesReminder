@@ -152,6 +152,46 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(targets[0]["lead_date"], "2026-05-20")
         self.assertEqual(targets[0]["window_start"], "2026-01-01")
 
+    def test_hubspot_contact_target_source_uses_matched_pike13_school(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, school, updated_at
+            )
+            VALUES ('pike-school-match', 'Matched Lead', 'The Heights', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, pike13_person_id, associated_deal_ids, raw_json, updated_at
+            )
+            VALUES ('contact-pike-school', 'Matched Lead', '2026-06-01',
+                    '(832) 555-0101', '8325550101', '',
+                    'pike-school-match', 'deal-pike-school',
+                    '{"trusted": 1}', ?)
+            """,
+            (now,),
+        )
+
+        targets = select_target_candidates(
+            conn,
+            school="The Heights",
+            candidate_source="hubspot-contacts",
+            start_date="2026-01-01",
+            end_date="2026-06-30",
+            limit=25,
+        )
+
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0]["contact_id"], "contact-pike-school")
+        self.assertEqual(targets[0]["school"], "The Heights")
+        self.assertEqual(targets[0]["target_hash"], target_hash("8325550101"))
+
     def test_hubspot_contact_target_source_requires_explicit_window(self):
         conn = self.open_db()
 
