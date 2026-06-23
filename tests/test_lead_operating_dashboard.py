@@ -10,7 +10,13 @@ import mcp_server
 from build_reporting_schema import backfill_reporting
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
 from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
-from notesreminder.dashboard.server import _window_kwargs, lead_dashboard_html, normalize_school_slug
+from notesreminder.dashboard.server import (
+    _window_kwargs,
+    dashboard_readiness_html,
+    dashboard_readiness_payload,
+    lead_dashboard_html,
+    normalize_school_slug,
+)
 from notesreminder.reports.operations_dashboard import (
     build_operations_dashboard,
     funnel_metrics,
@@ -734,6 +740,7 @@ class LeadOperatingDashboardTests(unittest.TestCase):
             )
         )
         operations = json.loads(mcp_server.operations_scorecard(period="monthly", as_of="2026-05-09"))
+        readiness = json.loads(mcp_server.dashboard_readiness(as_of="2026-05-09"))
         instructors = json.loads(
             mcp_server.instructor_conversion_table(
                 school="West U",
@@ -747,6 +754,8 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertIn("trial_to_conversion_rate", lead_snapshot["funnel_rates"])
         self.assertEqual(pareto["lead_followup_pareto"]["grid_status"], "ready")
         self.assertEqual(operations["dashboard_type"], "operations_scorecard")
+        self.assertEqual(readiness["report_type"], "dashboard_readiness")
+        self.assertIn("ready_for_management_use", readiness)
         self.assertEqual(instructors["row_count"], 1)
         self.assertEqual(instructors["rows"][0]["converted_trials"], 1)
 
@@ -755,6 +764,7 @@ class LeadOperatingDashboardTests(unittest.TestCase):
                 "lead_snapshot": lead_snapshot,
                 "pareto": pareto,
                 "operations": operations,
+                "readiness": readiness,
                 "instructors": instructors,
             }
         )
@@ -956,6 +966,23 @@ class LeadOperatingDashboardTests(unittest.TestCase):
 
         self.assertIn("&lt;script&gt;West U&lt;/script&gt;", html)
         self.assertNotIn("<script>West U</script>", html)
+
+    def test_dashboard_readiness_service_helper_returns_sanitized_html(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        db_path = Path(tmp.name) / "lead.db"
+        conn = open_db(str(db_path))
+        seed_dashboard_data(conn)
+        conn.commit()
+        conn.close()
+
+        payload = dashboard_readiness_payload(str(db_path), as_of="2026-05-09")
+        html = dashboard_readiness_html({**payload, "blockers": ["<script>blocked</script>"]})
+
+        self.assertEqual(payload["report_type"], "dashboard_readiness")
+        self.assertIn("source_freshness", payload)
+        self.assertIn("&lt;script&gt;blocked&lt;/script&gt;", html)
+        self.assertNotIn("<script>blocked</script>", html)
 
 
 if __name__ == "__main__":

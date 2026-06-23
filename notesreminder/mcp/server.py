@@ -30,6 +30,7 @@ from notesreminder.reports.operations_dashboard import (
     instructor_trial_conversions_ytd,
 )
 from notesreminder.reports.source_completeness import build_source_completeness_report
+from notesreminder.reports.dashboard_readiness import build_dashboard_readiness
 from scripts.db_guard import db_meta, verify_replace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -81,8 +82,8 @@ def _connect(db_path=None, *, read_only=False):
     return conn
 
 
-def _connect_lead():
-    return _connect(LEAD_DB_PATH)
+def _connect_lead(*, read_only=False):
+    return _connect(LEAD_DB_PATH, read_only=read_only)
 
 
 def _date_or_today(value: str | None = None) -> date:
@@ -306,6 +307,17 @@ def operations_scorecard(period: str = "monthly", as_of: str = "", limit: int = 
     conn = _connect_lead()
     try:
         report = build_operations_dashboard(conn, period=period, as_of=as_of or None, limit=limit)
+    finally:
+        conn.close()
+    return json.dumps(report, indent=2, default=str)
+
+
+@mcp.tool()
+def dashboard_readiness(as_of: str = "") -> str:
+    """Return a read-only readiness gate for whether dashboard data is trustworthy."""
+    conn = _connect_lead(read_only=True)
+    try:
+        report = build_dashboard_readiness(conn, as_of=as_of or None)
     finally:
         conn.close()
     return json.dumps(report, indent=2, default=str)

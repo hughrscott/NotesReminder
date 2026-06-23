@@ -5,6 +5,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from notesreminder.reports.dashboard_readiness import build_dashboard_readiness
 from notesreminder.reports.lead_operating_dashboard import build_snapshot, render_snapshot_markdown
 from notesreminder.reports.operations_dashboard import build_operations_dashboard, render_operations_dashboard_html
 from notesreminder.reports.source_completeness import build_source_completeness_report
@@ -91,6 +92,74 @@ def source_completeness_payload(db_path=DEFAULT_DB, *, window_days=7, pike13_loo
         conn.close()
 
 
+def dashboard_readiness_payload(db_path=DEFAULT_DB, *, as_of=""):
+    conn = _connect(db_path)
+    try:
+        return build_dashboard_readiness(conn, as_of=as_of or None)
+    finally:
+        conn.close()
+
+
+def dashboard_readiness_html(payload: dict) -> str:
+    status = payload.get("status", "unknown")
+    blocker_items = "\n".join(
+        f"<li>{html.escape(str(blocker))}</li>"
+        for blocker in payload.get("blockers", [])
+    ) or "<li>None</li>"
+    source_rows = "\n".join(
+        "<tr>"
+        f"<td>{html.escape(source)}</td>"
+        f"<td>{html.escape(str(data.get('status', 'unknown')))}</td>"
+        f"<td>{html.escape(str(data.get('latest_date') or ''))}</td>"
+        f"<td>{html.escape(str(data.get('rows', 0)))}</td>"
+        "</tr>"
+        for source, data in payload.get("source_freshness", {}).get("sources", {}).items()
+    )
+    school_rows = "\n".join(
+        "<tr>"
+        f"<td>{html.escape(str(row.get('school', '')))}</td>"
+        f"<td>{html.escape(str(row.get('mtd_leads', 0)))}</td>"
+        f"<td>{html.escape(str(row.get('mtd_phone_rate')))}</td>"
+        f"<td>{html.escape(str(row.get('ytd_leads', 0)))}</td>"
+        f"<td>{html.escape(str(row.get('dialpad_target_eligible_ytd', 0)))}</td>"
+        "</tr>"
+        for row in payload.get("hubspot_lead_spine", {}).get("schools", [])
+    )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Readiness</title>
+  <style>
+    body {{ margin: 0; background: #f7f8fa; color: #1d2430; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }}
+    main {{ max-width: 1180px; margin: 0 auto; padding: 24px; }}
+    section {{ background: #fff; border: 1px solid #d9dee7; border-radius: 6px; padding: 18px; margin: 16px 0; }}
+    .status {{ display: inline-block; padding: 4px 8px; border-radius: 4px; background: #fff0f0; color: #9f1d20; font-weight: 700; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ padding: 8px; border-bottom: 1px solid #e4e8ef; text-align: left; }}
+    th {{ color: #647084; }}
+  </style>
+</head>
+<body><main>
+  <h1>Dashboard Readiness</h1>
+  <p>As of {html.escape(str(payload.get('as_of', '')))}. Status: <span class="status">{html.escape(str(status))}</span></p>
+  <section>
+    <h2>Blockers</h2>
+    <ul>{blocker_items}</ul>
+  </section>
+  <section>
+    <h2>Source Freshness</h2>
+    <table><thead><tr><th>Source</th><th>Status</th><th>Latest Date</th><th>Rows</th></tr></thead><tbody>{source_rows}</tbody></table>
+  </section>
+  <section>
+    <h2>HubSpot Lead Spine</h2>
+    <table><thead><tr><th>School</th><th>MTD Leads</th><th>MTD Phone Rate</th><th>YTD Leads</th><th>YTD Dialpad Targets</th></tr></thead><tbody>{school_rows}</tbody></table>
+  </section>
+</main></body>
+</html>"""
+
+
 def create_app(db_path=DEFAULT_DB):
     try:
         from fastapi import FastAPI
@@ -170,6 +239,14 @@ def create_app(db_path=DEFAULT_DB):
             )
         )
 
+    @app.get("/api/dashboard/readiness")
+    def api_dashboard_readiness(as_of: str = ""):
+        return JSONResponse(jsonable_encoder(dashboard_readiness_payload(resolved_db, as_of=as_of)))
+
+    @app.get("/dashboard/readiness", response_class=HTMLResponse)
+    def html_dashboard_readiness(as_of: str = ""):
+        return HTMLResponse(dashboard_readiness_html(dashboard_readiness_payload(resolved_db, as_of=as_of)))
+
     @app.get("/")
     def root():
         return JSONResponse(
@@ -179,8 +256,10 @@ def create_app(db_path=DEFAULT_DB):
                     "/dashboard/operations",
                     "/dashboard/lead/westu",
                     "/dashboard/lead/heights",
+                    "/dashboard/readiness",
                     "/api/dashboard/operations",
                     "/api/dashboard/lead/{school}",
+                    "/api/dashboard/readiness",
                     "/api/source-completeness",
                 ],
             }
