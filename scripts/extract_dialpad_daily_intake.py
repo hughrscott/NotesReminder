@@ -133,6 +133,18 @@ def enrich_daily_row(row, window_days, school, filter_diagnostics):
     return row
 
 
+def validate_conversation_history_scope(filter_diagnostics):
+    if (
+        filter_diagnostics.get("expected_school_scope")
+        and not filter_diagnostics.get("school_filter_applied")
+    ):
+        raise RuntimeError(
+            "Dialpad conversation history school scope mismatch: "
+            f"expected {filter_diagnostics.get('expected_school_scope')}, "
+            f"active {filter_diagnostics.get('active_school_scope') or 'unknown'}"
+        )
+
+
 def run_fallback_route_discovery(db_path, profile_dir, school, interactive_login, headless, chrome_channel):
     try:
         return run_route_discovery(
@@ -199,6 +211,11 @@ def run_daily_intake(
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 wait_until_ready(page)
             filter_diagnostics = try_apply_conversation_history_filters(page, school)
+            if "conversationhistory" not in page.url:
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                wait_until_ready(page)
+                filter_diagnostics = try_apply_conversation_history_filters(page, school)
+            validate_conversation_history_scope(filter_diagnostics)
             visible_text = page.locator("body").inner_text(timeout=30000)
             write_raw_capture(
                 conn,

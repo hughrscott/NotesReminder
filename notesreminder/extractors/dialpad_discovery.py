@@ -307,6 +307,9 @@ def try_apply_conversation_history_filters(page, school):
         "school_filter_applied": False,
         "active_school_scope": None,
         "expected_school_scope": expected_conversation_history_scope(school),
+        "scope_switch_attempted": False,
+        "scope_switch_clicked": False,
+        "scope_switch_error": None,
         "date_filter_visible": False,
         "keyword_filter_visible": False,
     }
@@ -320,6 +323,9 @@ def try_apply_conversation_history_filters(page, school):
     if "conversation history" not in lowered:
         return diagnostics
     diagnostics["school_filter_attempted"] = True
+    if diagnostics["expected_school_scope"]:
+        switch_diagnostics = select_conversation_history_scope(page, diagnostics["expected_school_scope"])
+        diagnostics.update(switch_diagnostics)
     try:
         selector = page.locator("button[aria-label='Select menu search']")
         if selector.count():
@@ -330,6 +336,49 @@ def try_apply_conversation_history_filters(page, school):
         diagnostics["active_school_scope"],
         diagnostics["expected_school_scope"],
     )
+    return diagnostics
+
+
+def select_conversation_history_scope(page, expected_scope):
+    diagnostics = {
+        "scope_switch_attempted": False,
+        "scope_switch_clicked": False,
+        "scope_switch_error": None,
+    }
+    if not expected_scope:
+        return diagnostics
+    diagnostics["scope_switch_attempted"] = True
+    try:
+        selector = page.locator("button[aria-label='Select menu search']").first
+        if selector.count() == 0:
+            diagnostics["scope_switch_error"] = "scope_selector_not_found"
+            return diagnostics
+        active_scope = selector.inner_text(timeout=2000).strip()
+        if school_scope_matches(active_scope, expected_scope):
+            return diagnostics
+        selector.click(timeout=5000)
+        page.wait_for_timeout(500)
+        option = page.get_by_role("option", name=expected_scope, exact=True).first
+        if option.count() == 0:
+            option = page.locator("li[role='option']").filter(has_text=expected_scope).first
+        if option.count() == 0:
+            diagnostics["scope_switch_error"] = "scope_option_not_found"
+            return diagnostics
+        option.click(timeout=5000)
+        diagnostics["scope_switch_clicked"] = True
+        page.wait_for_function(
+            """
+            expected => {
+              const button = document.querySelector("button[aria-label='Select menu search']");
+              return button && (button.innerText || button.textContent || '').trim() === expected;
+            }
+            """,
+            arg=expected_scope,
+            timeout=10000,
+        )
+        wait_until_ready(page)
+    except Exception as exc:
+        diagnostics["scope_switch_error"] = sanitize_error(exc)
     return diagnostics
 
 

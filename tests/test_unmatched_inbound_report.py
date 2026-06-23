@@ -5,7 +5,11 @@ import unittest
 from pathlib import Path
 
 from lead_followup_schema import ensure_lead_followup_schema, utc_now_iso
-from scripts.extract_dialpad_daily_intake import conversation_history_window_url, enrich_daily_row
+from scripts.extract_dialpad_daily_intake import (
+    conversation_history_window_url,
+    enrich_daily_row,
+    validate_conversation_history_scope,
+)
 from scripts.unmatched_inbound_report import fetch_unmatched_rows, render_report
 
 
@@ -66,6 +70,23 @@ class UnmatchedInboundReportTests(unittest.TestCase):
         self.assertEqual(raw["source_timestamp_field"], "event_at")
         self.assertEqual(raw["import_timestamp_field"], "updated_at")
         self.assertTrue(raw["filter_diagnostics"]["school_filter_applied"])
+
+    def test_daily_intake_rejects_school_scope_mismatch(self):
+        validate_conversation_history_scope(
+            {
+                "expected_school_scope": "The Heights",
+                "active_school_scope": "The Heights",
+                "school_filter_applied": True,
+            }
+        )
+        with self.assertRaisesRegex(RuntimeError, "school scope mismatch"):
+            validate_conversation_history_scope(
+                {
+                    "expected_school_scope": "The Heights",
+                    "active_school_scope": "West U",
+                    "school_filter_applied": False,
+                }
+            )
 
     def test_report_is_sanitized_and_counts_unmatched_inbound(self):
         conn = self.open_db()
