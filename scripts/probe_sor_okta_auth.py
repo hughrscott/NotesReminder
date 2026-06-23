@@ -44,7 +44,15 @@ def classify_url(url, body_text=""):
     return "unknown"
 
 
-def run_probe(profile_dir, headless=True, interactive_login=False, login_timeout=300, chrome_channel=False, probe_timeout=45):
+def run_probe(
+    profile_dir,
+    headless=True,
+    interactive_login=False,
+    login_timeout=300,
+    chrome_channel=False,
+    probe_timeout=45,
+    probes=None,
+):
     launch_kwargs = {
         "headless": headless and not interactive_login,
         "viewport": {"width": 1440, "height": 1000},
@@ -64,7 +72,9 @@ def run_probe(profile_dir, headless=True, interactive_login=False, login_timeout
                     page.wait_for_load_state("networkidle", timeout=login_timeout * 1000)
                 except PlaywrightTimeoutError:
                     pass
-            for name, url in PROBES.items():
+            selected_probes = probes or list(PROBES)
+            for name in selected_probes:
+                url = PROBES[name]
                 page = context.new_page()
                 page.set_default_timeout(probe_timeout * 1000)
                 page.set_default_navigation_timeout(probe_timeout * 1000)
@@ -98,6 +108,12 @@ def main():
     parser.add_argument("--login-timeout", type=int, default=300)
     parser.add_argument("--probe-timeout", type=int, default=45)
     parser.add_argument("--chrome-channel", action="store_true")
+    parser.add_argument(
+        "--probe",
+        action="append",
+        choices=sorted(PROBES),
+        help="Probe only this source. Repeatable. Defaults to all probes.",
+    )
     args = parser.parse_args()
 
     run_id = None
@@ -115,6 +131,7 @@ def main():
             login_timeout=args.login_timeout,
             chrome_channel=args.chrome_channel,
             probe_timeout=args.probe_timeout,
+            probes=args.probe,
         )
         status = "success" if all(item["status"] == "authenticated" for item in results.values()) else "partial"
         if conn:

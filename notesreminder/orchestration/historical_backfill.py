@@ -13,6 +13,7 @@ from notesreminder.orchestration.refresh_all_sources import (
     _python,
     _school_filter,
     _timeout_at_least,
+    build_auth_preflight_tasks,
 )
 
 
@@ -95,7 +96,11 @@ def build_monthly_backfill_plan(
     pike13_login_args = ["--headless", "--reauth-if-needed"] if interactive_login else ["--headless"]
     dialpad_login_args = ["--interactive-login"] if interactive_login else ["--headless"]
     checkpoint_days = _days_inclusive(start_date, end_date)
-    tasks: list[RefreshTask] = []
+    tasks: list[RefreshTask] = build_auth_preflight_tasks(
+        root=root,
+        schools=schools,
+        login_timeout=login_timeout,
+    )
 
     for label, subdomain, base_url, mailbox, slug in selected_schools:
         if include_notes:

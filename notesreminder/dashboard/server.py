@@ -94,6 +94,7 @@ def source_completeness_payload(db_path=DEFAULT_DB, *, window_days=7, pike13_loo
 def create_app(db_path=DEFAULT_DB):
     try:
         from fastapi import FastAPI
+        from fastapi.encoders import jsonable_encoder
         from fastapi.responses import HTMLResponse, JSONResponse
     except ImportError as exc:  # pragma: no cover - exercised by CLI/runtime environment
         raise RuntimeError("FastAPI is required for the local dashboard service. Install requirements.txt.") from exc
@@ -111,14 +112,16 @@ def create_app(db_path=DEFAULT_DB):
         limit: int = 50,
     ):
         return JSONResponse(
-            lead_dashboard_payload(
-                resolved_db,
-                school=school,
-                period=period,
-                as_of=as_of,
-                start_date=start_date,
-                end_date=end_date,
-                limit=limit,
+            jsonable_encoder(
+                lead_dashboard_payload(
+                    resolved_db,
+                    school=school,
+                    period=period,
+                    as_of=as_of,
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=limit,
+                )
             )
         )
 
@@ -144,7 +147,11 @@ def create_app(db_path=DEFAULT_DB):
 
     @app.get("/api/dashboard/operations")
     def api_operations_dashboard(period: str = "monthly", as_of: str = "", limit: int = 25):
-        return JSONResponse(operations_dashboard_payload(resolved_db, period=period, as_of=as_of, limit=limit))
+        return JSONResponse(
+            jsonable_encoder(
+                operations_dashboard_payload(resolved_db, period=period, as_of=as_of, limit=limit)
+            )
+        )
 
     @app.get("/dashboard/operations", response_class=HTMLResponse)
     def html_operations_dashboard(period: str = "monthly", as_of: str = "", limit: int = 25):
@@ -154,10 +161,12 @@ def create_app(db_path=DEFAULT_DB):
     @app.get("/api/source-completeness")
     def api_source_completeness(window_days: int = 7, pike13_lookahead_days: int = 30):
         return JSONResponse(
-            source_completeness_payload(
-                resolved_db,
-                window_days=window_days,
-                pike13_lookahead_days=pike13_lookahead_days,
+            jsonable_encoder(
+                source_completeness_payload(
+                    resolved_db,
+                    window_days=window_days,
+                    pike13_lookahead_days=pike13_lookahead_days,
+                )
             )
         )
 

@@ -20,6 +20,10 @@ class RefreshAllSourcesTests(unittest.TestCase):
             schools=["West U"],
         )
         names = [task.name for task in plan]
+        self.assertIn("gmail_auth_preflight", names)
+        self.assertIn("hubspot_auth_preflight", names)
+        self.assertIn("dialpad_auth_preflight", names)
+        self.assertIn("pike13_auth_preflight_westu", names)
         self.assertIn("notes_smoke_westu", names)
         self.assertIn("dialpad_daily_intake_westu", names)
         self.assertIn("school_email_westu", names)
@@ -68,6 +72,64 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertIn("--reauth-if-needed", pike13.command)
         self.assertGreater(hubspot.timeout_seconds, 0)
         self.assertGreater(pike13.timeout_seconds, 0)
+
+    def test_refresh_auth_preflight_runs_with_execute_refresh(self):
+        calls = []
+
+        def runner(command, cwd):
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+        metadata = run_refresh_plan(
+            [
+                RefreshTask(
+                    name="auth_gate",
+                    command=["auth"],
+                    category="auth_preflight",
+                    gates_refresh=True,
+                )
+            ],
+            root=Path("/repo"),
+            execute_refresh=True,
+            runner=runner,
+        )
+
+        self.assertEqual(metadata["status"], "success")
+        self.assertEqual(calls, [["auth"]])
+        self.assertEqual(metadata["tasks"][0]["status"], "success")
+
+    def test_failed_auth_preflight_blocks_mutating_refresh_tasks(self):
+        calls = []
+
+        def runner(command, cwd):
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 2, stdout="", stderr="needs login")
+
+        metadata = run_refresh_plan(
+            [
+                RefreshTask(
+                    name="auth_gate",
+                    command=["auth"],
+                    category="auth_preflight",
+                    gates_refresh=True,
+                ),
+                RefreshTask(
+                    name="db_refresh",
+                    command=["refresh"],
+                    category="source_refresh",
+                    mutates_db=True,
+                ),
+            ],
+            root=Path("/repo"),
+            execute_refresh=True,
+            runner=runner,
+        )
+
+        self.assertEqual(metadata["status"], "action_required")
+        self.assertEqual(metadata["refresh_blocked_by"], "auth_gate")
+        self.assertEqual([task["status"] for task in metadata["tasks"]], ["failed", "blocked"])
+        self.assertEqual(metadata["tasks"][1]["blocked_by"], "auth_gate")
+        self.assertEqual(calls, [["auth"]])
 
     def test_weekly_plan_is_read_only(self):
         plan = build_weekly_completeness_plan(

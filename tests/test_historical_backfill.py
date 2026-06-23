@@ -30,6 +30,10 @@ class HistoricalBackfillTests(unittest.TestCase):
         )
         names = [task.name for task in plan]
 
+        self.assertIn("gmail_auth_preflight", names)
+        self.assertIn("hubspot_auth_preflight", names)
+        self.assertIn("dialpad_auth_preflight", names)
+        self.assertIn("pike13_auth_preflight_westu", names)
         self.assertIn("notes_backfill_westu_2026-01-01_to_2026-01-07", names)
         self.assertIn("notes_backfill_westu_2026-01-29_to_2026-01-31", names)
         self.assertIn("school_email_westu", names)
@@ -41,6 +45,7 @@ class HistoricalBackfillTests(unittest.TestCase):
         self.assertIn("refresh_person_identities", names)
         self.assertIn("db_integrity", names)
         self.assertIn("notes_read_path_comparison", names)
+        self.assertEqual(names[0], "gmail_auth_preflight")
         self.assertTrue(any(task.category == "historical_backfill_start_date_only" for task in plan))
         self.assertTrue(any(task.category == "checkpoint" for task in plan))
 

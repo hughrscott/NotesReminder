@@ -36,6 +36,7 @@ class RefreshTask:
     requires_auth: bool = False
     enabled_flag: str = ""
     timeout_seconds: int = 0
+    gates_refresh: bool = False
 
 
 def _python(root: Path) -> str:
@@ -80,6 +81,105 @@ def _timeout_at_least(*values: int) -> int:
     return max(values)
 
 
+def _auth_probe_timeout(login_timeout: int) -> int:
+    return min(max(login_timeout, 30), 90)
+
+
+def build_auth_preflight_tasks(
+    *,
+    root: Path | None = None,
+    schools: Iterable[str] | None = None,
+    login_timeout: int = 900,
+) -> list[RefreshTask]:
+    root = root or Path.cwd()
+    py = _python(root)
+    selected_schools = _school_filter(schools)
+    probe_timeout = _auth_probe_timeout(login_timeout)
+    tasks = [
+        RefreshTask(
+            name="gmail_auth_preflight",
+            command=[
+                py,
+                "scripts/probe_sor_okta_auth.py",
+                "--profile-dir",
+                "browser_profiles/sor_okta",
+                "--headless",
+                "--probe",
+                "gmail",
+                "--probe-timeout",
+                str(probe_timeout),
+            ],
+            category="auth_preflight",
+            requires_auth=True,
+            enabled_flag="--execute-refresh",
+            timeout_seconds=probe_timeout + 30,
+            gates_refresh=True,
+        ),
+        RefreshTask(
+            name="hubspot_auth_preflight",
+            command=[
+                py,
+                "scripts/probe_sor_okta_auth.py",
+                "--profile-dir",
+                "browser_profiles/hubspot",
+                "--headless",
+                "--probe",
+                "hubspot",
+                "--probe-timeout",
+                str(probe_timeout),
+            ],
+            category="auth_preflight",
+            requires_auth=True,
+            enabled_flag="--execute-refresh",
+            timeout_seconds=probe_timeout + 30,
+            gates_refresh=True,
+        ),
+        RefreshTask(
+            name="dialpad_auth_preflight",
+            command=[
+                py,
+                "scripts/probe_sor_okta_auth.py",
+                "--profile-dir",
+                "browser_profiles/dialpad",
+                "--headless",
+                "--probe",
+                "dialpad",
+                "--probe-timeout",
+                str(probe_timeout),
+            ],
+            category="auth_preflight",
+            requires_auth=True,
+            enabled_flag="--execute-refresh",
+            timeout_seconds=probe_timeout + 30,
+            gates_refresh=True,
+        ),
+    ]
+    for label, _, base_url, _, slug in selected_schools:
+        tasks.append(
+            RefreshTask(
+                name=f"pike13_auth_preflight_{slug}",
+                command=[
+                    py,
+                    "scripts/extract_pike13_leads.py",
+                    "--profile-dir",
+                    "browser_profiles/pike13",
+                    "--base-url",
+                    base_url,
+                    "--school",
+                    label,
+                    "--auth-check-only",
+                    "--headless",
+                ],
+                category="auth_preflight",
+                requires_auth=True,
+                enabled_flag="--execute-refresh",
+                timeout_seconds=probe_timeout + 30,
+                gates_refresh=True,
+            )
+        )
+    return tasks
+
+
 def build_daily_refresh_plan(
     run_date: str,
     *,
@@ -103,7 +203,11 @@ def build_daily_refresh_plan(
     py = _python(root)
     selected_schools = _school_filter(schools)
     start_date = window_start(run_date, window_days)
-    tasks: list[RefreshTask] = []
+    tasks: list[RefreshTask] = build_auth_preflight_tasks(
+        root=root,
+        schools=schools,
+        login_timeout=login_timeout,
+    )
 
     if send_email and upload_s3:
         tasks.append(
@@ -518,6 +622,7 @@ def _task_metadata(task: RefreshTask) -> dict:
         "requires_auth": task.requires_auth,
         "enabled_flag": task.enabled_flag,
         "timeout_seconds": task.timeout_seconds,
+        "gates_refresh": task.gates_refresh,
     }
 
 
@@ -533,15 +638,24 @@ def run_refresh_plan(
     runner = runner or _default_runner
     task_results = []
     started_at = datetime.now().isoformat(timespec="seconds")
+    refresh_blocked_by = ""
 
     for task in tasks:
         result = _task_metadata(task)
         result["started_at"] = datetime.now().isoformat(timespec="seconds")
-        should_execute = execute_refresh if task.mutates_db else execute_verification
+        should_execute = execute_refresh if task.mutates_db or task.gates_refresh else execute_verification
         if not should_execute:
             result.update(
                 {
                     "status": "dry_run",
+                    "ended_at": datetime.now().isoformat(timespec="seconds"),
+                }
+            )
+        elif refresh_blocked_by and task.mutates_db:
+            result.update(
+                {
+                    "status": "blocked",
+                    "blocked_by": refresh_blocked_by,
                     "ended_at": datetime.now().isoformat(timespec="seconds"),
                 }
             )
@@ -573,9 +687,11 @@ def run_refresh_plan(
                         "ended_at": datetime.now().isoformat(timespec="seconds"),
                     }
                 )
+        if task.gates_refresh and result["status"] in {"failed", "timeout"} and not refresh_blocked_by:
+            refresh_blocked_by = task.name
         task_results.append(result)
 
-    if any(task["status"] in {"failed", "timeout"} for task in task_results):
+    if any(task["status"] in {"failed", "timeout", "blocked"} for task in task_results):
         status = "action_required"
     elif execute_refresh or execute_verification:
         status = "success"
@@ -588,6 +704,7 @@ def run_refresh_plan(
         "status": status,
         "execute_refresh": execute_refresh,
         "execute_verification": execute_verification,
+        "refresh_blocked_by": refresh_blocked_by,
         "tasks": task_results,
     }
 
