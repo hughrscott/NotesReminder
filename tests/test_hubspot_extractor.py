@@ -10,6 +10,7 @@ from scripts.extract_hubspot_leads import (
     filter_deal_rows_by_school,
     is_hubspot_auth_page,
     merge_deal_rows,
+    merge_contact_rows,
     parse_contact_detail_text,
     parse_contact_from_text,
     parse_contact_report_rows,
@@ -18,6 +19,7 @@ from scripts.extract_hubspot_leads import (
     parse_hubspot_table_rows,
     pike13_trial_reconciliation,
     row_to_deal,
+    upsert_contact,
 )
 
 
@@ -358,6 +360,40 @@ class HubSpotExtractorTests(unittest.TestCase):
         self.assertEqual(row["registration_method"], "Web form")
         self.assertEqual(row["pike13_person_id"], "15046380")
         self.assertEqual(row["pike13_loaded_flag"], 1)
+
+    def test_contact_upsert_preserves_spine_date_and_canonical_school(self):
+        conn = sqlite3.connect(":memory:")
+        ensure_lead_followup_schema(conn)
+        detail_row = parse_contact_detail_text(
+            "contact-school-noise",
+            "https://app.hubspot.com/contacts/6841203/record/0-1/contact-school-noise",
+            "\n".join(
+                [
+                    "Private Student",
+                    "School",
+                    "Contact Activity",
+                    "Associated deals",
+                    "DEAL NAME",
+                    "DEAL STAGE",
+                    "Private Student | The Heights",
+                    "Scheduled Trial/Tour (Lead Pipeline)",
+                ]
+            ),
+            {"full_name": "Private Student", "create_date": "2026-01-21"},
+        )
+        merged = merge_contact_rows(
+            {"full_name": "Private Student", "create_date": "2026-01-21"},
+            detail_row,
+        )
+
+        upsert_contact(conn, merged)
+        stored = conn.execute(
+            "SELECT create_date, school FROM hubspot_contacts WHERE contact_id = ?",
+            ("contact-school-noise",),
+        ).fetchone()
+
+        self.assertEqual(stored[0], "2026-01-21")
+        self.assertEqual(stored[1], "The Heights")
 
     def test_contact_row_marks_existing_pike13_person_by_email(self):
         conn = sqlite3.connect(":memory:")

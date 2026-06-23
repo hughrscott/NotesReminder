@@ -92,6 +92,10 @@ SCHOOL_CANONICAL_MARKERS = {
     "the heights": "heights",
     "heights": "heights",
 }
+SCHOOL_CANONICAL_LABELS = {
+    "west_u": "West University Place",
+    "heights": "The Heights",
+}
 
 
 def stable_id(prefix, *parts):
@@ -263,6 +267,18 @@ def canonical_school(value):
     return None
 
 
+def normalized_school_value(value):
+    return SCHOOL_CANONICAL_LABELS.get(canonical_school(value))
+
+
+def first_school_value(*values):
+    for value in values:
+        school = normalized_school_value(value)
+        if school:
+            return school
+    return None
+
+
 def schools_compatible(left, right):
     left_key = canonical_school(left)
     right_key = canonical_school(right)
@@ -282,6 +298,11 @@ def parse_date_value(value):
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
         return None
+
+
+def normalized_date_value(value):
+    parsed = parse_date_value(value)
+    return parsed.isoformat() if parsed else None
 
 
 def contact_school_context(row):
@@ -901,12 +922,12 @@ def parse_contact_detail_text(contact_id, url, text, report_row=None):
         "phone_normalized": normalize_phone(phone_raw),
         "sms_opt_in": sanitized_yes_no(text_after("SMS Opt In", text) or text_after("SMS opt-in", text)),
         "owner": sanitized_value(text_after("Contact owner", text) or text_after("Owner", text)),
-        "school": sanitized_value(
-            text_after("School", text)
-            or text_after("School Name", text)
-            or text_after("School Lead Status", text)
-            or report_row.get("school")
-            or school_from_deal_name(primary_deal.get("deal_name"))
+        "school": first_school_value(
+            text_after("School", text),
+            text_after("School Name", text),
+            text_after("School Lead Status", text),
+            report_row.get("school"),
+            school_from_deal_name(primary_deal.get("deal_name")),
         ),
         "school_lead_status": sanitized_value(text_after("School Lead Status", text)),
         "lead_source": sanitized_value(text_after("Lead Source", text) or text_after("Original Source", text) or contact_created_source(text)),
@@ -983,7 +1004,15 @@ def merge_contact_rows(spine_row, detail_row):
     if not detail_row:
         return spine_row
     merged = dict(detail_row)
-    for field in ("full_name", "first_name", "last_name", "email", "email_normalized", "create_date"):
+    if spine_row.get("create_date"):
+        merged["create_date"] = spine_row["create_date"]
+    if not merged.get("school"):
+        merged["school"] = first_school_value(
+            spine_row.get("school"),
+            spine_row.get("school_lead_status"),
+            school_from_deal_name(spine_row.get("hubspot_deal_name")),
+        )
+    for field in ("full_name", "first_name", "last_name", "email", "email_normalized"):
         if spine_row.get(field) and not merged.get(field):
             merged[field] = spine_row[field]
     spine_text = spine_row.get("raw_text") or ""
@@ -1070,6 +1099,14 @@ def upsert_contact(conn, row):
         row.setdefault(key, None)
     row["pike13_loaded_flag"] = int(row.get("pike13_loaded_flag") or 0)
     row["hubspot_trial_scheduled_flag"] = int(row.get("hubspot_trial_scheduled_flag") or 0)
+    row["create_date"] = normalized_date_value(row.get("create_date"))
+    row["hubspot_trial_date"] = normalized_date_value(row.get("hubspot_trial_date")) or row.get("hubspot_trial_date")
+    row["school"] = first_school_value(
+        row.get("school"),
+        row.get("school_lead_status"),
+        school_from_deal_name(row.get("hubspot_deal_name")),
+        school_from_owner(row.get("owner")),
+    )
     row = apply_pike13_match_from_db(conn, row)
     conn.execute(
         """
@@ -1107,7 +1144,21 @@ def upsert_contact(conn, row):
             phone_normalized = COALESCE(excluded.phone_normalized, hubspot_contacts.phone_normalized),
             sms_opt_in = COALESCE(excluded.sms_opt_in, hubspot_contacts.sms_opt_in),
             owner = COALESCE(excluded.owner, hubspot_contacts.owner),
-            school = COALESCE(excluded.school, hubspot_contacts.school),
+            school = CASE
+                WHEN LOWER(COALESCE(excluded.school, '')) LIKE '%west university%'
+                  OR LOWER(COALESCE(excluded.school, '')) LIKE '%west u%'
+                  OR LOWER(COALESCE(excluded.school, '')) LIKE '%westu%'
+                  THEN 'West University Place'
+                WHEN LOWER(COALESCE(excluded.school, '')) LIKE '%height%'
+                  THEN 'The Heights'
+                WHEN LOWER(COALESCE(hubspot_contacts.school, '')) LIKE '%west university%'
+                  OR LOWER(COALESCE(hubspot_contacts.school, '')) LIKE '%west u%'
+                  OR LOWER(COALESCE(hubspot_contacts.school, '')) LIKE '%westu%'
+                  THEN 'West University Place'
+                WHEN LOWER(COALESCE(hubspot_contacts.school, '')) LIKE '%height%'
+                  THEN 'The Heights'
+                ELSE NULL
+            END,
             school_lead_status = COALESCE(excluded.school_lead_status, hubspot_contacts.school_lead_status),
             lead_source = COALESCE(excluded.lead_source, hubspot_contacts.lead_source),
             marketing_source = COALESCE(excluded.marketing_source, hubspot_contacts.marketing_source),
@@ -1348,8 +1399,12 @@ def filter_deal_rows_by_school(deal_rows, school):
     ]
 
 
-def wait_until_ready(page, timeout=30000, networkidle_timeout=5000):
-    page.wait_for_load_state("load", timeout=timeout)
+def wait_until_ready(page, timeout=30000, networkidle_timeout=5000, tolerate_load_timeout=False):
+    try:
+        page.wait_for_load_state("load", timeout=timeout)
+    except PlaywrightTimeoutError:
+        if not tolerate_load_timeout:
+            raise
     if not networkidle_timeout:
         return
     try:
@@ -1653,7 +1708,8 @@ def extract_contacts_api(conn, context, page, args, run_id):
             if should_detail:
                 try:
                     detail_page.goto(link["href"], wait_until="domcontentloaded", timeout=60000)
-                    wait_until_ready(detail_page, networkidle_timeout=0)
+                    # HubSpot contact detail pages can keep loading background app bundles indefinitely.
+                    # DOMContentLoaded from goto() is enough to parse the visible CRM fields.
                     text = detail_page.locator("body").inner_text(timeout=30000)
                     write_raw_capture(
                         conn,
