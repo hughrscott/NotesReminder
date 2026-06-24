@@ -26,6 +26,18 @@ Use this file together with `docs/master_plan.md` to restore context and finish 
 - Do not delete or overwrite preserved DB backups.
 - Do not start QuickBooks until Hugh chooses API access vs browser extraction.
 
+## Auth And Refresh Efficiency Follow-Up
+
+- Added on 2026-06-24 after the dashboard/backfill recovery.
+- Come back to the browser-auth workflow before making the dashboards routine.
+- Current pain point: HubSpot, Dialpad, Pike13, and school email refreshes can each surface auth failures differently, and manual recovery is slow.
+- Likely direction:
+  - start browser-backed refreshes from `https://sor.okta.com` when possible
+  - add one shared auth preflight that confirms each downstream app is reachable before long backfills
+  - make the refresh output say exactly which app needs reauthentication and what page the user should have open
+  - avoid rerunning expensive source loads when only one app session expired
+- Keep this as workflow hardening, not a production automation approval.
+
 ## What Was Finished
 
 - Phase 14: shadow operating dashboards.
