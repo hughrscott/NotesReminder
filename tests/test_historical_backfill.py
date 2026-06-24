@@ -39,6 +39,7 @@ class HistoricalBackfillTests(unittest.TestCase):
         self.assertIn("school_email_westu", names)
         self.assertIn("hubspot_leads_westu", names)
         self.assertIn("pike13_leads_westu", names)
+        self.assertIn("dialpad_target_search_westu", names)
         self.assertIn("dialpad_voice", names)
         self.assertIn("dialpad_sms", names)
         self.assertIn("dialpad_call_reviews", names)

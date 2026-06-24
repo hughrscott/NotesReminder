@@ -21,6 +21,23 @@ from notesreminder.orchestration.refresh_all_sources import (  # noqa: E402
 DEFAULT_OUTPUT_DIR = Path("outputs/progress/historical_backfill")
 
 
+def print_progress(event, payload):
+    if event == "task_start":
+        mode = "running" if payload.get("will_execute") else "skipping"
+        timeout = payload.get("timeout_seconds") or ""
+        timeout_text = f", timeout={timeout}s" if timeout else ""
+        print(
+            f"[{payload['index']}/{payload['total_tasks']}] {mode} {payload['name']} "
+            f"({payload['category']}{timeout_text})",
+            flush=True,
+        )
+    elif event == "task_finish":
+        print(
+            f"[{payload['index']}/{payload['total_tasks']}] {payload['name']} -> {payload['status']}",
+            flush=True,
+        )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Plan or run checkpointed historical source backfills.")
     parser.add_argument("--start-date", required=True, help="Backfill start date, YYYY-MM-DD.")
@@ -62,6 +79,7 @@ def main():
         "source_boundary_notes": {
             "bounded_by_month": ["notes", "school_email", "pike13_first_visits"],
             "start_date_only": ["hubspot", "pike13_people", "dialpad_voice", "dialpad_sms"],
+            "lead_spine_targeted": ["dialpad_target_search"],
             "limit_only_after_voice": ["dialpad_call_reviews"],
         },
         "months": [],
@@ -98,6 +116,7 @@ def main():
             root=ROOT,
             execute_refresh=args.execute_refresh,
             execute_verification=args.execute_verification,
+            progress_callback=print_progress,
         )
         metadata.update(
             {

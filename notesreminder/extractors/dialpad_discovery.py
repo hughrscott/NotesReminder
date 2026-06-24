@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import re
 import sqlite3
 import sys
 import time
 from collections import Counter
+from datetime import date
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -42,6 +44,11 @@ from scripts.extract_dialpad_voice import (  # noqa: E402
     upsert_voice_event,
     wait_for_authenticated_page,
     wait_until_ready,
+)
+from scripts.extract_dialpad_sms import (  # noqa: E402
+    extract_message_lines,
+    upsert_message as upsert_sms_message,
+    upsert_thread as upsert_sms_thread,
 )
 from scripts.lead_attention_report import (  # noqa: E402
     DEFAULT_SCHOOL,
@@ -278,7 +285,23 @@ def select_target_candidates(
 
 
 def try_fill_search(page, target):
+    for opener in (
+        page.locator("button").filter(has_text="Search Dialpad").first,
+        page.locator("button[aria-label='Search Dialpad']").first,
+        page.locator("[data-qa='dt-button']").filter(has_text="Search Dialpad").first,
+    ):
+        try:
+            if opener.count() == 0:
+                continue
+            opener.click(timeout=2000)
+            page.wait_for_timeout(500)
+            break
+        except Exception:
+            continue
     selectors = [
+        "input[data-qa='dt-input-input']",
+        "input[aria-label='Search contacts, messages, calls and more']",
+        "input[placeholder='Search contacts, messages, calls and more']",
         "input[placeholder='Search Dialpad']",
         "input[aria-label='Search Dialpad']",
         "input[placeholder*='Search' i]",
@@ -450,6 +473,102 @@ def parse_found_rows(page, outcome, target_phone, limit):
     return text, links, voice_rows
 
 
+def targeted_sms_rows_from_text(text, source_url, target, limit):
+    phone = normalize_phone(target.get("target_value"))
+    if not phone or phone not in visible_phone_keys(text):
+        return {"thread": None, "messages": []}
+    if not page_signals(text, [])["sms_signal_visible"]:
+        return {"thread": None, "messages": []}
+    messages = []
+    start = target_window_start_date(target)
+    for index, message in enumerate(extract_message_lines(text, default_direction="unknown", date_follows_message=True)):
+        if len(messages) >= limit:
+            break
+        message_at = message.get("message_at")
+        if not message_at:
+            continue
+        if start:
+            try:
+                if date.fromisoformat(str(message_at)[:10]) < start:
+                    continue
+            except ValueError:
+                continue
+        direction = message.get("direction") or "unknown"
+        message_key = stable_target_sms_id(target, message_at, direction, index)
+        messages.append(
+            {
+                "message_id": message_key,
+                "thread_id": f"dialpad_target_sms_{target['target_hash']}",
+                "message_at": message_at,
+                "direction": direction,
+                "sender": None,
+                "recipient": None,
+                "body": "[redacted targeted SMS evidence]",
+                "source_url": sanitize_dialpad_url(source_url),
+                "raw_text": "",
+                "raw_json": json.dumps(
+                    {
+                        "extraction": "targeted_dialpad_search",
+                        "raw_body_redacted": True,
+                        "target_filter": "phone",
+                        "source_url_sanitized": True,
+                    },
+                    sort_keys=True,
+                ),
+                "updated_at": utc_now_iso(),
+            }
+        )
+    if not messages:
+        return {"thread": None, "messages": []}
+    thread = {
+        "thread_id": f"dialpad_target_sms_{target['target_hash']}",
+        "feed_id": f"target:{target['target_hash']}",
+        "phone": target.get("target_value"),
+        "phone_normalized": phone,
+        "contact_name": None,
+        "last_message_at": max(message["message_at"] for message in messages if message.get("message_at")),
+        "unread_count": 0,
+        "school": target.get("school"),
+        "department": expected_conversation_history_scope(target.get("school")),
+        "source_url": sanitize_dialpad_url(source_url),
+        "raw_text": "",
+        "raw_json": json.dumps(
+            {
+                "extraction": "targeted_dialpad_search",
+                "raw_customer_content_redacted": True,
+                "target_hash": target["target_hash"],
+            },
+            sort_keys=True,
+        ),
+        "updated_at": utc_now_iso(),
+    }
+    return {"thread": thread, "messages": messages}
+
+
+def stable_target_sms_id(target, message_at, direction, index):
+    seed = "|".join(
+        [
+            "dialpad_target_sms",
+            str(target.get("contact_id") or target.get("deal_id") or ""),
+            str(target.get("target_hash") or ""),
+            str(message_at or ""),
+            str(direction or ""),
+            str(index),
+        ]
+    )
+    return f"dialpad_sms_targeted_{hashlib.sha256(seed.encode('utf-8')).hexdigest()[:16]}"
+
+
+def upsert_targeted_sms_rows(conn, sms_rows):
+    if not sms_rows.get("thread"):
+        return 0
+    before = conn.total_changes
+    upsert_sms_thread(conn, sms_rows["thread"])
+    for message in sms_rows.get("messages") or []:
+        upsert_sms_message(conn, message)
+    return conn.total_changes - before
+
+
 def outcome_from_voice_rows(voice_rows, fallback):
     if not voice_rows:
         return fallback
@@ -602,6 +721,7 @@ def search_target(page, target, per_target_limit):
         "text": "",
         "links": [],
         "voice_rows": [],
+        "sms_rows": {"thread": None, "messages": []},
         "matched_url": None,
     }
     for path_name, url in SEARCH_ROUTES:
@@ -653,6 +773,9 @@ def search_target(page, target, per_target_limit):
                 outcome = outcome_from_voice_rows(voice_rows, outcome)
             else:
                 voice_rows = []
+            sms_rows = targeted_sms_rows_from_text(text, page.url, target, per_target_limit)
+            if sms_rows.get("messages") and not outcome.startswith("found_"):
+                outcome = "found_sms"
             if not typed and route.get("targeted_search"):
                 outcome = "filter_not_supported"
             path_results.append(
@@ -670,11 +793,14 @@ def search_target(page, target, per_target_limit):
             if outcome.startswith("found_"):
                 if not voice_rows:
                     text, links, voice_rows = parse_found_rows(page, outcome, target["target_value"], per_target_limit)
+                if not sms_rows.get("messages"):
+                    sms_rows = targeted_sms_rows_from_text(text, page.url, target, per_target_limit)
                 best = {
                     "outcome": outcome,
                     "text": text,
                     "links": links,
                     "voice_rows": voice_rows,
+                    "sms_rows": sms_rows,
                     "matched_url": sanitize_dialpad_url(page.url),
                 }
                 break
@@ -711,8 +837,12 @@ def search_target(page, target, per_target_limit):
 def diagnostics_row(run_id, target, result, path_results, rows_inserted, rows_updated):
     now = utc_now_iso()
     voice_rows = result.get("voice_rows") or []
+    sms_rows = result.get("sms_rows") or {"messages": []}
     relative_rows = voice_rows_relative_to_lead_date(voice_rows, target)
-    event_times = sorted(row.get("event_at") for row in voice_rows if row.get("event_at"))
+    event_times = sorted(
+        [row.get("event_at") for row in voice_rows if row.get("event_at")]
+        + [row.get("message_at") for row in sms_rows.get("messages", []) if row.get("message_at")]
+    )
     links = result.get("links") or []
     outcome = result.get("outcome") if result.get("outcome") in OUTCOMES else "parse_error"
     return {
@@ -726,7 +856,7 @@ def diagnostics_row(run_id, target, result, path_results, rows_inserted, rows_up
         "searched_at": now,
         "search_paths_json": json.dumps(path_results, sort_keys=True),
         "outcome": outcome,
-        "found_sms_count": 1 if outcome == "found_sms" else 0,
+        "found_sms_count": len(sms_rows.get("messages", [])),
         "found_voice_count": len(voice_rows) if outcome in {"found_call", "found_voicemail", "found_call_review"} else 0,
         "found_call_review_count": call_review_url_count(links),
         "source_url_count": len({link.get("href") for link in links if link.get("href")}),
@@ -738,6 +868,7 @@ def diagnostics_row(run_id, target, result, path_results, rows_inserted, rows_up
                 "pre_lead_voice_count": len(relative_rows["pre_lead"]),
                 "post_lead_voice_count": len(relative_rows["post_lead"]),
                 "undated_voice_count": len(relative_rows["undated"]),
+                "targeted_sms_count": len(sms_rows.get("messages", [])),
                 "rows_inserted": rows_inserted,
                 "rows_updated": rows_updated,
                 "diagnostic_only": True,
@@ -918,6 +1049,7 @@ def run_discovery(
                 result, path_results = search_target(page, target, per_target_limit)
                 for voice_row in result.get("voice_rows") or []:
                     upsert_voice_event(conn, voice_row)
+                upsert_targeted_sms_rows(conn, result.get("sms_rows") or {})
                 changed = conn.total_changes - before
                 if changed:
                     rows_updated += changed
@@ -978,7 +1110,7 @@ def target_search_summary(conn, run_id=None):
         "run_id": run_id,
         "targets_searched": len(rows),
         "targets_found": sum(outcomes[outcome] for outcome in ("found_sms", "found_call", "found_voicemail", "found_call_review")),
-        "targets_with_sms": outcomes["found_sms"],
+        "targets_with_sms": sum(1 for row in rows if (row.get("found_sms_count") or 0) > 0),
         "targets_with_calls_or_call_reviews": outcomes["found_call"] + outcomes["found_voicemail"] + outcomes["found_call_review"],
         "targets_not_found": not_found_count,
         "targets_blocked_or_unsupported": blocked_count,

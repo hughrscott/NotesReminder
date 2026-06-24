@@ -29,6 +29,7 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertIn("school_email_westu", names)
         self.assertIn("hubspot_leads_westu", names)
         self.assertIn("pike13_leads_westu", names)
+        self.assertIn("dialpad_target_search_westu", names)
         self.assertIn("refresh_person_identities", names)
         self.assertIn("source_completeness", names)
         self.assertTrue(any(task.mutates_db for task in plan))
@@ -178,6 +179,25 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "success")
         self.assertGreater(len(calls), 0)
         self.assertTrue(all(task["status"] == "success" for task in metadata["tasks"]))
+
+    def test_refresh_plan_emits_progress_callbacks(self):
+        events = []
+
+        def runner(command, cwd):
+            return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+        metadata = run_refresh_plan(
+            [RefreshTask(name="db_integrity", command=["sqlite3"], category="verification")],
+            root=Path("/repo"),
+            execute_verification=True,
+            runner=runner,
+            progress_callback=lambda event, payload: events.append((event, payload["name"])),
+        )
+
+        self.assertEqual(metadata["status"], "success")
+        self.assertEqual(events, [("task_start", "db_integrity"), ("task_finish", "db_integrity")])
+        self.assertEqual(metadata["tasks"][0]["index"], 1)
+        self.assertEqual(metadata["tasks"][0]["total_tasks"], 1)
 
     def test_execute_timeout_returns_action_required(self):
         metadata = run_refresh_plan(

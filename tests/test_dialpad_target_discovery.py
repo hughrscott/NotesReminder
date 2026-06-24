@@ -21,7 +21,9 @@ from scripts.discover_dialpad_targets import (
     school_scope_matches,
     target_hash,
     target_search_summary,
+    targeted_sms_rows_from_text,
     upsert_route_discovery,
+    upsert_targeted_sms_rows,
     upsert_target_search,
     voice_rows_relative_to_lead_date,
 )
@@ -287,6 +289,47 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(len(grouped["pre_lead"]), 1)
         self.assertEqual(len(grouped["post_lead"]), 1)
         self.assertEqual(len(grouped["undated"]), 1)
+
+    def test_targeted_sms_rows_are_redacted_and_queryable_as_communications(self):
+        conn = self.open_db()
+        target = {
+            "deal_id": "deal-123",
+            "contact_id": "contact-123",
+            "target_hash": target_hash("7135551212"),
+            "target_type": "phone",
+            "target_value": "7135551212",
+            "school": "West U",
+            "lead_date": "2026-06-01",
+        }
+        sms_rows = targeted_sms_rows_from_text(
+            "\n".join(
+                [
+                    "Messages",
+                    "(713) 555-1212",
+                    "You: Sensitive SMS body should not be stored",
+                    "Jun 3",
+                ]
+            ),
+            "https://dialpad.com/app/messages?q=7135551212",
+            target,
+            5,
+        )
+
+        changed = upsert_targeted_sms_rows(conn, sms_rows)
+        row = conn.execute(
+            """
+            SELECT channel, event_at, school, body, source_url
+            FROM vw_dialpad_communications
+            WHERE channel = 'sms'
+            """
+        ).fetchone()
+
+        self.assertGreater(changed, 0)
+        self.assertEqual(row["channel"], "sms")
+        self.assertEqual(row["event_at"], "2026-06-03")
+        self.assertEqual(row["school"], "West U")
+        self.assertEqual(row["body"], "[redacted targeted SMS evidence]")
+        self.assertNotIn("7135551212", row["source_url"])
 
     def test_route_discovery_summary_and_report_are_sanitized(self):
         conn = self.open_db()

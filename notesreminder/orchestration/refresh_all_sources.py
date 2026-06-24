@@ -12,6 +12,7 @@ from typing import Callable, Iterable
 
 
 Runner = Callable[[list[str], Path], subprocess.CompletedProcess]
+ProgressCallback = Callable[[str, dict], None]
 
 SCHOOLS = (
     ("West U", "westu-sor", "https://westu-sor.pike13.com", "westu@schoolofrock.com", "westu"),
@@ -373,6 +374,37 @@ def build_daily_refresh_plan(
                     enabled_flag="--execute-refresh",
                     timeout_seconds=_timeout_at_least(login_timeout + 600, 900),
                 ),
+                RefreshTask(
+                    name=f"dialpad_target_search_{slug}",
+                    command=[
+                        py,
+                        "scripts/discover_dialpad_targets.py",
+                        "--db",
+                        db_path,
+                        "--profile-dir",
+                        "browser_profiles/dialpad",
+                        "--school",
+                        label,
+                        "--candidate-source",
+                        "hubspot-contacts",
+                        "--start-date",
+                        start_date,
+                        "--end-date",
+                        run_date,
+                        "--limit",
+                        str(dialpad_limit),
+                        "--per-target-limit",
+                        "5",
+                        "--output",
+                        f"outputs/progress/dialpad_target_coverage_{slug}.md",
+                        *login_args,
+                    ],
+                    category="source_refresh",
+                    mutates_db=True,
+                    requires_auth=True,
+                    enabled_flag="--execute-refresh",
+                    timeout_seconds=_timeout_at_least(login_timeout + dialpad_limit * 20 + 300, 1200),
+                ),
             ]
         )
 
@@ -633,6 +665,7 @@ def run_refresh_plan(
     execute_refresh: bool = False,
     execute_verification: bool = False,
     runner: Runner | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict:
     root = root or Path.cwd()
     runner = runner or _default_runner
@@ -640,10 +673,24 @@ def run_refresh_plan(
     started_at = datetime.now().isoformat(timespec="seconds")
     refresh_blocked_by = ""
 
-    for task in tasks:
+    for index, task in enumerate(tasks, start=1):
         result = _task_metadata(task)
         result["started_at"] = datetime.now().isoformat(timespec="seconds")
+        result["index"] = index
+        result["total_tasks"] = len(tasks)
         should_execute = execute_refresh if task.mutates_db or task.gates_refresh else execute_verification
+        if progress_callback:
+            progress_callback(
+                "task_start",
+                {
+                    "index": index,
+                    "total_tasks": len(tasks),
+                    "name": task.name,
+                    "category": task.category,
+                    "will_execute": should_execute and not (refresh_blocked_by and task.mutates_db),
+                    "timeout_seconds": task.timeout_seconds,
+                },
+            )
         if not should_execute:
             result.update(
                 {
@@ -690,6 +737,8 @@ def run_refresh_plan(
         if task.gates_refresh and result["status"] in {"failed", "timeout"} and not refresh_blocked_by:
             refresh_blocked_by = task.name
         task_results.append(result)
+        if progress_callback:
+            progress_callback("task_finish", result)
 
     if any(task["status"] in {"failed", "timeout", "blocked"} for task in task_results):
         status = "action_required"
