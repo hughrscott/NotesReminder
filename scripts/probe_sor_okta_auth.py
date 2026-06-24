@@ -18,7 +18,7 @@ DEFAULT_PROFILE = "browser_profiles/sor_okta"
 PROBES = {
     "okta": "https://sor.okta.com",
     "pike13_westu": "https://westu-sor.pike13.com",
-    "hubspot": "https://app.hubspot.com/contacts",
+    "hubspot": "https://sor.okta.com/home/hubspotsaml/0oa1ljaq3melIw1DD1d8/aln1emgmc7tbRiire1d8",
     "dialpad": "https://dialpad.com/conversationhistory",
     "gmail": "https://mail.google.com/mail/u/0/#inbox",
 }
