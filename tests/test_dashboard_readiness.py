@@ -107,7 +107,8 @@ class DashboardReadinessTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "blocked")
         self.assertIn("stale_lessons_latest_2026-06-01", report["blockers"])
-        self.assertIn("hubspot_mtd_unassigned_school_1", report["blockers"])
+        self.assertIn("hubspot_mtd_unassigned_school_1", report["data_quality_flags"])
+        self.assertNotIn("hubspot_mtd_unassigned_school_1", report["blockers"])
         self.assertIn("stale_dialpad_sms_messages_latest_2026-06-01", report["blockers"])
 
     def test_ready_when_sources_and_lead_spine_are_current(self):

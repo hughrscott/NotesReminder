@@ -184,10 +184,11 @@ def hubspot_spine_gate(
         blockers.extend(f"{school}:{blocker}" for blocker in school_blockers)
     unassigned_ytd = max(total_ytd - len(usable_ytd_ids), 0)
     unassigned_mtd = max(total_mtd - len(usable_mtd_ids), 0)
+    data_quality_flags = []
     if unassigned_mtd:
-        blockers.append(f"hubspot_mtd_unassigned_school_{unassigned_mtd}")
+        data_quality_flags.append(f"hubspot_mtd_unassigned_school_{unassigned_mtd}")
     if unassigned_ytd:
-        blockers.append(f"hubspot_ytd_unassigned_school_{unassigned_ytd}")
+        data_quality_flags.append(f"hubspot_ytd_unassigned_school_{unassigned_ytd}")
     return {
         "status": "ready" if not blockers else "blocked",
         "window": {"ytd_start": ytd_start, "mtd_start": mtd_start, "end": as_of},
@@ -199,6 +200,7 @@ def hubspot_spine_gate(
         "unassigned_mtd": unassigned_mtd,
         "schools": school_rows,
         "blockers": blockers,
+        "data_quality_flags": data_quality_flags,
     }
 
 
@@ -247,6 +249,7 @@ def build_dashboard_readiness(conn: sqlite3.Connection, *, as_of: str | None = N
     hubspot = hubspot_spine_gate(conn, as_of=as_of, schools=schools)
     communications = communication_coverage_gate(conn, as_of=as_of, schools=schools)
     blockers = freshness["blockers"] + hubspot["blockers"] + communications["blockers"]
+    data_quality_flags = hubspot.get("data_quality_flags", [])
     return {
         "report_type": "dashboard_readiness",
         "generated_at": utc_now_iso(),
@@ -254,6 +257,7 @@ def build_dashboard_readiness(conn: sqlite3.Connection, *, as_of: str | None = N
         "status": "ready" if not blockers else "blocked",
         "ready_for_management_use": not blockers,
         "blockers": blockers,
+        "data_quality_flags": data_quality_flags,
         "source_freshness": freshness,
         "hubspot_lead_spine": hubspot,
         "communication_coverage": communications,

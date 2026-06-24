@@ -12,6 +12,7 @@ from scripts.extract_dialpad_sms import (
     department_school,
     sms_extraction_source,
 )
+from scripts.extract_dialpad_sms_api import feed_row_to_sms_rows, millis_to_iso, sms_direction
 from scripts.extract_dialpad_voice import (
     conversation_history_row_from_dom,
     is_dialpad_app_page as is_voice_app_page,
@@ -24,6 +25,35 @@ from scripts.extract_dialpad_voice import (
 
 
 class DialpadExtractorTests(unittest.TestCase):
+    def test_dialpad_sms_api_row_conversion_redacts_body(self):
+        thread, message = feed_row_to_sms_rows(
+            {
+                "feed_type": "TextMessage",
+                "message_id": "msg-1",
+                "date": 1782318856167,
+                "delivery_result": "Accepted",
+                "orientation": "internal",
+                "text": "Sensitive message body",
+                "from_phone": "(713) 555-1212",
+            },
+            {"contact_key": "contact-1", "primary_phone": "(713) 555-1212", "unread": 0},
+            "office-1",
+            "West U",
+            "WESTU",
+        )
+
+        self.assertEqual(message["message_at"], "2026-06-24T16:34:16.167000+00:00")
+        self.assertEqual(message["direction"], "outbound")
+        self.assertEqual(message["body"], "[redacted Dialpad SMS API message]")
+        self.assertEqual(thread["school"], "West U")
+        self.assertEqual(thread["phone_normalized"], "7135551212")
+        self.assertNotIn("Sensitive", message["raw_json"])
+
+    def test_dialpad_sms_api_helpers(self):
+        self.assertEqual(millis_to_iso(1782318856167), "2026-06-24T16:34:16.167000+00:00")
+        self.assertEqual(sms_direction({"orientation": "external"}, "office-1"), "inbound")
+        self.assertEqual(sms_direction({"delivery_result": "Accepted"}, "office-1"), "outbound")
+
     def test_sms_parser_ignores_navigation_labels(self):
         messages = extract_message_lines(
             "\n".join(
