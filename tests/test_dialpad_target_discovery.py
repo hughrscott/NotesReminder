@@ -209,11 +209,11 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         phone = "7135551212"
         self.assertEqual(
             classify_target_search_result(
-                "Messages thread for (713) 555-1212 with recent text message",
+                "Your conversation with (713) 555-1212 will appear here.",
                 [],
                 phone,
             ),
-            "found_sms",
+            "not_found_after_route_search",
         )
         self.assertEqual(
             classify_target_search_result(
@@ -310,7 +310,7 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
                     "Jun 3",
                 ]
             ),
-            "https://dialpad.com/app/messages?q=7135551212",
+            "https://dialpad.com/app/history/messages?q=7135551212",
             target,
             5,
         )

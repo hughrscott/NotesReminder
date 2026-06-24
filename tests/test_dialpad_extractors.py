@@ -7,6 +7,7 @@ from scripts.extract_dialpad_sms import (
     extract_message_lines,
     is_dialpad_app_page as is_sms_app_page,
     is_login_page as is_sms_login_page,
+    message_list_row_to_records,
     normalize_department,
     normalize_dialpad_date as normalize_sms_date,
     department_school,
@@ -166,8 +167,31 @@ class DialpadExtractorTests(unittest.TestCase):
         now = datetime(2026, 4, 27)
         self.assertEqual(normalize_sms_date("Today", now=now), "2026-04-27")
         self.assertEqual(normalize_sms_date("Yesterday", now=now), "2026-04-26")
+        self.assertEqual(normalize_sms_date("Monday", now=now), "2026-04-27")
+        self.assertEqual(normalize_sms_date("Friday", now=now), "2026-04-24")
         self.assertEqual(normalize_sms_date("Mon Feb 2", now=now), "2026-02-02")
         self.assertEqual(normalize_sms_date("Thu Dec 18", now=now), "2025-12-18")
+
+    def test_sms_message_list_row_records_are_sanitized(self):
+        thread, message = message_list_row_to_records(
+            {
+                "contact": "(713) 555-1212",
+                "snippet": '"Hi, this is Amanda from School of Rock - The Heights."',
+                "operator": "Amanda De Leon",
+                "date_text": "Wed Jun 17",
+                "row_text": "(713) 555-1212 Hi, this is Amanda from School of Rock - The Heights.",
+            },
+            "The Heights",
+            "HEIGHTS",
+            "https://dialpad.com/app/history/messages",
+            now=datetime(2026, 6, 24),
+        )
+
+        self.assertEqual(thread["phone_normalized"], "7135551212")
+        self.assertEqual(thread["school"], "The Heights")
+        self.assertEqual(message["message_at"], "2026-06-17")
+        self.assertEqual(message["body"], "[redacted Dialpad SMS web list snippet]")
+        self.assertNotIn("Amanda", message["raw_json"])
 
     def test_voice_parser_preserves_voicemail_transcript_text(self):
         rows = rows_from_visible_text(

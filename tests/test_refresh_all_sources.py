@@ -30,6 +30,7 @@ class RefreshAllSourcesTests(unittest.TestCase):
         self.assertIn("hubspot_leads_westu", names)
         self.assertIn("pike13_leads_westu", names)
         self.assertIn("dialpad_sms_api_westu", names)
+        self.assertIn("dialpad_sms_web_westu", names)
         self.assertIn("dialpad_target_search_westu", names)
         self.assertIn("refresh_person_identities", names)
         self.assertIn("source_completeness", names)

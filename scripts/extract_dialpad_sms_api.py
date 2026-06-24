@@ -269,6 +269,10 @@ def run(args):
             context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0)
         conn.commit()
+    except KeyboardInterrupt:
+        finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, "Interrupted Dialpad SMS API extraction.")
+        conn.commit()
+        raise
     except Exception as exc:
         finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, str(exc))
         conn.commit()

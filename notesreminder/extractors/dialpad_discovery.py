@@ -88,7 +88,7 @@ ROUTES = (
     },
     {
         "name": "messages",
-        "url": "https://dialpad.com/app/messages",
+        "url": "https://dialpad.com/app/history/messages",
         "daily_refresh": True,
         "targeted_search": True,
         "date_filter": False,
@@ -150,7 +150,7 @@ ROUTES = (
 SEARCH_ROUTES = (
     ("conversation_history", "https://dialpad.com/conversationhistory"),
     ("global_search", "https://dialpad.com/app"),
-    ("messages", "https://dialpad.com/app/messages"),
+    ("messages", "https://dialpad.com/app/history/messages"),
     ("calls", HISTORY_URLS["calls"]),
     ("missed", HISTORY_URLS["missed"]),
     ("voicemails", HISTORY_URLS["voicemails"]),
@@ -229,8 +229,6 @@ def classify_target_search_result(text, links, target_phone):
         return "found_call_review"
     if "voicemail" in lowered:
         return "found_voicemail"
-    if any(term in lowered for term in ("message", "sms", "text message", "thread")):
-        return "found_sms"
     if any(term in lowered for term in ("call", "missed", "voicemail", "recording")):
         return "found_call"
     return "not_found_after_route_search"
@@ -318,6 +316,7 @@ def try_fill_search(page, target):
             page.keyboard.press("Meta+A")
             page.keyboard.press("Backspace")
             locator.fill(target, timeout=1500)
+            page.keyboard.press("Enter")
             return True, selector
         except Exception:
             continue
