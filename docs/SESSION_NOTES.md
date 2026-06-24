@@ -1284,3 +1284,19 @@ Rollback path:
 Phase status:
 
 - Shadow read-path comparison gate passed for `2026-05-16` through `2026-05-22`.
+
+## 2026-06-24 Dashboard Refresh Efficiency Follow-Up
+
+Context:
+
+- Source authentication works most reliably when launched from `https://sor.okta.com` first.
+- The direct HubSpot extractor path could pass the Okta preflight but still land on HubSpot login during the actual import.
+- Notes backfill ran successfully but in long silent chunks, which made it hard to distinguish slow progress from a stalled browser flow.
+- Dialpad SMS extraction is not yet trustworthy for dashboard contacted counts; it is parsing message-list/snippet text and has no June-dated SMS rows.
+
+Follow-up:
+
+- Use Okta app-launch URLs consistently for SSO-backed extractors, not only auth probes.
+- Add per-slice progress output to historical backfills so long source refreshes show visible movement.
+- Replace broad Dialpad SMS message-list scraping with a lead-keyed/detail-page SMS extraction path before using SMS in management dashboards.
+- Keep dashboard readiness blockers active until SMS and unassigned HubSpot school gaps are resolved.

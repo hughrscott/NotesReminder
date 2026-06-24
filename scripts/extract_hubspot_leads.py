@@ -29,6 +29,7 @@ from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 
 
 DEFAULT_CONTACT_REPORT_URL = "https://app.hubspot.com/reports-dashboard/6841203/view/18996986"
+DEFAULT_HUBSPOT_AUTH_LAUNCH_URL = "https://sor.okta.com/home/hubspotsaml/0oa1ljaq3melIw1DD1d8/aln1emgmc7tbRiire1d8"
 DEFAULT_DEAL_URL = "https://app.hubspot.com/contacts/6841203/objects/0-3/views/all/list?prefetch="
 DEFAULT_URL = DEFAULT_CONTACT_REPORT_URL
 HUBSPOT_PORTAL_ID = "6841203"
@@ -1426,6 +1427,15 @@ def wait_until_ready(page, timeout=30000, networkidle_timeout=5000, tolerate_loa
         pass
 
 
+def goto_hubspot_url(page, target_url, auth_launch_url=""):
+    if auth_launch_url:
+        page.goto(auth_launch_url, wait_until="domcontentloaded", timeout=60000)
+        wait_until_ready(page, tolerate_load_timeout=True)
+    if page.url != target_url:
+        page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+        wait_until_ready(page)
+
+
 def is_hubspot_auth_page(url, text):
     url_l = (url or "").lower()
     text_l = (text or "").lower()
@@ -1691,8 +1701,7 @@ def fetch_contact_rows_for_day(page, headers, day, page_size):
 
 
 def extract_contacts_api(conn, context, page, args, run_id):
-    page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
-    wait_until_ready(page)
+    goto_hubspot_url(page, args.url, args.auth_launch_url)
     body_text = page.locator("body").inner_text(timeout=30000)
     if is_hubspot_auth_page(page.url, body_text):
         raise RuntimeError("HubSpot authentication required; extractor reached the login page.")
@@ -1769,8 +1778,7 @@ def extract_contacts_api(conn, context, page, args, run_id):
 
 
 def run_contacts_report_dry_run(context, page, args):
-    page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
-    wait_until_ready(page)
+    goto_hubspot_url(page, args.url, args.auth_launch_url)
     body_text = page.locator("body").inner_text(timeout=30000)
     body_text, auth_required = maybe_wait_for_hubspot_auth(page, args, body_text)
     payload = {
@@ -1831,8 +1839,7 @@ def run_contacts_report_dry_run(context, page, args):
 
 
 def run_deals_dry_run(context, page, args):
-    page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
-    wait_until_ready(page)
+    goto_hubspot_url(page, args.url, args.auth_launch_url)
     body_text = page.locator("body").inner_text(timeout=30000)
     body_text, auth_required = maybe_wait_for_hubspot_auth(page, args, body_text)
     payload = {
@@ -1921,6 +1928,11 @@ def main():
     parser.add_argument("--profile-dir", default="browser_profiles/hubspot")
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument(
+        "--auth-launch-url",
+        default=DEFAULT_HUBSPOT_AUTH_LAUNCH_URL,
+        help="Optional SSO launch URL to visit before the requested HubSpot URL. Pass an empty string to disable.",
+    )
+    parser.add_argument(
         "--mode",
         choices=["contacts-report", "contacts-api", "deals"],
         default="contacts-report",
@@ -1968,8 +1980,7 @@ def main():
                 accept_downloads=True,
             )
             page = context.pages[0] if context.pages else context.new_page()
-            page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
-            wait_until_ready(page)
+            goto_hubspot_url(page, args.url, args.auth_launch_url)
             body_text = page.locator("body").inner_text(timeout=30000)
             auth_required = is_hubspot_auth_page(page.url, body_text)
             if args.mode == "contacts-api":

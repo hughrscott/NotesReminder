@@ -8,6 +8,7 @@ from scripts.extract_hubspot_leads import (
     associated_deal_summaries,
     contact_rows_from_dataset,
     filter_deal_rows_by_school,
+    goto_hubspot_url,
     is_hubspot_auth_page,
     merge_deal_rows,
     merge_contact_rows,
@@ -24,6 +25,31 @@ from scripts.extract_hubspot_leads import (
 
 
 class HubSpotExtractorTests(unittest.TestCase):
+    def test_goto_hubspot_url_uses_auth_launch_before_target(self):
+        class FakePage:
+            def __init__(self):
+                self.url = "about:blank"
+                self.visited = []
+
+            def goto(self, url, **_kwargs):
+                self.url = url
+                self.visited.append(url)
+
+            def wait_for_load_state(self, *_args, **_kwargs):
+                return None
+
+        page = FakePage()
+
+        goto_hubspot_url(page, "https://app.hubspot.com/reports-dashboard/1", "https://sor.okta.com/home/hubspotsaml/app")
+
+        self.assertEqual(
+            page.visited,
+            [
+                "https://sor.okta.com/home/hubspotsaml/app",
+                "https://app.hubspot.com/reports-dashboard/1",
+            ],
+        )
+
     def test_auth_page_detection(self):
         self.assertTrue(
             is_hubspot_auth_page(
