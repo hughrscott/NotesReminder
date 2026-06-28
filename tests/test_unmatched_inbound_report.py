@@ -70,6 +70,7 @@ class UnmatchedInboundReportTests(unittest.TestCase):
         self.assertEqual(raw["source_timestamp_field"], "event_at")
         self.assertEqual(raw["import_timestamp_field"], "updated_at")
         self.assertTrue(raw["filter_diagnostics"]["school_filter_applied"])
+        self.assertFalse(raw["school_normalized_from_active_filter"])
 
     def test_daily_intake_rejects_school_scope_mismatch(self):
         validate_conversation_history_scope(

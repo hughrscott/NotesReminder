@@ -5,11 +5,17 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import mcp_server
 from build_reporting_schema import backfill_reporting
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
-from lead_operating_dashboard import build_snapshot, render_snapshot_markdown, window_for_period
+from lead_operating_dashboard import (
+    build_snapshot,
+    lead_communication_match_diagnostic,
+    render_snapshot_markdown,
+    window_for_period,
+)
 from notesreminder.dashboard.server import (
     _window_kwargs,
     dashboard_readiness_html,
@@ -20,8 +26,10 @@ from notesreminder.dashboard.server import (
 from notesreminder.reports.operations_dashboard import (
     build_operations_dashboard,
     funnel_metrics,
+    lead_response_distribution,
     render_operations_dashboard_html,
 )
+from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
 
 
 def open_db(path=":memory:"):
@@ -267,6 +275,12 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["communications"]["dialpad_calls"], 1)
         self.assertEqual(snapshot["communications"]["dialpad_sms"], 1)
         self.assertEqual(snapshot["communications"]["school_email"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["leads"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["same_school_or_unassigned_dialpad_7d"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["same_school_or_unassigned_sms_7d"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["same_school_or_unassigned_call_7d"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["email_7d"], 1)
+        self.assertEqual(snapshot["communication_match_diagnostic"]["no_matched_communication_7d"], 0)
         self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["leads"], 1)
         self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["outbound_7d_leads"], 1)
         self.assertEqual(snapshot["lead_followup_pareto"]["coverage"]["pre_lead_inbound_origin_leads"], 0)
@@ -287,6 +301,7 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertIn("lead_to_trial_rate: 100%", markdown)
         self.assertIn("trial_to_conversion_rate: 100%", markdown)
         self.assertIn("Lead Follow-Up Pareto", markdown)
+        self.assertIn("Lead Communication Match Diagnostic", markdown)
         self.assertIn("| Same / next day | 0 | 0 | 1 / 100% | 0 | 1 / 100% |", markdown)
         self.assertIn("Calvin Barnhill", markdown)
 
@@ -301,6 +316,51 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         ]
         for value in forbidden:
             self.assertNotIn(value, markdown)
+
+    def test_communication_diagnostic_counts_unassigned_dialpad_matches(self):
+        conn = open_db()
+        register_dashboard_sql_functions(conn)
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, create_date, phone, phone_normalized,
+                school, raw_json, updated_at
+            )
+            VALUES ('contact-unassigned-dialpad', 'Private Student', '2026-05-02',
+                    '7135551212', '7135551212', 'West University Place',
+                    '{"trusted": 1}', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, updated_at
+            )
+            VALUES ('thread-unassigned', '7135551212', '7135551212', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, updated_at
+            )
+            VALUES ('message-unassigned', 'thread-unassigned', '2026-05-03',
+                    'outbound', 'Private SMS body', ?)
+            """,
+            (now,),
+        )
+
+        diagnostic = lead_communication_match_diagnostic(conn, "2026-05-01", "2026-05-09", "West U")
+
+        self.assertEqual(diagnostic["leads"], 1)
+        self.assertEqual(diagnostic["same_school_or_unassigned_dialpad_any"], 1)
+        self.assertEqual(diagnostic["same_school_or_unassigned_dialpad_7d"], 1)
+        self.assertEqual(diagnostic["same_school_or_unassigned_sms_7d"], 1)
+        self.assertEqual(diagnostic["unassigned_school_dialpad_only"], 1)
+        self.assertEqual(diagnostic["no_matched_communication_7d"], 0)
 
     def test_pareto_blocks_instead_of_showing_misleading_zero_grid(self):
         conn = open_db()
@@ -332,6 +392,8 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertIn("matched_communication_coverage_below_10pct", pareto["blockers"])
         self.assertIn("no_matched_outbound_followup_7d", pareto["blockers"])
         self.assertEqual(pareto["coverage"]["communication_coverage_rate"], 0.0)
+        self.assertEqual(pareto["coverage"]["lead_identity_rate"], 1.0)
+        self.assertEqual(pareto["coverage"]["lead_email_rate"], 1.0)
         self.assertEqual(pareto["coverage"]["outbound_7d_leads"], 0)
         self.assertIn("Insufficient matched communication data", markdown)
         self.assertIn("matched_communication_coverage_below_10pct", markdown)
@@ -548,6 +610,10 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(snapshot["funnel_counts"]["contacted"], 0)
         self.assertEqual(coverage["matched_communication_leads"], 0)
         self.assertEqual(coverage["communication_7d_leads"], 0)
+        diagnostic = snapshot["communication_match_diagnostic"]
+        self.assertEqual(diagnostic["cross_school_dialpad_only"], 1)
+        self.assertEqual(diagnostic["no_matched_communication_7d"], 1)
+        self.assertEqual(diagnostic["unmatched_7d_reason_counts"], {"cross_school_dialpad_only": 1})
 
     def test_source_data_freshness_uses_school_specific_sms_dates(self):
         conn = open_db()
@@ -594,6 +660,36 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         self.assertEqual(freshness["latest_dates"]["school_sms_rows"], 0)
         self.assertIn("missing_dialpad_sms_data", freshness["flags"])
         self.assertIn("missing_school_sms_data", freshness["flags"])
+
+    def test_source_data_freshness_blocks_communications_on_gmail_auth_failure(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO source_import_runs (
+                source, extractor, started_at, finished_at, status,
+                window_start, window_end, rows_seen, rows_inserted, rows_updated, error
+            )
+            VALUES (
+                'school_email', 'extract_school_emails.py',
+                '2026-05-08T10:00:00+00:00', '2026-05-08T10:00:01+00:00',
+                'error', '2026-01-01', '2026-05-08', 0, 0, 0,
+                'Gmail profile is not authenticated; final_url=https://accounts.google.com/'
+            )
+            """
+        )
+
+        snapshot = build_snapshot(
+            conn,
+            "weekly",
+            start_date="2026-05-01",
+            end_date="2026-05-08",
+            school="West U",
+        )
+
+        self.assertIn("gmail_auth_required", snapshot["source_data_freshness"]["flags"])
+        self.assertEqual(snapshot["metric_status"]["communications"]["status"], "blocked")
+        self.assertIn("gmail_auth_required", snapshot["metric_status"]["communications"]["blockers"])
 
     def test_snapshot_counts_hubspot_contact_leads_without_deals(self):
         conn = open_db()
@@ -798,7 +894,7 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         report = build_operations_dashboard(
             conn,
             period="weekly",
-            as_of="2026-05-09",
+            as_of="2026-05-08",
             schools=("West U",),
         )
         html = render_operations_dashboard_html(report)
@@ -823,6 +919,192 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         ]
         for value in forbidden:
             self.assertNotIn(value, html)
+
+    def test_operations_dashboard_caps_expensive_exception_detail_limit(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        seen_limits = []
+        seen_trial_limits = []
+
+        def fake_exception_queue(conn, start_date, end_date, school, limit=50, *, trial_limit=None):
+            seen_limits.append(limit)
+            seen_trial_limits.append(trial_limit)
+            return {"summary": {}, "items": [], "customer_groups": [], "truncated": False}
+
+        with patch(
+            "notesreminder.reports.operations_dashboard.build_exception_queue",
+            side_effect=fake_exception_queue,
+        ):
+            build_operations_dashboard(
+                conn,
+                period="monthly",
+                as_of="2026-05-08",
+                schools=("West U",),
+                limit=300,
+            )
+
+        self.assertEqual(seen_limits, [50])
+        self.assertEqual(seen_trial_limits, [50])
+
+    def test_operations_response_uses_hubspot_contact_spine_without_deals(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute("DELETE FROM hubspot_deals")
+
+        response = lead_response_distribution(
+            conn,
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+            limit=10,
+        )
+
+        self.assertEqual(response["lead_count"], 1)
+        self.assertEqual(response["responded"], 1)
+        self.assertEqual(response["no_response"], 0)
+        self.assertEqual(response["buckets"]["1-24h"], 1)
+
+    def test_operations_response_splits_any_communication_from_post_lead_followup(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, phone, phone_normalized, school, create_date, raw_json, updated_at
+            )
+            VALUES ('contact-inbound-origin', 'Inbound Origin', '7135559999', '7135559999',
+                    'West University Place', '2026-05-04', '{}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, contact_name, school, updated_at
+            )
+            VALUES ('thread-inbound-origin', '7135559999', '7135559999', 'Inbound Origin',
+                    'West University Place', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, updated_at
+            )
+            VALUES ('message-inbound-origin', 'thread-inbound-origin', '2026-05-03T10:00:00',
+                    'inbound', 'Private inbound body', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        response = lead_response_distribution(
+            conn,
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+            limit=10,
+        )
+
+        self.assertEqual(response["lead_count"], 2)
+        self.assertEqual(response["responded"], 1)
+        self.assertEqual(response["coverage"]["any_matched_communication"], 2)
+        self.assertEqual(response["coverage"]["pre_lead_inbound_origin"], 1)
+        self.assertEqual(response["coverage"]["post_lead_outbound_followup"], 1)
+        self.assertEqual(response["coverage"]["sms_matched"], 2)
+
+    def test_operations_response_groups_duplicate_contacts_by_customer_identity(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, phone, phone_normalized, school, create_date, raw_json, updated_at
+            )
+            VALUES ('contact-sibling', 'Private Sibling', '7135551212', '7135551212',
+                    'West University Place', '2026-05-02', '{}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        response = lead_response_distribution(
+            conn,
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="West U",
+            limit=10,
+        )
+
+        self.assertEqual(response["lead_count"], 1)
+        self.assertEqual(response["contact_rows"], 2)
+        self.assertEqual(response["coverage"]["identity_key_leads"], 1)
+        self.assertEqual(response["coverage"]["any_matched_communication"], 1)
+
+    def test_operations_response_counts_cross_school_identity_matches_with_flag(self):
+        conn = open_db()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, phone, phone_normalized, school, create_date, raw_json, updated_at
+            )
+            VALUES ('heights-contact', 'Heights Student', '7135551212', '7135551212',
+                    'The Heights', '2026-05-02', '{}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_type, phone, phone_normalized, contact_name, direction,
+                event_at, school, outcome, updated_at
+            )
+            VALUES ('westu-call-same-phone', 'call', '7135551212', '7135551212',
+                    'Heights Student', 'outbound', '2026-05-02T11:00:00',
+                    'West U', 'connected', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        response = lead_response_distribution(
+            conn,
+            start_date="2026-05-01",
+            end_date="2026-05-09",
+            school="The Heights",
+            limit=10,
+        )
+
+        self.assertEqual(response["lead_count"], 1)
+        self.assertEqual(response["responded"], 1)
+        self.assertEqual(response["coverage"]["any_matched_communication"], 1)
+        self.assertEqual(response["coverage"]["same_school_matched_communication"], 0)
+        self.assertEqual(response["coverage"]["cross_school_matched_communication"], 1)
+
+    def test_operations_dashboard_blocks_response_when_recent_lead_identity_is_low(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, school, create_date, raw_json, updated_at
+            )
+            VALUES ('contact-no-identity', 'No Identity Lead', 'West University Place',
+                    '2026-05-04', '{}', '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        report = build_operations_dashboard(
+            conn,
+            period="weekly",
+            as_of="2026-05-08",
+            schools=("West U",),
+        )
+        item = report["school_reports"][0]
+        html = render_operations_dashboard_html(report)
+
+        self.assertEqual(item["lead_response"]["coverage"]["identity_key_rate"], 50.0)
+        self.assertEqual(item["metric_status"]["contacted"]["status"], "blocked")
+        self.assertEqual(item["metric_status"]["response"]["status"], "blocked")
+        self.assertIn("recent_lead_identity_coverage_below_70pct", item["metric_status"]["response"]["blockers"])
+        self.assertNotIn(
+            "recent_lead_identity_coverage_below_70pct",
+            item["metric_status"]["outbound_calls"]["blockers"],
+        )
+        self.assertIn("Lead Communication Coverage", html)
+        self.assertIn("Leads with phone/email identity", html)
 
     def test_operations_dashboard_blocks_stale_source_metrics(self):
         conn = open_db()
@@ -869,14 +1151,41 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         conn.execute(
             """
             INSERT INTO hubspot_contacts (
-                contact_id, full_name, school, create_date, pike13_person_id, raw_json, updated_at
+                contact_id, full_name, email_normalized, school, create_date, pike13_person_id, raw_json, updated_at
             )
             VALUES
-                ('contact-blank-inferred', 'Blank School Lead', NULL, '2026-05-04',
+                ('contact-blank-inferred', 'Blank School Lead', NULL, NULL, '2026-05-04',
                  'person-blank-school', '{"trusted": 1}', '2026-05-08T00:00:00+00:00'),
-                ('contact-blank-unassigned', 'Unassigned Lead', NULL, '2026-05-05',
+                ('contact-blank-email-inferred', 'Email Inferred Lead', 'email-inferred@example.com', NULL, '2026-05-05',
+                 NULL, '{"trusted": 1}', '2026-05-08T00:00:00+00:00'),
+                ('contact-blank-unassigned', 'Unassigned Lead', NULL, NULL, '2026-05-06',
                  NULL, '{"trusted": 1}', '2026-05-08T00:00:00+00:00')
             """
+        )
+        upsert_school_email_message(
+            conn,
+            {
+                "message_id": "email-school-inference",
+                "thread_id": "thread-email-inference",
+                "school_mailbox": "westu@schoolofrock.com",
+                "school": "West University Place",
+                "direction": "outbound",
+                "message_at": "2026-05-05T09:00:00",
+                "from_email": "westu@schoolofrock.com",
+                "from_email_normalized": "westu@schoolofrock.com",
+                "to_emails": '["email-inferred@example.com"]',
+                "to_emails_normalized": '["email-inferred@example.com"]',
+                "cc_emails": "[]",
+                "cc_emails_normalized": "[]",
+                "external_email_normalized": "email-inferred@example.com",
+                "subject": "Redacted",
+                "snippet": "Redacted",
+                "body": "Redacted",
+                "source_url": "https://mail.google.com/private",
+                "raw_text": "Redacted",
+                "raw_json": "{}",
+                "updated_at": utc_now_iso(),
+            },
         )
 
         report = build_operations_dashboard(
@@ -887,13 +1196,70 @@ class LeadOperatingDashboardTests(unittest.TestCase):
         )
 
         quality = report["hubspot_school_assignment"]
-        self.assertEqual(quality["total"], 3)
+        self.assertEqual(quality["total"], 4)
         self.assertEqual(quality["assigned_school"], 1)
-        self.assertEqual(quality["blank_school"], 2)
-        self.assertEqual(quality["usable_for_dashboard_schools"], 2)
+        self.assertEqual(quality["blank_school"], 3)
+        self.assertEqual(quality["inferred_blank_school"], 2)
+        self.assertEqual(quality["inferred_blank_school_by_school"], {"West U": 2})
+        self.assertEqual(quality["inferred_blank_school_evidence_counts"], {"email": 1, "pike13": 1})
+        self.assertEqual(quality["blank_school_without_evidence"], 1)
+        self.assertEqual(quality["usable_for_dashboard_schools"], 3)
         self.assertEqual(quality["unassigned_to_dashboard_school"], 1)
         self.assertIn("hubspot_contacts_unassigned_school_1", quality["flags"])
-        self.assertNotIn("hubspot_contacts_blank_school_2", quality["flags"])
+        self.assertNotIn("hubspot_contacts_blank_school_3", quality["flags"])
+
+    def test_operations_dashboard_reports_sanitized_dialpad_identity_gaps(self):
+        conn = open_db()
+        seed_dashboard_data(conn)
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, contact_name, school, department, updated_at
+            )
+            VALUES ('thread-no-phone', 'Private Parent', 'West U', 'WESTU',
+                    '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, updated_at
+            )
+            VALUES ('sms-no-phone', 'thread-no-phone', '2026-05-04', 'outbound',
+                    'Sensitive message', '2026-05-08T00:00:00+00:00')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_type, direction, event_at, school, raw_json, updated_at
+            )
+            VALUES ('voice-unmapped', 'call', 'inbound', '2026-05-04', '',
+                    '{"display_entry_point": "(832) 555-0000"}',
+                    '2026-05-08T00:00:00+00:00')
+            """
+        )
+
+        report = build_operations_dashboard(
+            conn,
+            period="weekly",
+            as_of="2026-05-08",
+            schools=("West U",),
+        )
+        html = render_operations_dashboard_html(report)
+
+        gaps = report["dialpad_identity_gaps"]
+        self.assertEqual(gaps["sms_no_phone_rows"], 1)
+        self.assertEqual(gaps["sms_no_phone_school_attributed_rows"], 1)
+        self.assertEqual(gaps["voice_unmapped_school_rows"], 1)
+        self.assertEqual(gaps["voice_unmapped_known_entry_point_rows"], 1)
+        self.assertIn("dialpad_sms_no_phone_rows_1", report["source_data_freshness"]["flags"])
+        self.assertIn("Dialpad identity gaps", html)
+        self.assertIn("Captured SMS rows without phone identity", html)
+        self.assertIn("Of those, school-attributed SMS rows", html)
+        self.assertNotIn("Private Parent", html)
+        self.assertNotIn("Sensitive message", html)
+        self.assertNotIn("(832) 555-0000", html)
 
     def test_operations_funnel_parses_hubspot_dates_and_maps_unified_person_ids(self):
         conn = open_db()

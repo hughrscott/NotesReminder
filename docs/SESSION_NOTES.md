@@ -1,6 +1,23 @@
 # Session Notes (Resume Here)
 
-Last updated: 2026-05-23
+Last updated: 2026-06-28
+
+## 2026-06-28 Production Auth Steward Decision
+
+- Production automation target clarified as attended-auth automation, not MFA
+  bypass and not fully manual operation.
+- Expected production pattern:
+  - retain Okta-approved source sessions in persistent Playwright profiles
+  - run headless auth probes before mutating production/source-refresh work
+  - notify Hugh only when Okta/MFA renewal is required
+  - wait for Hugh to approve the expected Okta Verify push
+  - re-probe after approval and proceed only if auth is green
+  - block production notes/email/S3 upload when auth is not confirmed
+- Canonical protocol now lives in `docs/operational_runbook.md`.
+- Architecture summary now lives in `docs/data_pipeline.md`.
+- Phase 16 roadmap language in `docs/master_plan.md` now describes
+  attended-auth cadence.
+- `README.md` now points readers to the production-readiness reading guide.
 
 ## 2026-05-20 Phase 7 Copy-Mode Reconciliation
 

@@ -77,25 +77,29 @@ def build_source_steps(args):
             command.append("--headless")
         steps.append(("pike13", command))
     if not args.skip_dialpad:
+        dialpad_schools = args.dialpad_school or ["West U", "The Heights"]
+        if isinstance(dialpad_schools, str):
+            dialpad_schools = [dialpad_schools]
         days = rolling_window_days(args.start_date)
-        command = [
-            py,
-            "scripts/extract_dialpad_daily_intake.py",
-            "--db",
-            db,
-            "--profile-dir",
-            args.dialpad_profile_dir,
-            "--school",
-            args.dialpad_school,
-            "--window-days",
-            str(days),
-            "--limit",
-            str(args.dialpad_daily_limit),
-            "--no-route-discovery-on-failure",
-        ]
-        if args.headless:
-            command.append("--headless")
-        steps.append(("dialpad_daily_intake", command))
+        for dialpad_school in dialpad_schools:
+            command = [
+                py,
+                "scripts/extract_dialpad_daily_intake.py",
+                "--db",
+                db,
+                "--profile-dir",
+                args.dialpad_profile_dir,
+                "--school",
+                dialpad_school,
+                "--window-days",
+                str(days),
+                "--limit",
+                str(args.dialpad_daily_limit),
+                "--no-route-discovery-on-failure",
+            ]
+            if args.headless:
+                command.append("--headless")
+            steps.append((f"dialpad_daily_intake_{dialpad_school}", command))
         voice_command = [
             py,
             "scripts/extract_dialpad_voice.py",
@@ -113,21 +117,25 @@ def build_source_steps(args):
         if args.headless:
             voice_command.append("--headless")
         steps.append(("dialpad_voice", voice_command))
-        sms_command = [
-            py,
-            "scripts/extract_dialpad_sms.py",
-            "--db",
-            db,
-            "--profile-dir",
-            args.dialpad_profile_dir,
-            "--thread-limit",
-            str(args.dialpad_sms_limit),
-            "--start-date",
-            args.start_date,
-        ]
-        if args.headless:
-            sms_command.append("--headless")
-        steps.append(("dialpad_sms", sms_command))
+        for dialpad_school in dialpad_schools:
+            sms_command = [
+                py,
+                "scripts/extract_dialpad_sms.py",
+                "--db",
+                db,
+                "--profile-dir",
+                args.dialpad_profile_dir,
+                "--school",
+                dialpad_school,
+                "--thread-limit",
+                str(args.dialpad_sms_limit),
+                "--start-date",
+                args.start_date,
+                "--enrich-row-details",
+            ]
+            if args.headless:
+                sms_command.append("--headless")
+            steps.append((f"dialpad_sms_{dialpad_school}", sms_command))
     if not args.skip_email:
         command = [
             py,
@@ -184,7 +192,12 @@ def main():
     parser.add_argument("--school", default=DEFAULT_SCHOOL)
     parser.add_argument("--pike13-school", default=DEFAULT_PIKE13_SCHOOL)
     parser.add_argument("--pike13-base-url", default=DEFAULT_PIKE13_BASE_URL)
-    parser.add_argument("--dialpad-school", default="West U")
+    parser.add_argument(
+        "--dialpad-school",
+        action="append",
+        default=None,
+        help="Dialpad school to refresh. Repeat for multiple schools. Defaults to West U and The Heights.",
+    )
     parser.add_argument("--hubspot-profile-dir", default="browser_profiles/hubspot")
     parser.add_argument("--pike13-profile-dir", default="browser_profiles/pike13")
     parser.add_argument("--dialpad-profile-dir", default="browser_profiles/dialpad")

@@ -34,9 +34,25 @@ It also creates these curated views:
 - `vw_no_show_followup`
 - `vw_lead_conversion_path`
 
-## Browser Extractors
+## Browser Extractors And Auth
 
-All extractors use persistent Playwright profiles under `browser_profiles/`. First runs should be headed so Okta/MFA can be completed in the browser. Later runs can use `--headless` if the profile remains authenticated.
+All extractors use persistent Playwright profiles under `browser_profiles/`.
+First runs should be headed so Okta/MFA can be completed in the browser. Later
+runs can use `--headless` if the profile remains authenticated.
+
+The production operating model is attended-auth automation:
+
+- Headless jobs should probe the relevant profile before extraction.
+- If the probe lands on Okta, Google login, HubSpot login, Dialpad login, or a
+  Pike13 sign-in page, the job should stop before mutating production data.
+- Hugh should be notified to approve the expected Okta Verify push from
+  NotesReminder.
+- The same persistent profile should then be renewed in headed mode and probed
+  again before extraction resumes.
+- Production notes/email/S3 sync must remain blocked unless the required auth
+  probe is green.
+
+The canonical protocol lives in `docs/operational_runbook.md`.
 
 HubSpot visible deal/contact extraction:
 

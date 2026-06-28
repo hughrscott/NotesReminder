@@ -13,6 +13,7 @@ from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
 from notesreminder.reports.lead_operating_dashboard import (
     DEFAULT_SCHOOL,
     build_exception_queue,
+    contact_date_expr,
     contact_person_expr,
     hubspot_lead_count,
     hubspot_contact_school_clause,
@@ -27,6 +28,7 @@ from notesreminder.reports.lead_operating_dashboard import (
 
 DEFAULT_SCHOOLS = (DEFAULT_SCHOOL, "The Heights")
 RESPONSE_BUCKETS = ("<5m", "5-15m", "15-60m", "1-24h", ">24h", "no response")
+OPERATIONS_EXCEPTION_DETAIL_LIMIT = 50
 
 
 def utc_now_iso() -> str:
@@ -78,6 +80,124 @@ def _rate(numerator: int | float, denominator: int | float) -> float:
     return round(100.0 * numerator / denominator, 1) if denominator else 0.0
 
 
+def _canonical_dashboard_school(value: str | None, schools: tuple[str, ...] = DEFAULT_SCHOOLS) -> str | None:
+    value = (value or "").strip().lower()
+    if not value:
+        return None
+    for school in schools:
+        aliases = school_aliases(school)
+        if value in aliases or any(alias and alias in value for alias in aliases):
+            return "The Heights" if "height" in value else "West U"
+    return None
+
+
+def _school_sets_by_identity(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str,
+    end_date: str,
+    schools: tuple[str, ...],
+) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    email_schools: dict[str, set[str]] = {}
+    phone_schools: dict[str, set[str]] = {}
+    if table_exists(conn, "vw_school_email_communications"):
+        for row in conn.execute(
+            """
+            SELECT LOWER(TRIM(external_email_normalized)) AS identity, school
+            FROM vw_school_email_communications
+            WHERE COALESCE(external_email_normalized, '') != ''
+              AND date(substr(event_at, 1, 10)) BETWEEN date(:start) AND date(:end)
+            """,
+            {"start": start_date, "end": end_date},
+        ):
+            school = _canonical_dashboard_school(row["school"], schools)
+            if school:
+                email_schools.setdefault(row["identity"], set()).add(school)
+    if table_exists(conn, "vw_dialpad_communications"):
+        for row in conn.execute(
+            """
+            SELECT phone_normalized AS identity, school
+            FROM vw_dialpad_communications
+            WHERE COALESCE(phone_normalized, '') != ''
+              AND date(substr(event_at, 1, 10)) BETWEEN date(:start) AND date(:end)
+            """,
+            {"start": start_date, "end": end_date},
+        ):
+            school = _canonical_dashboard_school(row["school"], schools)
+            if school:
+                phone_schools.setdefault(row["identity"], set()).add(school)
+    return email_schools, phone_schools
+
+
+def _blank_hubspot_school_inference(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str,
+    end_date: str,
+    schools: tuple[str, ...],
+) -> dict:
+    person_sql = contact_person_expr(conn)
+    email_schools, phone_schools = _school_sets_by_identity(
+        conn,
+        start_date=start_date,
+        end_date=end_date,
+        schools=schools,
+    )
+    inferred_by_school = Counter()
+    evidence_counts = Counter()
+    inferred_contact_ids: set[str] = set()
+    ambiguous = 0
+    no_evidence = 0
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.contact_id,
+            LOWER(TRIM(COALESCE(c.email_normalized, ''))) AS email_normalized,
+            c.phone_normalized,
+            c.hubspot_deal_name,
+            pp.school AS pike13_school
+        FROM hubspot_contacts c
+        LEFT JOIN pike13_people pp ON pp.person_id = {person_sql}
+        WHERE date(c.create_date) BETWEEN date(:start) AND date(:end)
+          AND COALESCE(TRIM(c.school), '') = ''
+        """,
+        {"start": start_date, "end": end_date},
+    ).fetchall()
+    for row in rows:
+        signals: list[tuple[str, str]] = []
+        pike13_school = _canonical_dashboard_school(row["pike13_school"], schools)
+        if pike13_school:
+            signals.append(("pike13", pike13_school))
+        deal_school = _canonical_dashboard_school(row["hubspot_deal_name"], schools)
+        if deal_school:
+            signals.append(("deal_name", deal_school))
+        if row["email_normalized"]:
+            signals.extend(("email", school) for school in email_schools.get(row["email_normalized"], set()))
+        phone = row["phone_normalized"]
+        if phone:
+            signals.extend(("phone", school) for school in phone_schools.get(phone, set()))
+        signal_schools = {school for _, school in signals}
+        if len(signal_schools) == 1:
+            school = next(iter(signal_schools))
+            inferred_contact_ids.add(row["contact_id"])
+            inferred_by_school[school] += 1
+            for source, _ in set(signals):
+                evidence_counts[source] += 1
+        elif len(signal_schools) > 1:
+            ambiguous += 1
+        else:
+            no_evidence += 1
+    inferred_total = sum(inferred_by_school.values())
+    return {
+        "inferred_total": inferred_total,
+        "inferred_contact_ids": inferred_contact_ids,
+        "inferred_by_school": dict(sorted(inferred_by_school.items())),
+        "evidence_counts": dict(sorted(evidence_counts.items())),
+        "ambiguous_school_evidence": ambiguous,
+        "no_school_evidence": no_evidence,
+    }
+
+
 def _hubspot_school_assignment_quality(
     conn: sqlite3.Connection,
     *,
@@ -123,6 +243,12 @@ def _hubspot_school_assignment_quality(
     blank = sum(int(row["rows"] or 0) for row in rows if not row["school"])
     assigned = sum(int(row["rows"] or 0) for row in rows if row["school"] in aliases)
     other = total - blank - assigned
+    inferred = _blank_hubspot_school_inference(
+        conn,
+        start_date=start_date,
+        end_date=end_date,
+        schools=schools,
+    )
     usable_contact_ids = set()
     for school in schools:
         school_sql, school_params = hubspot_contact_school_clause(school, conn)
@@ -137,6 +263,7 @@ def _hubspot_school_assignment_quality(
             {"start": start_date, "end": end_date, **school_params},
         ).fetchall():
             usable_contact_ids.add(row["contact_id"])
+    usable_contact_ids.update(inferred["inferred_contact_ids"])
     usable = len(usable_contact_ids)
     unassigned = max(total - usable, 0)
     flags = []
@@ -150,6 +277,11 @@ def _hubspot_school_assignment_quality(
         "usable_for_dashboard_schools": usable,
         "assigned_school": assigned,
         "blank_school": blank,
+        "inferred_blank_school": inferred["inferred_total"],
+        "inferred_blank_school_by_school": inferred["inferred_by_school"],
+        "inferred_blank_school_evidence_counts": inferred["evidence_counts"],
+        "ambiguous_blank_school_evidence": inferred["ambiguous_school_evidence"],
+        "blank_school_without_evidence": inferred["no_school_evidence"],
         "other_school": other,
         "unassigned_to_dashboard_school": unassigned,
         "missing_create_date": missing_create_date,
@@ -159,6 +291,136 @@ def _hubspot_school_assignment_quality(
 
 def _rows(conn: sqlite3.Connection, sql: str, params: dict | None = None) -> list[dict]:
     return [dict(row) for row in conn.execute(sql, params or {}).fetchall()]
+
+
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    if not table_exists(conn, table):
+        return False
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})"))
+
+
+def _dialpad_identity_gaps(conn: sqlite3.Connection, *, start_date: str, end_date: str) -> dict:
+    metrics = {
+        "sms_no_phone_rows": 0,
+        "sms_no_phone_school_attributed_rows": 0,
+        "voice_unmapped_school_rows": 0,
+        "voice_unmapped_known_entry_point_rows": 0,
+        "voice_unmapped_missing_entry_point_rows": 0,
+        "voice_unmapped_no_safe_evidence_rows": 0,
+    }
+    flags = []
+    if table_exists(conn, "dialpad_sms_messages") and table_exists(conn, "dialpad_sms_threads"):
+        metrics["sms_no_phone_rows"] = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM dialpad_sms_messages m
+                LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+                WHERE date(m.message_at) BETWEEN date(:start) AND date(:end)
+                  AND COALESCE(t.phone_normalized, '') = ''
+                """,
+                {"start": start_date, "end": end_date},
+            ).fetchone()[0]
+            or 0
+        )
+        metrics["sms_no_phone_school_attributed_rows"] = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM dialpad_sms_messages m
+                LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+                WHERE date(m.message_at) BETWEEN date(:start) AND date(:end)
+                  AND COALESCE(t.phone_normalized, '') = ''
+                  AND COALESCE(t.school, t.department, '') != ''
+                """,
+                {"start": start_date, "end": end_date},
+            ).fetchone()[0]
+            or 0
+        )
+    if table_exists(conn, "dialpad_voice_events"):
+        entry_point_expr = (
+            "COALESCE(json_extract(raw_json, '$.display_entry_point'), '')"
+            if _column_exists(conn, "dialpad_voice_events", "raw_json")
+            else "''"
+        )
+        not_excluded_sql = (
+            "COALESCE(json_extract(raw_json, '$.excluded_from_communication_view'), 0) != 1"
+            if _column_exists(conn, "dialpad_voice_events", "raw_json")
+            else "1=1"
+        )
+        row = conn.execute(
+            f"""
+            SELECT
+                COUNT(*) AS unmapped_school,
+                SUM(CASE WHEN {entry_point_expr} != '' THEN 1 ELSE 0 END) AS known_entry_point,
+                SUM(CASE WHEN {entry_point_expr} = '' THEN 1 ELSE 0 END) AS missing_entry_point
+            FROM dialpad_voice_events
+            WHERE date(event_at) BETWEEN date(:start) AND date(:end)
+              AND COALESCE(school, '') = ''
+              AND {not_excluded_sql}
+            """,
+            {"start": start_date, "end": end_date},
+        ).fetchone()
+        metrics["voice_unmapped_school_rows"] = int(row["unmapped_school"] or 0)
+        metrics["voice_unmapped_known_entry_point_rows"] = int(row["known_entry_point"] or 0)
+        metrics["voice_unmapped_missing_entry_point_rows"] = int(row["missing_entry_point"] or 0)
+        safe_evidence_row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS rows
+            FROM dialpad_voice_events v
+            WHERE date(v.event_at) BETWEEN date(:start) AND date(:end)
+              AND COALESCE(v.school, '') = ''
+              AND {entry_point_expr.replace("raw_json", "v.raw_json")} = ''
+              AND {not_excluded_sql.replace("raw_json", "v.raw_json")}
+              AND NOT (
+                  COALESCE(json_extract(v.raw_json, '$.requested_school'), '') != ''
+                  AND COALESCE(json_extract(v.raw_json, '$.school_filter_applied'), 0) = 1
+                  AND COALESCE(json_extract(v.raw_json, '$.scope_school_mismatch'), 0) != 1
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM hubspot_contacts h
+                  WHERE h.phone_normalized = v.phone_normalized
+                    AND COALESCE(h.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM pike13_people p
+                  WHERE p.phone_normalized = v.phone_normalized
+                    AND COALESCE(p.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_sms_threads t
+                  WHERE t.phone_normalized = v.phone_normalized
+                    AND COALESCE(t.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_voice_events known
+                  WHERE known.phone_normalized = v.phone_normalized
+                    AND COALESCE(known.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_call_reviews cr
+                  WHERE (cr.voice_event_id = v.event_id OR cr.call_id = v.call_id OR cr.call_review_id = v.call_id)
+                    AND json_array_length(COALESCE(json_extract(cr.raw_json, '$.visible_school_labels'), '[]')) = 1
+              )
+            """,
+            {"start": start_date, "end": end_date},
+        ).fetchone()
+        metrics["voice_unmapped_no_safe_evidence_rows"] = int(safe_evidence_row["rows"] or 0)
+    if metrics["sms_no_phone_rows"]:
+        flags.append(f"dialpad_sms_no_phone_rows_{metrics['sms_no_phone_rows']}")
+    if metrics["voice_unmapped_school_rows"]:
+        flags.append(f"dialpad_voice_unmapped_school_rows_{metrics['voice_unmapped_school_rows']}")
+    if metrics["voice_unmapped_known_entry_point_rows"]:
+        flags.append(
+            "dialpad_voice_unmapped_entry_point_rows_"
+            f"{metrics['voice_unmapped_known_entry_point_rows']}"
+        )
+    if metrics["voice_unmapped_missing_entry_point_rows"]:
+        flags.append(
+            "dialpad_voice_missing_entry_point_rows_"
+            f"{metrics['voice_unmapped_missing_entry_point_rows']}"
+        )
+    return {"status": "ready" if not flags else "attention", "window": {"start": start_date, "end": end_date}, **metrics, "flags": flags}
 
 
 def metric_status_from_freshness(data_freshness: dict) -> dict[str, dict[str, object]]:
@@ -175,9 +437,10 @@ def metric_status_from_freshness(data_freshness: dict) -> dict[str, dict[str, ob
             "blockers": blockers,
         }
 
-    communications = blocked_by(
+    communication_prefixes = (
         "missing_school_email",
         "stale_school_email",
+        "gmail_auth_required",
         "missing_dialpad_calls",
         "stale_dialpad_calls",
         "missing_dialpad_sms",
@@ -190,11 +453,41 @@ def metric_status_from_freshness(data_freshness: dict) -> dict[str, dict[str, ob
         "trials": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
         "conversions": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
         "no_shows": blocked_by("missing_pike13_visits", "stale_pike13_visits"),
-        "communications": communications,
-        "contacted": communications,
-        "response": communications,
-        "outbound_calls": communications,
+        "communications": blocked_by(*communication_prefixes),
+        "contacted": blocked_by(*communication_prefixes),
+        "response": blocked_by(*communication_prefixes),
+        "outbound_calls": blocked_by(*communication_prefixes),
     }
+
+
+def apply_response_quality_status(
+    metric_status: dict[str, dict[str, object]],
+    response: dict,
+    *,
+    min_identity_rate: float = 70.0,
+    min_matched_communication_rate: float = 50.0,
+) -> None:
+    lead_count = int(response.get("lead_count") or 0)
+    if lead_count <= 0:
+        return
+    coverage = response.get("coverage", {})
+    blockers = []
+    identity_rate = float(coverage.get("identity_key_rate") or 0.0)
+    matched_rate = float(coverage.get("any_matched_communication_rate") or 0.0)
+    if identity_rate < min_identity_rate:
+        blockers.append(f"recent_lead_identity_coverage_below_{int(min_identity_rate)}pct")
+    elif matched_rate < min_matched_communication_rate:
+        blockers.append(f"recent_matched_communication_coverage_below_{int(min_matched_communication_rate)}pct")
+    if not blockers:
+        return
+    for metric in ("contacted", "response"):
+        current = metric_status.setdefault(metric, {"status": "ready", "blockers": []})
+        current_blockers = list(current.get("blockers", []))
+        for blocker in blockers:
+            if blocker not in current_blockers:
+                current_blockers.append(blocker)
+        current["blockers"] = current_blockers
+        current["status"] = "blocked"
 
 
 def instructor_note_scores(
@@ -353,45 +646,167 @@ def lead_response_distribution(
     limit: int,
 ) -> dict:
     register_dashboard_sql_functions(conn)
-    school_sql, school_params = _school_filter("d", school)
+    school_sql, school_params = hubspot_contact_school_clause(school, conn)
+    comm_school_sql, comm_school_params = _school_filter("comm", school, contains=True)
+    email_school_sql, email_school_params = _school_filter("email", school, contains=True)
+    lead_date_sql = contact_date_expr(conn)
+    person_sql = contact_person_expr(conn)
     rows = _rows(
         conn,
         f"""
-        WITH deals AS (
-            SELECT d.deal_id, dashboard_date(NULLIF(d.create_date, ''), d.updated_at) AS create_at
-            FROM hubspot_deals d
-            WHERE dashboard_date(NULLIF(d.create_date, ''), d.updated_at)
+        WITH lead_rows AS (
+            SELECT
+                c.contact_id,
+                {lead_date_sql} AS create_at,
+                c.email_normalized AS contact_email,
+                c.phone_normalized AS contact_phone,
+                pp.email_normalized AS pike13_email,
+                pp.phone_normalized AS pike13_phone,
+                CASE
+                    WHEN COALESCE(c.phone_normalized, '') != '' THEN 'phone:' || c.phone_normalized
+                    WHEN COALESCE(pp.phone_normalized, '') != '' THEN 'phone:' || pp.phone_normalized
+                    WHEN COALESCE(c.email_normalized, '') != '' THEN 'email:' || c.email_normalized
+                    WHEN COALESCE(pp.email_normalized, '') != '' THEN 'email:' || pp.email_normalized
+                    ELSE 'contact:' || c.contact_id
+                END AS lead_id
+            FROM hubspot_contacts c
+            LEFT JOIN pike13_people pp
+              ON pp.person_id = {person_sql}
+            WHERE {lead_date_sql}
                 BETWEEN dashboard_date(:start) AND dashboard_date(:end)
               AND {school_sql}
         ),
-        deal_contacts AS (
-            SELECT d.deal_id, c.email_normalized, c.phone_normalized
-            FROM deals d
-            JOIN hubspot_contacts c ON instr(COALESCE(c.associated_deal_ids, ''), d.deal_id) > 0
+        leads AS (
+            SELECT lead_id, MIN(create_at) AS create_at, COUNT(*) AS contact_rows
+            FROM lead_rows
+            GROUP BY lead_id
+        ),
+        lead_phones AS (
+            SELECT lead_id, contact_phone AS phone_normalized
+            FROM lead_rows
+            WHERE COALESCE(contact_phone, '') != ''
+            UNION
+            SELECT lead_id, pike13_phone AS phone_normalized
+            FROM lead_rows
+            WHERE COALESCE(pike13_phone, '') != ''
+        ),
+        lead_emails AS (
+            SELECT lead_id, contact_email AS email_normalized
+            FROM lead_rows
+            WHERE COALESCE(contact_email, '') != ''
+            UNION
+            SELECT lead_id, pike13_email AS email_normalized
+            FROM lead_rows
+            WHERE COALESCE(pike13_email, '') != ''
+        ),
+        lead_keys AS (
+            SELECT lead_id, 'phone' AS key_type, phone_normalized AS key_value
+            FROM lead_phones
+            WHERE COALESCE(phone_normalized, '') != ''
+            UNION
+            SELECT lead_id, 'email' AS key_type, email_normalized AS key_value
+            FROM lead_emails
+            WHERE COALESCE(email_normalized, '') != ''
+        ),
+        communications AS (
+            SELECT
+                lp.lead_id,
+                comm.event_at,
+                comm.channel,
+                comm.direction,
+                CASE WHEN {comm_school_sql} THEN 1 ELSE 0 END AS source_school_matches
+            FROM lead_phones lp
+            JOIN vw_dialpad_communications comm ON comm.phone_normalized = lp.phone_normalized
+            WHERE COALESCE(lp.phone_normalized, '') != ''
+              AND date(comm.event_at) BETWEEN date((SELECT create_at FROM leads l WHERE l.lead_id = lp.lead_id), '-7 days') AND date(:end)
+            UNION ALL
+            SELECT
+                le.lead_id,
+                email.event_at,
+                'email' AS channel,
+                email.direction,
+                CASE WHEN {email_school_sql} THEN 1 ELSE 0 END AS source_school_matches
+            FROM lead_emails le
+            JOIN vw_school_email_communications email ON email.external_email_normalized = le.email_normalized
+            WHERE COALESCE(le.email_normalized, '') != ''
+              AND date(email.event_at) BETWEEN date((SELECT create_at FROM leads l WHERE l.lead_id = le.lead_id), '-7 days') AND date(:end)
         ),
         outbound AS (
-            SELECT dc.deal_id, comm.event_at, comm.channel
-            FROM deal_contacts dc
-            JOIN vw_dialpad_communications comm ON comm.phone_normalized = dc.phone_normalized
-            WHERE COALESCE(dc.phone_normalized, '') != ''
+            SELECT
+                lp.lead_id,
+                comm.event_at,
+                comm.channel,
+                CASE WHEN {comm_school_sql} THEN 1 ELSE 0 END AS source_school_matches
+            FROM lead_phones lp
+            JOIN vw_dialpad_communications comm ON comm.phone_normalized = lp.phone_normalized
+            WHERE COALESCE(lp.phone_normalized, '') != ''
               AND LOWER(COALESCE(comm.direction, '')) = 'outbound'
+              AND date(comm.event_at) <= date(:end)
             UNION ALL
-            SELECT dc.deal_id, email.event_at, 'email'
-            FROM deal_contacts dc
-            JOIN vw_school_email_communications email ON email.external_email_normalized = dc.email_normalized
-            WHERE COALESCE(dc.email_normalized, '') != ''
+            SELECT
+                le.lead_id,
+                email.event_at,
+                'email',
+                CASE WHEN {email_school_sql} THEN 1 ELSE 0 END AS source_school_matches
+            FROM lead_emails le
+            JOIN vw_school_email_communications email ON email.external_email_normalized = le.email_normalized
+            WHERE COALESCE(le.email_normalized, '') != ''
               AND LOWER(COALESCE(email.direction, '')) = 'outbound'
+              AND date(email.event_at) <= date(:end)
         ),
         first_response AS (
-            SELECT d.deal_id, d.create_at, MIN(o.event_at) AS first_response_at
-            FROM deals d
-            LEFT JOIN outbound o ON o.deal_id = d.deal_id AND datetime(o.event_at) >= datetime(d.create_at)
-            GROUP BY d.deal_id, d.create_at
+            SELECT l.lead_id, l.create_at, MIN(o.event_at) AS first_response_at
+            FROM leads l
+            LEFT JOIN outbound o ON o.lead_id = l.lead_id AND datetime(o.event_at) >= datetime(l.create_at)
+            GROUP BY l.lead_id, l.create_at
         )
         SELECT
-            deal_id,
+            lead_id,
             create_at,
             first_response_at,
+            (SELECT contact_rows FROM leads l WHERE l.lead_id = first_response.lead_id) AS contact_rows,
+            EXISTS(
+                SELECT 1 FROM lead_keys lk WHERE lk.lead_id = first_response.lead_id
+            ) AS has_identity_key,
+            EXISTS(
+                SELECT 1 FROM communications c WHERE c.lead_id = first_response.lead_id
+            ) AS has_any_matched_communication,
+            EXISTS(
+                SELECT 1 FROM communications c
+                WHERE c.lead_id = first_response.lead_id
+                  AND c.source_school_matches = 1
+            ) AS has_same_school_matched_communication,
+            EXISTS(
+                SELECT 1 FROM communications c
+                WHERE c.lead_id = first_response.lead_id
+                  AND c.source_school_matches = 0
+            ) AS has_cross_school_matched_communication,
+            EXISTS(
+                SELECT 1
+                FROM communications c
+                WHERE c.lead_id = first_response.lead_id
+                  AND LOWER(COALESCE(c.direction, '')) = 'inbound'
+                  AND datetime(c.event_at) <= datetime(first_response.create_at)
+            ) AS has_pre_lead_inbound_origin,
+            EXISTS(
+                SELECT 1
+                FROM communications c
+                WHERE c.lead_id = first_response.lead_id
+                  AND LOWER(COALESCE(c.direction, '')) = 'outbound'
+                  AND datetime(c.event_at) >= datetime(first_response.create_at)
+            ) AS has_post_lead_outbound_followup,
+            EXISTS(
+                SELECT 1 FROM communications c
+                WHERE c.lead_id = first_response.lead_id AND c.channel = 'sms'
+            ) AS has_sms,
+            EXISTS(
+                SELECT 1 FROM communications c
+                WHERE c.lead_id = first_response.lead_id AND c.channel = 'call'
+            ) AS has_call,
+            EXISTS(
+                SELECT 1 FROM communications c
+                WHERE c.lead_id = first_response.lead_id AND c.channel = 'email'
+            ) AS has_email,
             CASE
                 WHEN first_response_at IS NULL THEN NULL
                 ELSE ROUND((julianday(first_response_at) - julianday(create_at)) * 24.0 * 60.0, 1)
@@ -401,13 +816,29 @@ def lead_response_distribution(
         FROM first_response
         ORDER BY create_at
         """,
-        {"start": start_date, "end": end_date, **school_params},
+        {
+            "start": start_date,
+            "end": end_date,
+            **school_params,
+            **comm_school_params,
+            **email_school_params,
+        },
     )
     bucket_counts = Counter({bucket: 0 for bucket in RESPONSE_BUCKETS})
     heatmap = Counter()
     weekday_labels = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
     total_minutes = 0.0
     responded = 0
+    identity_key_leads = 0
+    any_matched_communication = 0
+    same_school_matched_communication = 0
+    cross_school_matched_communication = 0
+    pre_lead_inbound_origin = 0
+    post_lead_outbound_followup = 0
+    sms_matched = 0
+    call_matched = 0
+    email_matched = 0
+    contact_rows_total = 0
     for row in rows:
         minutes = row.get("response_minutes")
         if minutes is None:
@@ -426,18 +857,47 @@ def lead_response_distribution(
         if minutes is not None:
             total_minutes += float(minutes)
             responded += 1
+        identity_key_leads += 1 if row.get("has_identity_key") else 0
+        any_matched_communication += 1 if row.get("has_any_matched_communication") else 0
+        same_school_matched_communication += 1 if row.get("has_same_school_matched_communication") else 0
+        cross_school_matched_communication += 1 if row.get("has_cross_school_matched_communication") else 0
+        pre_lead_inbound_origin += 1 if row.get("has_pre_lead_inbound_origin") else 0
+        post_lead_outbound_followup += 1 if row.get("has_post_lead_outbound_followup") else 0
+        sms_matched += 1 if row.get("has_sms") else 0
+        call_matched += 1 if row.get("has_call") else 0
+        email_matched += 1 if row.get("has_email") else 0
+        contact_rows_total += int(row.get("contact_rows") or 1)
         weekday = row.get("lead_weekday")
         hour = row.get("lead_hour")
         label = f"{weekday_labels[weekday] if weekday is not None else '?'} {int(hour or 0):02d}:00"
         heatmap[label] += 1
     heatmap_rows = [{"lead_created": key, "leads": value} for key, value in heatmap.most_common(limit)]
+    lead_count = len(rows)
     return {
-        "lead_count": len(rows),
+        "lead_count": lead_count,
+        "contact_rows": contact_rows_total,
         "responded": responded,
         "no_response": bucket_counts["no response"],
         "average_response_minutes": round(total_minutes / responded, 1) if responded else None,
         "buckets": dict(bucket_counts),
         "lead_created_distribution": heatmap_rows,
+        "coverage": {
+            "identity_key_leads": identity_key_leads,
+            "identity_key_rate": _rate(identity_key_leads, lead_count),
+            "any_matched_communication": any_matched_communication,
+            "any_matched_communication_rate": _rate(any_matched_communication, lead_count),
+            "same_school_matched_communication": same_school_matched_communication,
+            "same_school_matched_communication_rate": _rate(same_school_matched_communication, lead_count),
+            "cross_school_matched_communication": cross_school_matched_communication,
+            "cross_school_matched_communication_rate": _rate(cross_school_matched_communication, lead_count),
+            "pre_lead_inbound_origin": pre_lead_inbound_origin,
+            "pre_lead_inbound_origin_rate": _rate(pre_lead_inbound_origin, lead_count),
+            "post_lead_outbound_followup": post_lead_outbound_followup,
+            "post_lead_outbound_followup_rate": _rate(post_lead_outbound_followup, lead_count),
+            "sms_matched": sms_matched,
+            "call_matched": call_matched,
+            "email_matched": email_matched,
+        },
     }
 
 
@@ -457,14 +917,26 @@ def build_operations_dashboard(
     freshness = source_freshness(conn) if table_exists(conn, "source_import_runs") else {"status": "missing", "counts": {}}
     school_reports = []
     exception_summary: Counter[str] = Counter()
+    exception_detail_limit = min(limit, OPERATIONS_EXCEPTION_DETAIL_LIMIT)
 
     for school in schools:
-        exceptions = build_exception_queue(conn, ytd["start"], ytd["end"], school, limit)
+        exceptions = build_exception_queue(
+            conn,
+            ytd["start"],
+            ytd["end"],
+            school,
+            exception_detail_limit,
+            trial_limit=exception_detail_limit,
+        )
         exception_summary.update(exceptions.get("summary", {}))
         mtd_funnel = funnel_metrics(conn, start_date=mtd["start"], end_date=mtd["end"], school=school)
         ytd_funnel = funnel_metrics(conn, start_date=ytd["start"], end_date=ytd["end"], school=school)
         data_freshness = source_data_freshness(conn, mtd["end"], school)
         metric_status = metric_status_from_freshness(data_freshness)
+        lead_response = lead_response_distribution(
+            conn, start_date=response["start"], end_date=response["end"], school=school, limit=limit
+        )
+        apply_response_quality_status(metric_status, lead_response)
         school_reports.append(
             {
                 "school": school,
@@ -484,9 +956,7 @@ def build_operations_dashboard(
                 "outbound_calls_mtd": outbound_calls(
                     conn, start_date=mtd["start"], end_date=mtd["end"], school=school
                 ),
-                "lead_response": lead_response_distribution(
-                    conn, start_date=response["start"], end_date=response["end"], school=school, limit=limit
-                ),
+                "lead_response": lead_response,
                 "no_shows_mtd": no_shows(conn, start_date=mtd["start"], end_date=mtd["end"], school=school),
                 "exceptions": exceptions,
             }
@@ -509,6 +979,7 @@ def build_operations_dashboard(
         end_date=ytd["end"],
         schools=schools,
     )
+    dialpad_identity_gaps = _dialpad_identity_gaps(conn, start_date=ytd["start"], end_date=ytd["end"])
 
     data_freshness_flags = sorted(
         {
@@ -517,7 +988,9 @@ def build_operations_dashboard(
             for flag in item.get("source_data_freshness", {}).get("flags", [])
         }
     )
-    data_quality_flags = sorted(data_freshness_flags + hubspot_quality.get("flags", []))
+    data_quality_flags = sorted(
+        data_freshness_flags + hubspot_quality.get("flags", []) + dialpad_identity_gaps.get("flags", [])
+    )
     status = "ready" if freshness.get("status") == "ready" and not exception_summary and not data_quality_flags else "attention"
     return {
         "dashboard_type": "operations_scorecard",
@@ -531,6 +1004,7 @@ def build_operations_dashboard(
         "exception_summary": dict(sorted(exception_summary.items())),
         "source_freshness": freshness,
         "hubspot_school_assignment": hubspot_quality,
+        "dialpad_identity_gaps": dialpad_identity_gaps,
         "source_data_freshness": {
             "status": "ready" if not data_quality_flags else "attention",
             "flags": data_quality_flags,
@@ -584,18 +1058,19 @@ def _flags_panel(report: dict) -> str:
     if not flags:
         return ""
     hubspot_quality = report.get("hubspot_school_assignment", {})
+    dialpad_gaps = report.get("dialpad_identity_gaps", {})
     rows = [[flag] for flag in flags]
     return f"""
     <section class="warning-panel">
-      <h2>Data Quality Blockers</h2>
+      <h2>Data Quality Flags</h2>
       <p>
-        This dashboard is in validation mode. Treat lead counts as HubSpot-derived, but do not use note,
-        trial, conversion, contacted, or response-rate metrics for management decisions until these blockers
-        are cleared.
+        This dashboard is in validation mode. Treat lead counts as HubSpot-derived, and review these source
+        and identity flags before using note, trial, conversion, contacted, or response-rate metrics for
+        management decisions.
       </p>
       <div class="warning-grid">
         <div>
-          <h3>Active blockers</h3>
+          <h3>Active flags</h3>
           {_table(["Flag"], rows)}
         </div>
         <div>
@@ -607,9 +1082,26 @@ def _flags_panel(report: dict) -> str:
                   ["Usable by dashboard school filter", hubspot_quality.get("usable_for_dashboard_schools", 0)],
                   ["Explicit school column match", hubspot_quality.get("assigned_school", 0)],
                   ["Blank school column", hubspot_quality.get("blank_school", 0)],
+                  ["Blank school inferred from safe evidence", hubspot_quality.get("inferred_blank_school", 0)],
+                  ["Blank school ambiguous evidence", hubspot_quality.get("ambiguous_blank_school_evidence", 0)],
+                  ["Blank school without evidence", hubspot_quality.get("blank_school_without_evidence", 0)],
                   ["Unassigned to dashboard school", hubspot_quality.get("unassigned_to_dashboard_school", 0)],
                   ["Unrecognized school", hubspot_quality.get("other_school", 0)],
                   ["Missing create date excluded", hubspot_quality.get("missing_create_date", 0)],
+              ],
+          )}
+        </div>
+        <div>
+          <h3>Dialpad identity gaps</h3>
+          {_table(
+              ["Metric", "Rows"],
+              [
+                  ["Captured SMS rows without phone identity", dialpad_gaps.get("sms_no_phone_rows", 0)],
+                  ["Of those, school-attributed SMS rows", dialpad_gaps.get("sms_no_phone_school_attributed_rows", 0)],
+                  ["Voice rows without school", dialpad_gaps.get("voice_unmapped_school_rows", 0)],
+                  ["Voice rows with unmapped entry point", dialpad_gaps.get("voice_unmapped_known_entry_point_rows", 0)],
+                  ["Voice rows missing entry point", dialpad_gaps.get("voice_unmapped_missing_entry_point_rows", 0)],
+                  ["Voice rows with no safe school evidence", dialpad_gaps.get("voice_unmapped_no_safe_evidence_rows", 0)],
               ],
           )}
         </div>
@@ -685,6 +1177,48 @@ def _funnel_rows(funnel: dict) -> list[list]:
 def _bucket_rows(response: dict) -> list[list]:
     buckets = response.get("buckets", {})
     return [[bucket, buckets.get(bucket, 0)] for bucket in RESPONSE_BUCKETS]
+
+
+def _coverage_rows(response: dict) -> list[list]:
+    coverage = response.get("coverage", {})
+    lead_count = response.get("lead_count", 0)
+    return [
+        ["Recent customer leads", lead_count],
+        ["HubSpot contact rows", response.get("contact_rows", lead_count)],
+        [
+            "Leads with phone/email identity",
+            f"{coverage.get('identity_key_leads', 0)} ({coverage.get('identity_key_rate', 0):.1f}%)",
+        ],
+        [
+            "Any matched communication",
+            f"{coverage.get('any_matched_communication', 0)} ({coverage.get('any_matched_communication_rate', 0):.1f}%)",
+        ],
+        [
+            "Same-school matched communication",
+            (
+                f"{coverage.get('same_school_matched_communication', 0)} "
+                f"({coverage.get('same_school_matched_communication_rate', 0):.1f}%)"
+            ),
+        ],
+        [
+            "Cross-school/source matched communication",
+            (
+                f"{coverage.get('cross_school_matched_communication', 0)} "
+                f"({coverage.get('cross_school_matched_communication_rate', 0):.1f}%)"
+            ),
+        ],
+        [
+            "Pre-lead inbound origin",
+            f"{coverage.get('pre_lead_inbound_origin', 0)} ({coverage.get('pre_lead_inbound_origin_rate', 0):.1f}%)",
+        ],
+        [
+            "Post-lead outbound follow-up",
+            f"{coverage.get('post_lead_outbound_followup', 0)} ({coverage.get('post_lead_outbound_followup_rate', 0):.1f}%)",
+        ],
+        ["Matched SMS leads", coverage.get("sms_matched", 0)],
+        ["Matched call leads", coverage.get("call_matched", 0)],
+        ["Matched email leads", coverage.get("email_matched", 0)],
+    ]
 
 
 def render_operations_dashboard_html(report: dict) -> str:
@@ -822,6 +1356,7 @@ def render_operations_dashboard_html(report: dict) -> str:
             if not _metric_ready(item, "response")
             else _table(["Bucket", "Leads"], _bucket_rows(response))
         )
+        coverage_table = _table(["Metric", "Value"], _coverage_rows(response))
         lead_created_table = (
             _blocked_table("Lead Created Distribution", _metric_blockers(item, "response"))
             if not _metric_ready(item, "response")
@@ -867,6 +1402,10 @@ def render_operations_dashboard_html(report: dict) -> str:
                 <section>
                   <h3>Lead To First Response</h3>
                   {response_table}
+                </section>
+                <section>
+                  <h3>Lead Communication Coverage</h3>
+                  {coverage_table}
                 </section>
                 <section>
                   <h3>Lead Created Distribution</h3>

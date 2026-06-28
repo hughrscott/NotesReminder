@@ -672,20 +672,29 @@ Done/Test:
 
 Mode: `Migration`
 
-Goal: make normal operation reliable without relying on memory.
+Goal: make normal operation reliable without relying on memory, while treating
+Okta/MFA approval as an explicit human step.
 
 Work:
 - Schedule daily notes and data intake.
 - Schedule weekly and monthly dashboard generation.
-- Keep MFA-bound systems on manual-auth profiles where necessary.
-- Current scheduling decision: use local `launchd`/cron first with the existing Pike13 browser profile/MFA path; keep GitHub Actions for tests and non-authenticated jobs, and revisit GitHub Actions production runs only if Pike13 auth becomes reliably non-interactive.
-- Add failure alerts or delay notices.
+- Keep MFA-bound systems on persistent local Playwright profiles.
+- Add an auth-steward loop: headless preflight probes, notification to Hugh when
+  Okta renewal is required, headed profile renewal, post-approval re-probe, and
+  production blocking if auth is not green.
+- Current scheduling decision: use local `launchd`/cron first with the existing
+  persistent browser profile/MFA path; keep GitHub Actions for tests and
+  non-authenticated jobs, and revisit GitHub Actions production runs only if
+  Pike13 auth becomes reliably non-interactive.
+- Add failure alerts, auth-renewal notices, and delay notices.
 - Keep logs and run metadata.
 
 Required tests:
 - Dry-run scheduled commands.
 - Run metadata checks.
 - Failure simulation for expired auth.
+- Auth-renewal simulation proving production tasks do not run until the
+  post-renewal probe is authenticated.
 - Verify no DBs, profiles, reports, raw data, or recordings are committed.
 
 Backup requirement:
@@ -697,16 +706,20 @@ Rollback path:
 - Restore DB backup if schedule run corrupts data.
 
 Promotion rule:
-- Automated cadence becomes production only after repeated dry-run/supervised success.
+- Attended-auth cadence becomes production only after repeated dry-run and
+  supervised success. Production jobs may run automatically only when auth
+  preflight is green; otherwise they must notify Hugh and stop before staff
+  email or S3 upload.
 
 Approval:
-- Hugh approval required before enabling unattended production runs.
+- Hugh approval required before enabling scheduled production runs. Okta Verify
+  approval remains an expected human action, not a bypassed requirement.
 
 Done/Test:
 - Dry-run scheduled commands succeed.
 - Run metadata records start time, end time, status, source counts, and failures.
 - Expired-auth simulation produces a visible actionable failure.
-- Manual intervention is limited to MFA/session renewal and exceptions.
+- Manual intervention is limited to Okta/MFA session renewal and exceptions.
 
 ## Phase 17: Raw Capture And Replay
 

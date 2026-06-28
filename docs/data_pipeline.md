@@ -7,10 +7,20 @@ This project keeps the production lesson-note database (`reminders.db`) synced t
 
 `reminders.db` is the production source of truth. Notes emails and lead-intelligence work are separate operational workflows, but both now read and write approved additive tables in the main local database.
 
-- Production notes pipeline: GitHub Actions runs `run_daily.py`, downloads the S3 DB, scrapes Pike13 lesson notes, scores notes, sends the daily/weekly lesson-note emails, and uploads the DB back to S3.
+- Production notes pipeline: the current production path is local attended-auth
+  automation. `run_daily.py` downloads the S3 DB, scrapes Pike13 lesson notes,
+  scores notes, sends the daily/weekly lesson-note emails, and uploads the DB
+  back to S3. GitHub Actions remains useful for manual tests and future
+  non-authenticated jobs, but scheduled production notes are local while Okta
+  MFA requires a user-approved browser session.
 - Lead intelligence pipeline: local/manual authenticated browser refresh writes additive HubSpot, Dialpad, and Pike13 lead tables into `reminders.db`, then validates them with the source completeness report.
 - Lead refresh work must not change the current daily/weekly email content until there is a separate plan and acceptance gate for adding lead insights to those summaries.
 - Lead tables are additive. They must not change the meaning of the existing `reminders` table or note-score columns used by `run_daily.py`.
+- Auth architecture: source refreshes use persistent Playwright profiles under
+  `browser_profiles/`. Scheduled jobs should run a headless auth preflight
+  first; if Okta or a source login page appears, the job must stop, notify Hugh
+  to approve the expected Okta Verify push, refresh the same profile in headed
+  mode, then re-run the preflight before any production DB upload or staff email.
 
 ## Folder layout (default)
 - `Call Log/` : Dialpad CSV exports (`Call_Logs*.csv`, `Voicemails*.csv`, etc.)
@@ -81,6 +91,17 @@ scripts/run_notes_local_mfa.sh --date YYYY-MM-DD
 ```
 
 The wrapper creates local and S3 backups, runs West U and The Heights with the normal recipients, sends the usual summary emails, and uploads the updated DB to S3. It uses `browser_profiles/pike13` by default. The GitHub Actions job still uses the non-interactive path and cannot satisfy a fresh MFA prompt by itself.
+
+The production automation target is not MFA bypass. It is an auth-steward
+workflow:
+
+1. Probe the required persistent profiles before scheduled work.
+2. If auth is still valid, run the normal headless/local jobs.
+3. If auth expired, notify Hugh to approve the expected Okta Verify push.
+4. Refresh the profile in a headed browser and re-probe.
+5. Proceed only after the probe confirms authentication.
+
+The canonical protocol lives in `docs/operational_runbook.md`.
 
 For local-only validation against a staging or promotion-candidate DB, run
 `run_daily.py` with an explicit DB path and skip S3 sync:

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from lead_followup_schema import ensure_lead_followup_schema, utc_now_iso
-from scripts.extract_dialpad_call_reviews import parse_call_review_text, upsert_call_review
+from scripts.extract_dialpad_call_reviews import call_review_targets, parse_call_review_text, upsert_call_review
 from source_completeness import build_source_completeness_report
 
 
@@ -126,6 +126,7 @@ class DialpadCallReviewTests(unittest.TestCase):
 
         turns = json.loads(parsed["speaker_turns_json"])
         self.assertEqual(parsed["call_review_id"], "5646748416811008")
+        self.assertEqual(json.loads(parsed["raw_json"])["visible_school_labels"], ["West U"])
         self.assertEqual(len(turns), 3)
         self.assertEqual(turns[0]["speaker"], "Calvin Barnhill")
         self.assertEqual(turns[1]["speaker"], "Kate Hall")
@@ -203,6 +204,75 @@ class DialpadCallReviewTests(unittest.TestCase):
         self.assertEqual(dialpad["call_review_transcript_rows"], 1)
         self.assertEqual(dialpad["call_review_recap_rows"], 1)
         self.assertEqual(dialpad["call_review_action_item_rows"], 1)
+
+    def test_call_review_targets_can_focus_missing_school_and_review_rows(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.executemany(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, call_id, source_view, event_type, event_at, school,
+                source_url, raw_json, updated_at
+            )
+            VALUES (?, ?, 'conversation_history', 'call', ?, ?, ?, '{}', ?)
+            """,
+            [
+                (
+                    "voice-missing-review",
+                    "call-missing-review",
+                    "2026-06-20",
+                    "",
+                    "https://dialpad.com/callhistory/callreview/call-missing-review",
+                    now,
+                ),
+                (
+                    "voice-reviewed",
+                    "call-reviewed",
+                    "2026-06-21",
+                    "",
+                    "https://dialpad.com/callhistory/callreview/call-reviewed",
+                    now,
+                ),
+                (
+                    "voice-school-known",
+                    "call-school-known",
+                    "2026-06-22",
+                    "West U",
+                    "https://dialpad.com/callhistory/callreview/call-school-known",
+                    now,
+                ),
+            ],
+        )
+        upsert_call_review(
+            conn,
+            {
+                "call_review_id": "call-reviewed",
+                "call_id": "call-reviewed",
+                "voice_event_id": "voice-reviewed",
+                "call_review_url": "https://dialpad.com/callhistory/callreview/call-reviewed",
+                "event_at": "2026-06-21",
+                "transcript_text": "Reviewed.",
+                "recap_text": None,
+                "action_items_json": "[]",
+                "speaker_turns_json": "[]",
+                "transcript_available": 1,
+                "recap_available": 0,
+                "action_items_available": 0,
+                "audio_available": 0,
+                "extraction_status": "success",
+                "raw_json": "{}",
+                "updated_at": now,
+            },
+        )
+
+        targets = call_review_targets(
+            conn,
+            10,
+            missing_school_only=True,
+            missing_review_only=True,
+        )
+
+        self.assertEqual([row["voice_event_id"] for row in targets], ["voice-missing-review"])
 
     def test_call_review_upsert_clears_stale_recap_when_source_has_none(self):
         conn = self.open_db()

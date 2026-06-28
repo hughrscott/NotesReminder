@@ -62,6 +62,36 @@ class DateWindowLeadLoadTests(unittest.TestCase):
         self.assertEqual(steps[0][1].count("--mailbox"), 1)
         self.assertIn("westu@schoolofrock.com", steps[0][1])
 
+    def test_date_window_runner_refreshes_both_dialpad_sms_departments_by_default(self):
+        args = Namespace(
+            db="reminders.db",
+            skip_hubspot=True,
+            skip_pike13=True,
+            skip_dialpad=False,
+            skip_email=True,
+            skip_call_reviews=True,
+            dialpad_profile_dir="browser_profiles/dialpad",
+            start_date="2026-01-01",
+            dialpad_school=None,
+            dialpad_daily_limit=25,
+            dialpad_voice_limit=25,
+            dialpad_sms_limit=25,
+            headless=True,
+        )
+        steps = build_source_steps(args)
+        step_names = [name for name, _ in steps]
+
+        self.assertIn("dialpad_daily_intake_West U", step_names)
+        self.assertIn("dialpad_daily_intake_The Heights", step_names)
+        self.assertIn("dialpad_sms_West U", step_names)
+        self.assertIn("dialpad_sms_The Heights", step_names)
+
+        sms_commands = {name: command for name, command in steps if name.startswith("dialpad_sms_")}
+        self.assertIn("--enrich-row-details", sms_commands["dialpad_sms_West U"])
+        self.assertIn("--enrich-row-details", sms_commands["dialpad_sms_The Heights"])
+        self.assertIn("West U", sms_commands["dialpad_sms_West U"])
+        self.assertIn("The Heights", sms_commands["dialpad_sms_The Heights"])
+
     def test_date_window_report_is_sanitized_and_counts_sources(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp) / "lead_intelligence_working.db"

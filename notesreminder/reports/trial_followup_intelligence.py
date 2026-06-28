@@ -29,9 +29,8 @@ def hours_between(start, end):
     return round((end - start).total_seconds() / 3600, 2)
 
 
-def fetch_trials(conn, start_date, end_date, school="West U"):
-    return conn.execute(
-        """
+def fetch_trials(conn, start_date, end_date, school="West U", limit=None):
+    sql = """
         SELECT
             v.visit_id,
             v.person_id,
@@ -54,9 +53,12 @@ def fetch_trials(conn, start_date, end_date, school="West U"):
             OR LOWER(COALESCE(v.service, '')) LIKE '%trial%'
           )
         ORDER BY v.starts_at, v.visit_id
-        """,
-        {"start": start_date, "end": end_date, "school": school},
-    ).fetchall()
+        """
+    params = {"start": start_date, "end": end_date, "school": school}
+    if limit is not None:
+        sql += " LIMIT :limit"
+        params["limit"] = int(limit)
+    return conn.execute(sql, params).fetchall()
 
 
 def clean_name(value):
@@ -294,10 +296,10 @@ def summarize_trial(row, comms, emails=None, phones=None, search_names=None):
     }
 
 
-def build_trial_followup_report(conn, start_date, end_date, school="West U"):
+def build_trial_followup_report(conn, start_date, end_date, school="West U", limit=None):
     conn.row_factory = sqlite3.Row
     rows = []
-    for trial in fetch_trials(conn, start_date, end_date, school):
+    for trial in fetch_trials(conn, start_date, end_date, school, limit=limit):
         emails, phones, _, search_names = identity_keys_for_trial(conn, trial)
         comms = communication_rows(conn, emails, phones, search_names)
         rows.append(summarize_trial(trial, comms, emails, phones, search_names))

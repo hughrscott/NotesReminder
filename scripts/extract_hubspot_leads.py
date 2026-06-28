@@ -826,6 +826,48 @@ def text_before_contact_associations(text):
     return text[:end]
 
 
+def parent_guardian_identity(text):
+    lines = visible_lines(text)
+    start = next((index for index, line in enumerate(lines) if line.lower().startswith("parent/guardian")), None)
+    if start is None:
+        return {}
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        line_l = lines[index].lower()
+        if (
+            line_l.startswith("integrations")
+            or line_l.startswith("deals (")
+            or line_l.startswith("schools (")
+            or line_l == "view all associated deals"
+            or line_l == "view all associated schools"
+        ):
+            end = index
+            break
+    section = "\n".join(lines[start:end])
+    accepted_email = None
+    for email in EMAIL_RE.findall(section):
+        normalized = normalize_email(email)
+        if normalized and not is_internal_email(normalized):
+            accepted_email = normalized
+            break
+    phone_match = PHONE_RE.search(section)
+    phone_raw = phone_match.group(0) if phone_match else None
+    return {
+        "email": accepted_email,
+        "phone": phone_raw,
+        "phone_normalized": normalize_phone(phone_raw),
+    }
+
+
+def contact_detail_header_school(text):
+    for line in visible_lines(text)[:20]:
+        if "school of rock" in line.lower():
+            school = first_school_value(line)
+            if school:
+                return school
+    return None
+
+
 def contact_created_source(text):
     match = re.search(r"This contact was created from\s+(.+?)\s+from", text, re.IGNORECASE)
     if match:
@@ -901,6 +943,7 @@ def parse_contact_detail_text(contact_id, url, text, report_row=None):
     accepted_email = next((email for email in emails if email and not is_internal_email(email)), None)
     phone_match = PHONE_RE.search(primary_text)
     phone_raw = phone_match.group(0) if phone_match else None
+    guardian_identity = parent_guardian_identity(text)
     pike13_match = PIKE13_PERSON_RE.search(url + "\n" + text)
     full_name = (
         sanitized_value(report_row.get("full_name"))
@@ -917,16 +960,22 @@ def parse_contact_detail_text(contact_id, url, text, report_row=None):
         "full_name": full_name,
         "create_date": sanitized_date(text_after("Create Date", text) or text_after("Create date", text))
         or report_row.get("create_date"),
-        "email": accepted_email or report_row.get("email"),
-        "email_normalized": normalize_email(accepted_email or report_row.get("email_normalized") or report_row.get("email")),
-        "phone": phone_raw,
-        "phone_normalized": normalize_phone(phone_raw),
+        "email": accepted_email or guardian_identity.get("email") or report_row.get("email"),
+        "email_normalized": normalize_email(
+            accepted_email
+            or guardian_identity.get("email")
+            or report_row.get("email_normalized")
+            or report_row.get("email")
+        ),
+        "phone": phone_raw or guardian_identity.get("phone"),
+        "phone_normalized": normalize_phone(phone_raw) or guardian_identity.get("phone_normalized"),
         "sms_opt_in": sanitized_yes_no(text_after("SMS Opt In", text) or text_after("SMS opt-in", text)),
         "owner": sanitized_value(text_after("Contact owner", text) or text_after("Owner", text)),
         "school": first_school_value(
             text_after("School", text),
             text_after("School Name", text),
             text_after("School Lead Status", text),
+            contact_detail_header_school(text),
             report_row.get("school"),
             school_from_deal_name(primary_deal.get("deal_name")),
         ),
@@ -957,6 +1006,9 @@ def parse_contact_detail_text(contact_id, url, text, report_row=None):
             "pike13_loaded_flag": row["pike13_loaded_flag"],
             "pike13_match_method": row["pike13_match_method"],
             "associated_deals": deals,
+            "parent_guardian_identity_found": bool(
+                guardian_identity.get("email") or guardian_identity.get("phone_normalized")
+            ),
             "report_row": report_row,
         },
         sort_keys=True,

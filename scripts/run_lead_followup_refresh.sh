@@ -9,6 +9,7 @@ HUBSPOT_LIMIT="${HUBSPOT_LEAD_LIMIT:-100}"
 HUBSPOT_DETAIL_LIMIT="${HUBSPOT_DETAIL_LIMIT:-25}"
 DIALPAD_THREAD_LIMIT="${DIALPAD_SMS_THREAD_LIMIT:-100}"
 DIALPAD_VOICE_LIMIT="${DIALPAD_VOICE_LIMIT:-100}"
+DIALPAD_DEPARTMENTS="${DIALPAD_DEPARTMENTS:-WESTU HEIGHTS}"
 PIKE13_LIMIT="${PIKE13_LEAD_LIMIT:-100}"
 PIKE13_BASE_URL="${PIKE13_BASE_URL:-https://westu-sor.pike13.com}"
 PIKE13_SCHOOL="${PIKE13_SCHOOL:-West U}"
@@ -25,12 +26,16 @@ python3 scripts/extract_hubspot_leads.py \
   --start-date "$WINDOW_START" \
   $HEADLESS_FLAG
 
-python3 scripts/extract_dialpad_sms.py \
-  --db "$DB_PATH" \
-  --profile-dir browser_profiles/dialpad \
-  --thread-limit "$DIALPAD_THREAD_LIMIT" \
-  --start-date "$WINDOW_START" \
-  $HEADLESS_FLAG
+for DIALPAD_DEPARTMENT in $DIALPAD_DEPARTMENTS; do
+  python3 scripts/extract_dialpad_sms.py \
+    --db "$DB_PATH" \
+    --profile-dir browser_profiles/dialpad \
+    --department "$DIALPAD_DEPARTMENT" \
+    --thread-limit "$DIALPAD_THREAD_LIMIT" \
+    --start-date "$WINDOW_START" \
+    --enrich-row-details \
+    $HEADLESS_FLAG
+done
 
 python3 scripts/extract_dialpad_voice.py \
   --db "$DB_PATH" \

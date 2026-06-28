@@ -94,6 +94,12 @@ def table_exists(conn, name):
     )
 
 
+def column_exists(conn, table, column):
+    if not table_exists(conn, table):
+        return False
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})"))
+
+
 def latest(conn, sql, params=None):
     value = conn.execute(sql, params or {}).fetchone()[0]
     return value
@@ -102,7 +108,7 @@ def latest(conn, sql, params=None):
 def percent(part, whole):
     if not whole:
         return 0.0
-    return round((part / whole) * 100.0, 1)
+    return round((part / whole) * 100.0, 2)
 
 
 def status_for(required_rates, blockers=None, min_ready=80.0, min_partial=40.0):
@@ -186,16 +192,25 @@ def value_coverage(conn, table, field, values, where_sql="1=1", params=None):
     return {"filled": filled, "total": total, "fill_rate": percent(filled, total)}
 
 
-def json_value_counts(conn, table, json_field, json_path, where_sql="1=1", params=None):
+def json_value_counts(conn, table, json_field, json_path, where_sql="1=1", params=None, fallback_json_paths=None):
+    fallback_json_paths = list(fallback_json_paths or [])
+    json_expr = "COALESCE(" + ", ".join(
+        [f"json_extract({json_field}, :json_path)"]
+        + [f"json_extract({json_field}, :fallback_json_path_{i})" for i, _ in enumerate(fallback_json_paths)]
+        + ["'missing'"]
+    ) + ")"
+    query_params = dict(params or {}, json_path=json_path)
+    for i, fallback_json_path in enumerate(fallback_json_paths):
+        query_params[f"fallback_json_path_{i}"] = fallback_json_path
     rows = conn.execute(
         f"""
-        SELECT COALESCE(json_extract({json_field}, :json_path), 'missing') AS value, COUNT(*) AS rows
+        SELECT {json_expr} AS value, COUNT(*) AS rows
         FROM {table}
         WHERE {where_sql}
         GROUP BY value
         ORDER BY rows DESC, value
         """,
-        dict(params or {}, json_path=json_path),
+        query_params,
     ).fetchall()
     return {str(row[0]): row[1] for row in rows}
 
@@ -479,6 +494,154 @@ def import_run_summary(conn, source, now=None, stale_after_hours=STALE_RUNNING_R
     summary["status"] = "stale"
     summary["stale_running_run"] = stale_info
     return summary
+
+
+def school_email_section(conn, window_start):
+    latest_import_run = import_run_summary(conn, "school_email")
+    if not table_exists(conn, "school_email_messages"):
+        return {
+            "status": "blocked",
+            "rows": 0,
+            "recent_window_rows": 0,
+            "mailboxes": [],
+            "latest_import_run": latest_import_run,
+            "blockers": ["missing_school_email_messages_table"],
+        }
+
+    lead_email_matches = school_email_lead_match_rows(conn)
+    rows = count(conn, "SELECT COUNT(*) FROM school_email_messages")
+    recent_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM school_email_messages
+        WHERE date(message_at) >= date(:window_start)
+        """,
+        {"window_start": window_start},
+    )
+    no_external_email_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM school_email_messages
+        WHERE COALESCE(external_email_normalized, '') = ''
+        """,
+    )
+    mailbox_rows = [
+        dict(row)
+        for row in conn.execute(
+            """
+            SELECT
+                school_mailbox,
+                COALESCE(school, '') AS school,
+                COUNT(*) AS rows,
+                SUM(CASE WHEN date(message_at) >= date(:window_start) THEN 1 ELSE 0 END) AS recent_window_rows,
+                SUM(CASE WHEN COALESCE(external_email_normalized, '') = '' THEN 1 ELSE 0 END) AS no_external_email_rows,
+                MIN(message_at) AS earliest_message_at,
+                MAX(message_at) AS latest_message_at
+            FROM school_email_messages
+            GROUP BY school_mailbox, COALESCE(school, '')
+            ORDER BY school_mailbox, school
+            """,
+            {"window_start": window_start},
+        ).fetchall()
+    ]
+
+    blockers = []
+    latest_status = (latest_import_run or {}).get("status")
+    latest_error = (latest_import_run or {}).get("error") or ""
+    if latest_status == "error":
+        if "not authenticated" in latest_error.lower() or "accounts.google.com" in latest_error.lower():
+            blockers.append("gmail_auth_required")
+        else:
+            blockers.append("latest_school_email_import_error")
+    if rows == 0:
+        blockers.append("no_school_email_rows")
+    if any((row.get("rows") or 0) == 0 for row in mailbox_rows):
+        blockers.append("school_email_mailbox_without_rows")
+    for row in lead_email_matches:
+        if row["lead_email_rows"] and row["matched_lead_emails"] == 0:
+            blockers.append(
+                "school_email_no_matched_lead_emails_"
+                + re.sub(r"[^a-z0-9]+", "_", row["school"].lower()).strip("_")
+            )
+
+    status = "ready"
+    if blockers:
+        status = (
+            "blocked"
+            if "gmail_auth_required" in blockers
+            or rows == 0
+            or any(blocker.startswith("school_email_no_matched_lead_emails") for blocker in blockers)
+            else "partial"
+        )
+
+    return {
+        "status": status,
+        "rows": rows,
+        "recent_window_rows": recent_rows,
+        "no_external_email_rows": no_external_email_rows,
+        "external_email_fill_rate": percent(rows - no_external_email_rows, rows),
+        "lead_email_matches": lead_email_matches,
+        "mailboxes": mailbox_rows,
+        "latest_import_run": latest_import_run,
+        "blockers": blockers,
+    }
+
+
+def school_email_lead_match_rows(conn):
+    if not table_exists(conn, "hubspot_contacts") or not table_exists(conn, "vw_school_email_communications"):
+        return []
+    if not column_exists(conn, "hubspot_contacts", "email_normalized"):
+        return []
+    create_date_expr = (
+        "date(substr(create_date, 1, 10))"
+        if column_exists(conn, "hubspot_contacts", "create_date")
+        else "date(substr(updated_at, 1, 10))"
+    )
+    rows = []
+    for school, aliases in (
+        ("West U", ("west university place", "west u", "westu")),
+        ("The Heights", ("the heights", "heights")),
+    ):
+        alias_predicate = " OR ".join("lower(coalesce(school, '')) LIKE ?" for _ in aliases)
+        alias_params = [f"%{alias}%" for alias in aliases]
+        row = conn.execute(
+            f"""
+            WITH lead_emails AS (
+                SELECT DISTINCT lower(email_normalized) AS email
+                FROM hubspot_contacts
+                WHERE coalesce(email_normalized, '') != ''
+                  AND {create_date_expr} BETWEEN date('now', 'start of year') AND date('now')
+                  AND ({alias_predicate})
+            ),
+            email_comms AS (
+                SELECT DISTINCT lower(external_email_normalized) AS email
+                FROM vw_school_email_communications e
+                WHERE coalesce(external_email_normalized, '') != ''
+                  AND date(substr(event_at, 1, 10)) BETWEEN date('now', 'start of year') AND date('now')
+                  AND ({alias_predicate.replace('school', 'e.school')})
+            )
+            SELECT
+                (SELECT COUNT(*) FROM lead_emails) AS lead_email_rows,
+                (SELECT COUNT(*) FROM email_comms) AS communication_external_emails,
+                (
+                    SELECT COUNT(DISTINCT le.email)
+                    FROM lead_emails le
+                    JOIN email_comms ec ON ec.email = le.email
+                ) AS matched_lead_emails
+            """,
+            [*alias_params, *alias_params],
+        ).fetchone()
+        rows.append(
+            {
+                "school": school,
+                "lead_email_rows": row["lead_email_rows"] or 0,
+                "communication_external_emails": row["communication_external_emails"] or 0,
+                "matched_lead_emails": row["matched_lead_emails"] or 0,
+            }
+        )
+    return rows
 
 
 def dialpad_target_search_summary(conn):
@@ -820,6 +983,7 @@ def hubspot_section(conn, window_start):
 
 
 def dialpad_section(conn, window_start):
+    ytd_start = utc_now().date().replace(month=1, day=1).isoformat()
     sms_total, sms_coverage = field_coverage(
         conn,
         "dialpad_sms_messages",
@@ -869,6 +1033,7 @@ def dialpad_section(conn, window_start):
         "dialpad_sms_messages",
         "raw_json",
         "$.extraction_source",
+        fallback_json_paths=["$.extraction"],
     )
     sms_direction_sources = json_value_counts(
         conn,
@@ -913,6 +1078,187 @@ def dialpad_section(conn, window_start):
           AND (COALESCE(department, '') != '' OR COALESCE(school, '') != '')
         """,
     )
+    sms_ytd_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_sms_messages m
+        LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+        WHERE date(m.message_at) BETWEEN date(:start) AND date('now')
+        """,
+        {"start": ytd_start},
+    )
+    sms_ytd_no_phone_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_sms_messages m
+        LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+        WHERE date(m.message_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(t.phone_normalized, '') = ''
+        """,
+        {"start": ytd_start},
+    )
+    sms_ytd_no_phone_school_attributed_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_sms_messages m
+        LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+        WHERE date(m.message_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(t.phone_normalized, '') = ''
+          AND COALESCE(t.school, t.department, '') != ''
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_rows = count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+        """,
+        {"start": ytd_start},
+    )
+    voice_not_excluded_sql = (
+        "COALESCE(json_extract(raw_json, '$.excluded_from_communication_view'), 0) != 1"
+        if column_exists(conn, "dialpad_voice_events", "raw_json")
+        else "1=1"
+    )
+    voice_ytd_no_phone_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(phone_normalized, '') = ''
+          AND {voice_not_excluded_sql}
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_unmapped_school_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(school, '') = ''
+          AND {voice_not_excluded_sql}
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_unmapped_school_no_phone_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(school, '') = ''
+          AND COALESCE(phone_normalized, '') = ''
+          AND {voice_not_excluded_sql}
+        """,
+        {"start": ytd_start},
+    )
+    entry_point_expr = (
+        "COALESCE(json_extract(raw_json, '$.display_entry_point'), '')"
+        if column_exists(conn, "dialpad_voice_events", "raw_json")
+        else "''"
+    )
+    voice_ytd_unmapped_known_entry_point_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(school, '') = ''
+          AND {entry_point_expr} != ''
+          AND {voice_not_excluded_sql}
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_unmapped_missing_entry_point_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE date(event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(school, '') = ''
+          AND {entry_point_expr} = ''
+          AND {voice_not_excluded_sql}
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_unmapped_entry_point_groups = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM (
+            SELECT {entry_point_expr} AS entry_point
+            FROM dialpad_voice_events
+            WHERE date(event_at) BETWEEN date(:start) AND date('now')
+              AND COALESCE(school, '') = ''
+              AND {entry_point_expr} != ''
+              AND {voice_not_excluded_sql}
+            GROUP BY {entry_point_expr}
+        )
+        """,
+        {"start": ytd_start},
+    )
+    voice_ytd_unmapped_no_safe_evidence_rows = count(
+        conn,
+        f"""
+        SELECT COUNT(*)
+        FROM dialpad_voice_events v
+        WHERE date(v.event_at) BETWEEN date(:start) AND date('now')
+          AND COALESCE(v.school, '') = ''
+          AND {entry_point_expr.replace("raw_json", "v.raw_json")} = ''
+          AND {voice_not_excluded_sql.replace("raw_json", "v.raw_json")}
+          AND NOT (
+              COALESCE(json_extract(v.raw_json, '$.requested_school'), '') != ''
+              AND COALESCE(json_extract(v.raw_json, '$.school_filter_applied'), 0) = 1
+              AND COALESCE(json_extract(v.raw_json, '$.scope_school_mismatch'), 0) != 1
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM hubspot_contacts h
+              WHERE h.phone_normalized = v.phone_normalized
+                AND COALESCE(h.school, '') != ''
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM pike13_people p
+              WHERE p.phone_normalized = v.phone_normalized
+                AND COALESCE(p.school, '') != ''
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM dialpad_sms_threads t
+              WHERE t.phone_normalized = v.phone_normalized
+                AND COALESCE(t.school, '') != ''
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM dialpad_voice_events known
+              WHERE known.phone_normalized = v.phone_normalized
+                AND COALESCE(known.school, '') != ''
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM dialpad_call_reviews cr
+              WHERE (cr.voice_event_id = v.event_id OR cr.call_id = v.call_id OR cr.call_review_id = v.call_id)
+                AND json_array_length(COALESCE(json_extract(cr.raw_json, '$.visible_school_labels'), '[]')) = 1
+          )
+        """,
+        {"start": ytd_start},
+    )
+    residual_flags = []
+    if sms_ytd_no_phone_rows:
+        residual_flags.append(f"dialpad_sms_ytd_no_phone_rows_{sms_ytd_no_phone_rows}")
+    if voice_ytd_unmapped_school_rows:
+        residual_flags.append(f"dialpad_voice_ytd_unmapped_school_rows_{voice_ytd_unmapped_school_rows}")
+    if voice_ytd_unmapped_known_entry_point_rows:
+        residual_flags.append(
+            f"dialpad_voice_ytd_unmapped_entry_point_rows_{voice_ytd_unmapped_known_entry_point_rows}"
+        )
+    if voice_ytd_unmapped_missing_entry_point_rows:
+        residual_flags.append(
+            f"dialpad_voice_ytd_missing_entry_point_rows_{voice_ytd_unmapped_missing_entry_point_rows}"
+        )
     transcript_rows = count(
         conn,
         """
@@ -1146,6 +1492,23 @@ def dialpad_section(conn, window_start):
         "voice_transcript_status": voice_transcript_status,
         "sms_department_or_school_rows": sms_department_rows,
         "voice_department_or_school_rows": voice_department_rows,
+        "communication_identity_gaps": {
+            "ytd_start": ytd_start,
+            "sms_ytd_rows": sms_ytd_rows,
+            "sms_ytd_no_phone_rows": sms_ytd_no_phone_rows,
+            "sms_ytd_no_phone_school_attributed_rows": sms_ytd_no_phone_school_attributed_rows,
+            "sms_ytd_phone_rate": percent(sms_ytd_rows - sms_ytd_no_phone_rows, sms_ytd_rows),
+            "voice_ytd_rows": voice_ytd_rows,
+            "voice_ytd_no_phone_rows": voice_ytd_no_phone_rows,
+            "voice_ytd_phone_rate": percent(voice_ytd_rows - voice_ytd_no_phone_rows, voice_ytd_rows),
+            "voice_ytd_unmapped_school_rows": voice_ytd_unmapped_school_rows,
+            "voice_ytd_unmapped_school_no_phone_rows": voice_ytd_unmapped_school_no_phone_rows,
+            "voice_ytd_unmapped_known_entry_point_rows": voice_ytd_unmapped_known_entry_point_rows,
+            "voice_ytd_unmapped_missing_entry_point_rows": voice_ytd_unmapped_missing_entry_point_rows,
+            "voice_ytd_unmapped_entry_point_groups": voice_ytd_unmapped_entry_point_groups,
+            "voice_ytd_unmapped_no_safe_evidence_rows": voice_ytd_unmapped_no_safe_evidence_rows,
+        },
+        "data_quality_flags": residual_flags,
         "latest_timestamp": latest(
             conn,
             "SELECT MAX(event_at) FROM vw_dialpad_communications WHERE date(event_at) IS NOT NULL",
@@ -1524,6 +1887,7 @@ def build_source_completeness_report(conn, window_days=DEFAULT_WINDOW_DAYS, pike
         "sources": {
             "hubspot": hubspot_section(conn, window_start),
             "dialpad": dialpad_section(conn, window_start),
+            "school_email": school_email_section(conn, window_start),
             "pike13": pike13_section(conn, window_start, lookahead_end),
         },
         "matching": matching_section(conn),

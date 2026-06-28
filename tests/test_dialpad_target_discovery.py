@@ -18,6 +18,7 @@ from scripts.discover_dialpad_targets import (
     route_probe_row,
     sanitize_dialpad_url,
     select_target_candidates,
+    selected_school_scopes_match,
     school_scope_matches,
     target_hash,
     target_search_summary,
@@ -194,6 +195,59 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(targets[0]["school"], "The Heights")
         self.assertEqual(targets[0]["target_hash"], target_hash("8325550101"))
 
+    def test_hubspot_no_dialpad_match_target_source_filters_existing_phone_matches(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        for contact_id, phone in (
+            ("contact-missing", "8325550101"),
+            ("contact-missing-duplicate-phone", "8325550101"),
+            ("contact-present", "8325550102"),
+        ):
+            conn.execute(
+                """
+                INSERT INTO hubspot_contacts (
+                    contact_id, full_name, create_date, phone, phone_normalized,
+                    school, associated_deal_ids, raw_json, updated_at
+                )
+                VALUES (?, 'Sensitive Lead', '2026-06-01', ?, ?,
+                        'The Heights', ?, '{"trusted": 1}', ?)
+                """,
+                (contact_id, phone, phone, f"deal-{contact_id}", now),
+            )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, phone, phone_normalized, contact_name, school, updated_at
+            )
+            VALUES ('thread-present', '8325550102', '8325550102', 'Sensitive Lead',
+                    'The Heights', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, updated_at
+            )
+            VALUES ('message-present', 'thread-present', '2026-06-01T10:00:00',
+                    'outbound', 'Private body', ?)
+            """,
+            (now,),
+        )
+
+        targets = select_target_candidates(
+            conn,
+            school="The Heights",
+            candidate_source="hubspot-no-dialpad-match",
+            start_date="2026-01-01",
+            end_date="2026-06-30",
+            limit=25,
+        )
+
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0]["contact_id"], "contact-missing")
+        self.assertEqual(targets[0]["target_hash"], target_hash("8325550101"))
+
     def test_hubspot_contact_target_source_requires_explicit_window(self):
         conn = self.open_db()
 
@@ -265,6 +319,10 @@ class DialpadTargetDiscoveryTests(unittest.TestCase):
         self.assertEqual(expected_conversation_history_scope("West University Place"), "West U")
         self.assertTrue(school_scope_matches("The Heights", "The Heights"))
         self.assertFalse(school_scope_matches("West U", "The Heights"))
+        self.assertTrue(selected_school_scopes_match(["The Heights"], "The Heights"))
+        self.assertFalse(selected_school_scopes_match(["West U"], "The Heights"))
+        self.assertFalse(selected_school_scopes_match(["The Heights", "West U"], "The Heights"))
+        self.assertFalse(selected_school_scopes_match(["1 Office"], "The Heights"))
 
     def test_voice_rows_filter_to_lead_creation_date(self):
         rows = [

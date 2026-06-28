@@ -30,6 +30,7 @@ from notesreminder.extractors.dialpad_targets import (  # noqa: E402
     filter_voice_rows_to_target_window,
     school_scope_matches,
     select_hubspot_contact_targets,
+    select_hubspot_no_dialpad_match_targets,
     target_hash,
     target_window_start_date,
     voice_rows_relative_to_lead_date,
@@ -62,6 +63,7 @@ DEFAULT_ROUTE_MAP_OUTPUT = "outputs/progress/dialpad_route_map.md"
 OUTCOMES = {
     "found_sms",
     "found_call",
+    "found_unscoped_call",
     "found_voicemail",
     "found_call_review",
     "not_found_after_route_search",
@@ -255,6 +257,10 @@ def select_target_candidates(
         if not start_date or not end_date:
             raise ValueError("--start-date and --end-date are required for hubspot-contacts candidate source.")
         return select_hubspot_contact_targets(conn, school, start_date, end_date, limit)
+    if candidate_source == "hubspot-no-dialpad-match":
+        if not start_date or not end_date:
+            raise ValueError("--start-date and --end-date are required for hubspot-no-dialpad-match candidate source.")
+        return select_hubspot_no_dialpad_match_targets(conn, school, start_date, end_date, limit)
     candidates, window_start = fetch_candidate_leads(conn, school, window_days, limit)
     targets = []
     seen = set()
@@ -328,10 +334,13 @@ def try_apply_conversation_history_filters(page, school):
         "school_filter_attempted": False,
         "school_filter_applied": False,
         "active_school_scope": None,
+        "active_school_scopes": [],
         "expected_school_scope": expected_conversation_history_scope(school),
         "scope_switch_attempted": False,
         "scope_switch_clicked": False,
         "scope_switch_error": None,
+        "scope_filter_control": None,
+        "scope_filter_label": None,
         "date_filter_visible": False,
         "keyword_filter_visible": False,
     }
@@ -349,15 +358,109 @@ def try_apply_conversation_history_filters(page, school):
         switch_diagnostics = select_conversation_history_scope(page, diagnostics["expected_school_scope"])
         diagnostics.update(switch_diagnostics)
     try:
-        selector = page.locator("button[aria-label='Select menu search']")
-        if selector.count():
-            diagnostics["active_school_scope"] = selector.first.inner_text(timeout=2000).strip()
+        scope_state = read_conversation_history_scope_state(page)
+        for key, value in scope_state.items():
+            if value is None:
+                continue
+            if key in {"active_school_scope", "active_school_scopes"} and not value:
+                continue
+            diagnostics[key] = value
     except Exception:
-        diagnostics["active_school_scope"] = None
-    diagnostics["school_filter_applied"] = school_scope_matches(
-        diagnostics["active_school_scope"],
+        pass
+    active_scopes = diagnostics.get("active_school_scopes") or []
+    if not active_scopes and diagnostics.get("active_school_scope"):
+        active_scopes = [diagnostics["active_school_scope"]]
+    diagnostics["school_filter_applied"] = selected_school_scopes_match(
+        active_scopes,
         diagnostics["expected_school_scope"],
     )
+    return diagnostics
+
+
+CONVERSATION_HISTORY_SCOPE_FILTER_SELECTOR = (
+    "[role='button'][aria-label='Offices | Groups filter'], "
+    "[role='button'][aria-label$='Office filter'], "
+    "[role='button'][aria-label$='Offices filter'], "
+    "[role='button'][aria-label*='Office'][aria-label$=' filter'], "
+    "[role='button'][aria-label*='Offices'][aria-label$=' filter']"
+)
+
+
+def selected_school_scopes_match(active_scopes, expected_scope):
+    expected = (expected_scope or "").strip().lower()
+    if not expected:
+        return False
+    selected = {
+        str(scope or "").strip().lower()
+        for scope in active_scopes
+        if str(scope or "").strip()
+    }
+    school_scopes = {"the heights", "west u"}
+    selected_school_scopes = selected & school_scopes
+    return selected_school_scopes == {expected}
+
+
+def _conversation_history_scope_filter(page):
+    locator = page.locator(CONVERSATION_HISTORY_SCOPE_FILTER_SELECTOR)
+    if locator.count():
+        return locator.first
+    return None
+
+
+def _conversation_history_scope_menu_state(page):
+    return page.evaluate(
+        """
+        () => {
+          const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+          return Array.from(document.querySelectorAll('label')).map(label => {
+            const input = label.querySelector('input[type="checkbox"], input');
+            const text = clean(label.innerText || label.textContent || '');
+            return {text, checked: input ? Boolean(input.checked) : false};
+          }).filter(row => row.text === 'The Heights' || row.text === 'West U');
+        }
+        """
+    )
+
+
+def read_conversation_history_scope_state(page):
+    diagnostics = {
+        "scope_filter_control": "offices_groups_filter",
+        "scope_filter_label": None,
+        "active_school_scope": None,
+        "active_school_scopes": [],
+        "scope_switch_error": None,
+    }
+    if "/conversationhistory" not in (page.url or ""):
+        diagnostics["scope_switch_error"] = "conversation_history_navigation_lost"
+        return diagnostics
+    scope_filter = _conversation_history_scope_filter(page)
+    if scope_filter is None:
+        diagnostics["scope_switch_error"] = "office_group_filter_not_found"
+        return diagnostics
+    try:
+        diagnostics["scope_filter_label"] = scope_filter.inner_text(timeout=2000).strip()
+    except Exception:
+        diagnostics["scope_filter_label"] = None
+    try:
+        expanded = scope_filter.get_attribute("aria-expanded", timeout=1000)
+    except Exception:
+        expanded = None
+    opened_here = False
+    if expanded != "true":
+        scope_filter.click(timeout=5000)
+        page.wait_for_timeout(500)
+        opened_here = True
+    try:
+        state = _conversation_history_scope_menu_state(page)
+        selected = [row["text"] for row in state if row.get("checked")]
+        diagnostics["active_school_scopes"] = selected
+        diagnostics["active_school_scope"] = ", ".join(selected) if selected else None
+    finally:
+        if opened_here:
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
     return diagnostics
 
 
@@ -366,39 +469,67 @@ def select_conversation_history_scope(page, expected_scope):
         "scope_switch_attempted": False,
         "scope_switch_clicked": False,
         "scope_switch_error": None,
+        "scope_filter_control": "offices_groups_filter",
+        "scope_filter_label": None,
+        "active_school_scope": None,
+        "active_school_scopes": [],
     }
     if not expected_scope:
         return diagnostics
     diagnostics["scope_switch_attempted"] = True
     try:
-        selector = page.locator("button[aria-label='Select menu search']").first
-        if selector.count() == 0:
-            diagnostics["scope_switch_error"] = "scope_selector_not_found"
+        if "/conversationhistory" not in (page.url or ""):
+            diagnostics["scope_switch_error"] = "conversation_history_navigation_lost"
             return diagnostics
-        active_scope = selector.inner_text(timeout=2000).strip()
-        if school_scope_matches(active_scope, expected_scope):
+        scope_filter = _conversation_history_scope_filter(page)
+        if scope_filter is None:
+            diagnostics["scope_switch_error"] = "office_group_filter_not_found"
             return diagnostics
-        selector.click(timeout=5000)
+        diagnostics["scope_filter_label"] = scope_filter.inner_text(timeout=2000).strip()
+        scope_filter.click(timeout=5000)
         page.wait_for_timeout(500)
-        option = page.get_by_role("option", name=expected_scope, exact=True).first
-        if option.count() == 0:
-            option = page.locator("li[role='option']").filter(has_text=expected_scope).first
-        if option.count() == 0:
-            diagnostics["scope_switch_error"] = "scope_option_not_found"
+
+        state = _conversation_history_scope_menu_state(page)
+        selected = [row["text"] for row in state if row.get("checked")]
+        if selected_school_scopes_match(selected, expected_scope):
+            diagnostics["active_school_scopes"] = selected
+            diagnostics["active_school_scope"] = ", ".join(selected) if selected else None
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
             return diagnostics
-        option.click(timeout=5000)
-        diagnostics["scope_switch_clicked"] = True
+
+        school_scopes = ("The Heights", "West U")
+        for scope in school_scopes:
+            is_selected = scope in selected
+            should_select = scope == expected_scope
+            if is_selected == should_select:
+                continue
+            label = page.locator("label").filter(has_text=scope).first
+            if label.count() == 0:
+                diagnostics["scope_switch_error"] = f"scope_option_not_found:{scope}"
+                return diagnostics
+            label.click(timeout=5000)
+            diagnostics["scope_switch_clicked"] = True
+            page.wait_for_timeout(250)
+
+        apply_button = page.locator("button[data-qa='base-filter-dropdown-submit-button']").first
+        if apply_button.count() == 0:
+            apply_button = page.locator("button").filter(has_text="Apply").first
+        if apply_button.count() == 0:
+            diagnostics["scope_switch_error"] = "scope_apply_button_not_found"
+            return diagnostics
+        apply_button.click(timeout=5000)
+        wait_until_ready(page)
         page.wait_for_function(
-            """
-            expected => {
-              const button = document.querySelector("button[aria-label='Select menu search']");
-              return button && (button.innerText || button.textContent || '').trim() === expected;
-            }
-            """,
-            arg=expected_scope,
+            "() => location.pathname.includes('/conversationhistory') && new URLSearchParams(location.search).has('targets')",
             timeout=10000,
         )
-        wait_until_ready(page)
+        refreshed_state = read_conversation_history_scope_state(page)
+        diagnostics.update({key: value for key, value in refreshed_state.items() if value is not None})
+        if not selected_school_scopes_match(diagnostics.get("active_school_scopes") or [], expected_scope):
+            diagnostics["scope_switch_error"] = "scope_selection_not_verified"
     except Exception as exc:
         diagnostics["scope_switch_error"] = sanitize_error(exc)
     return diagnostics
@@ -772,6 +903,8 @@ def search_target(page, target, per_target_limit):
                 outcome = outcome_from_voice_rows(voice_rows, outcome)
             else:
                 voice_rows = []
+                if outcome in {"found_call", "found_voicemail", "found_call_review"}:
+                    outcome = "found_unscoped_call"
             sms_rows = targeted_sms_rows_from_text(text, page.url, target, per_target_limit)
             if sms_rows.get("messages") and not outcome.startswith("found_"):
                 outcome = "found_sms"
@@ -790,7 +923,7 @@ def search_target(page, target, per_target_limit):
                 }
             )
             if outcome.startswith("found_"):
-                if not voice_rows:
+                if path_name == "conversation_history" and not voice_rows:
                     text, links, voice_rows = parse_found_rows(page, outcome, target["target_value"], per_target_limit)
                 if not sms_rows.get("messages"):
                     sms_rows = targeted_sms_rows_from_text(text, page.url, target, per_target_limit)
@@ -1043,7 +1176,12 @@ def run_discovery(
                 conn.commit()
                 context.close()
                 return run_id
-            for target in targets:
+            for index, target in enumerate(targets, start=1):
+                print(
+                    f"Searching Dialpad target {index}/{len(targets)} "
+                    f"school={school} hash={target['target_hash']}",
+                    flush=True,
+                )
                 before = conn.total_changes
                 result, path_results = search_target(page, target, per_target_limit)
                 for voice_row in result.get("voice_rows") or []:
@@ -1109,6 +1247,7 @@ def target_search_summary(conn, run_id=None):
         "run_id": run_id,
         "targets_searched": len(rows),
         "targets_found": sum(outcomes[outcome] for outcome in ("found_sms", "found_call", "found_voicemail", "found_call_review")),
+        "targets_with_unscoped_call_evidence": outcomes["found_unscoped_call"],
         "targets_with_sms": sum(1 for row in rows if (row.get("found_sms_count") or 0) > 0),
         "targets_with_calls_or_call_reviews": outcomes["found_call"] + outcomes["found_voicemail"] + outcomes["found_call_review"],
         "targets_not_found": not_found_count,
@@ -1178,6 +1317,7 @@ def render_target_coverage_report(summary, school=DEFAULT_SCHOOL, window_days=7)
         f"- Targets found: {summary.get('targets_found', 0)}",
         f"- Targets with SMS evidence: {summary.get('targets_with_sms', 0)}",
         f"- Targets with call/call-review evidence: {summary.get('targets_with_calls_or_call_reviews', 0)}",
+        f"- Targets with unscoped call evidence: {summary.get('targets_with_unscoped_call_evidence', 0)}",
         f"- Targets not found: {summary.get('targets_not_found', 0)}",
         f"- Targets blocked/filter unsupported: {summary.get('targets_blocked_or_unsupported', 0)}",
         f"- Call-review links found during target search: {summary.get('found_call_review_rows', 0)}",
@@ -1282,7 +1422,11 @@ def main():
     parser.add_argument("--db", default="reminders.db")
     parser.add_argument("--school", default=DEFAULT_SCHOOL)
     parser.add_argument("--window-days", type=int, default=7)
-    parser.add_argument("--candidate-source", choices=("lead-attention", "hubspot-contacts"), default="lead-attention")
+    parser.add_argument(
+        "--candidate-source",
+        choices=("lead-attention", "hubspot-contacts", "hubspot-no-dialpad-match"),
+        default="lead-attention",
+    )
     parser.add_argument("--start-date", help="Start date for hubspot-contacts candidate source, YYYY-MM-DD.")
     parser.add_argument("--end-date", help="End date for hubspot-contacts candidate source, YYYY-MM-DD.")
     parser.add_argument("--profile-dir", default="browser_profiles/dialpad")

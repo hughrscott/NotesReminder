@@ -293,6 +293,85 @@ def max_dashboard_date(conn, table, expression):
         return None
 
 
+def latest_import_run(conn, source):
+    if not table_exists(conn, "source_import_runs"):
+        return None
+    return conn.execute(
+        """
+        SELECT source, status, started_at, finished_at, rows_seen, rows_inserted, rows_updated, error
+        FROM source_import_runs
+        WHERE source = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (source,),
+    ).fetchone()
+
+
+def import_run_auth_blocked(row):
+    if not row or (row["status"] or "").lower() != "error":
+        return False
+    error = (row["error"] or "").lower()
+    return "not authenticated" in error or "accounts.google.com" in error
+
+
+def school_email_lead_match_summary(conn, end_date, school):
+    if not table_exists(conn, "hubspot_contacts") or not table_exists(conn, "vw_school_email_communications"):
+        return {
+            "school_email_rows_ytd": 0,
+            "school_email_external_emails_ytd": 0,
+            "school_email_matched_lead_emails_ytd": 0,
+        }
+    ytd_start = f"{parse_date(end_date).year}-01-01"
+    email_school_sql, email_school_params = school_clause("e", school)
+    contact_school_sql, contact_school_params = hubspot_contact_school_clause(school, conn)
+    lead_date_sql = contact_date_expr(conn)
+    person_sql = contact_person_expr(conn)
+    params = {
+        "start": ytd_start,
+        "end": end_date,
+        **{f"email_{key}": value for key, value in email_school_params.items()},
+        **{f"contact_{key}": value for key, value in contact_school_params.items()},
+    }
+    email_school_sql = email_school_sql.replace(":", ":email_")
+    contact_school_sql = contact_school_sql.replace(":", ":contact_")
+    return dict(
+        conn.execute(
+            f"""
+            WITH lead_emails AS (
+                SELECT DISTINCT LOWER(c.email_normalized) AS email
+                FROM hubspot_contacts c
+                LEFT JOIN pike13_people pp ON pp.person_id = {person_sql}
+                WHERE COALESCE(c.email_normalized, '') != ''
+                  AND {lead_date_sql} BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+                  AND {contact_school_sql}
+            ),
+            email_comms AS (
+                SELECT DISTINCT LOWER(e.external_email_normalized) AS email
+                FROM vw_school_email_communications e
+                WHERE COALESCE(e.external_email_normalized, '') != ''
+                  AND dashboard_date(e.event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+                  AND {email_school_sql}
+            )
+            SELECT
+                (
+                    SELECT COUNT(*)
+                    FROM vw_school_email_communications e
+                    WHERE dashboard_date(e.event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+                      AND {email_school_sql}
+                ) AS school_email_rows_ytd,
+                (SELECT COUNT(*) FROM email_comms) AS school_email_external_emails_ytd,
+                (
+                    SELECT COUNT(DISTINCT le.email)
+                    FROM lead_emails le
+                    JOIN email_comms ec ON ec.email = le.email
+                ) AS school_email_matched_lead_emails_ytd
+            """,
+            params,
+        ).fetchone()
+    )
+
+
 def source_data_freshness(conn, end_date, school):
     latest = {
         "lessons": max_dashboard_date(conn, "lessons", "lesson_date"),
@@ -353,6 +432,15 @@ def source_data_freshness(conn, end_date, school):
         latest["school_sms_rows"] = sms_rows
         if sms_rows == 0:
             flags.append("missing_school_sms_data")
+    email_match_summary = school_email_lead_match_summary(conn, end_date, school)
+    latest.update(email_match_summary)
+    if (
+        email_match_summary["school_email_rows_ytd"] > 0
+        and email_match_summary["school_email_matched_lead_emails_ytd"] == 0
+    ):
+        flags.append("school_email_no_matched_lead_emails")
+    if import_run_auth_blocked(latest_import_run(conn, "school_email")):
+        flags.append("gmail_auth_required")
     status = "ready" if not flags else "attention"
     return {"status": status, "latest_dates": latest, "flags": flags}
 
@@ -374,6 +462,8 @@ def metric_status_from_freshness(data_freshness):
     communications = blocked_by(
         "missing_school_email",
         "stale_school_email",
+        "school_email_no_matched_lead_emails",
+        "gmail_auth_required",
         "missing_dialpad_calls",
         "stale_dialpad_calls",
         "missing_dialpad_sms",
@@ -705,6 +795,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
     coverage = {
         "leads": 0,
         "trials": 0,
+        "lead_identity_leads": 0,
+        "lead_phone_leads": 0,
+        "lead_email_leads": 0,
         "matched_communication_leads": 0,
         "communication_7d_leads": 0,
         "outbound_7d_leads": 0,
@@ -724,7 +817,7 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         lead_date = parse_date(row["lead_date"])
         if not lead_date:
             continue
-        emails = {
+        email_identities = {
             str(value).strip().lower()
             for value in (row["contact_email"], row["pike13_email"])
             if value and str(value).strip()
@@ -734,8 +827,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
             for phone in (normalize_phone(row["contact_phone"]), normalize_phone(row["pike13_phone"]))
             if phone
         }
+        has_identity = bool(email_identities or phones)
         communications = {}
-        for email in emails:
+        for email in email_identities:
             for communication in communications_by_email.get(email, []):
                 communications[communication["id"]] = communication
         for phone in phones:
@@ -783,6 +877,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         cells[(response_bucket, engagement_bucket)]["trials"] += 1 if trial_scheduled else 0
         coverage["leads"] += 1
         coverage["trials"] += 1 if trial_scheduled else 0
+        coverage["lead_identity_leads"] += 1 if has_identity else 0
+        coverage["lead_phone_leads"] += 1 if phones else 0
+        coverage["lead_email_leads"] += 1 if email_identities else 0
         coverage["matched_communication_leads"] += 1 if communications else 0
         coverage["communication_7d_leads"] += 1 if window_communications else 0
         coverage["outbound_7d_leads"] += 1 if outbound else 0
@@ -821,6 +918,9 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         trials = sum(cells[(response, engagement)]["trials"] for response in FOLLOWUP_RESPONSE_BUCKETS)
         column_totals[engagement] = _trial_rate_cell(leads, trials)
     coverage["communication_coverage_rate"] = round(coverage["matched_communication_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["lead_identity_rate"] = round(coverage["lead_identity_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["lead_phone_rate"] = round(coverage["lead_phone_leads"] / coverage["leads"], 4) if coverage["leads"] else None
+    coverage["lead_email_rate"] = round(coverage["lead_email_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["communication_7d_rate"] = round(coverage["communication_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["outbound_7d_rate"] = round(coverage["outbound_7d_leads"] / coverage["leads"], 4) if coverage["leads"] else None
     coverage["pre_lead_inbound_origin_rate"] = round(coverage["pre_lead_inbound_origin_leads"] / coverage["leads"], 4) if coverage["leads"] else None
@@ -834,6 +934,8 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
     if not coverage["leads"]:
         data_quality_flags.append("no_contact_spine_leads_for_school_window")
         blockers.append("no_contact_spine_leads_for_school_window")
+    if coverage["leads"] and (coverage["lead_identity_rate"] or 0) < 0.7:
+        data_quality_flags.append("low_hubspot_lead_identity_coverage")
     if coverage["leads"] and coverage["communication_coverage_rate"] is not None and coverage["communication_coverage_rate"] < 0.5:
         data_quality_flags.append("low_matched_communication_coverage")
     if coverage["leads"] and (coverage["communication_coverage_rate"] or 0) < 0.1:
@@ -858,6 +960,8 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "recommended_action": (
             "Backfill HubSpot contact lead spine for this school/window before using this grid for performance judgment."
             if "no_contact_spine_leads_for_school_window" in blockers
+            else "Improve HubSpot lead phone/email coverage, then rerun communication matching before judging follow-up."
+            if "low_hubspot_lead_identity_coverage" in data_quality_flags
             else "Run targeted Dialpad/email backfill and matching before using this grid for performance judgment."
             if blockers
             else "Review coverage flags before using this grid for performance judgment."
@@ -869,6 +973,133 @@ def lead_followup_pareto_grid(conn, start_date, end_date, school):
         "overall_total": _trial_rate_cell(coverage["leads"], coverage["trials"]),
         "cell_format": "leads / lead-to-trial rate",
     }
+
+
+def lead_communication_match_diagnostic(conn, start_date, end_date, school):
+    rows = _lead_followup_rows(conn, start_date, end_date, school)
+    communications_by_email, communications_by_phone = _lead_communications_by_identity(conn)
+    diagnostic = {
+        "leads": 0,
+        "with_phone_identity": 0,
+        "with_email_identity": 0,
+        "same_school_or_unassigned_dialpad_any": 0,
+        "same_school_or_unassigned_dialpad_7d": 0,
+        "same_school_or_unassigned_sms_7d": 0,
+        "same_school_or_unassigned_call_7d": 0,
+        "same_school_or_unassigned_outbound_7d": 0,
+        "email_any": 0,
+        "email_7d": 0,
+        "cross_school_dialpad_only": 0,
+        "unassigned_school_dialpad_only": 0,
+        "dialpad_match_outside_7d_only": 0,
+        "no_dialpad_phone_match": 0,
+        "no_phone_identity": 0,
+        "no_matched_communication_7d": 0,
+        "unmatched_7d_reason_counts": {},
+    }
+    reason_counts = Counter()
+    for row in rows:
+        if not row["lead_date"]:
+            continue
+        lead_date = parse_date(row["lead_date"])
+        window_end = lead_date + timedelta(days=7)
+        phones = {
+            phone
+            for phone in (normalize_phone(row["contact_phone"]), normalize_phone(row["pike13_phone"]))
+            if phone
+        }
+        email_identities = {
+            str(value).strip().lower()
+            for value in (row["contact_email"], row["pike13_email"])
+            if value and str(value).strip()
+        }
+        phone_comms = {}
+        for phone in phones:
+            for communication in communications_by_phone.get(phone, []):
+                phone_comms[communication["id"]] = communication
+        email_comms = {}
+        for email in email_identities:
+            for communication in communications_by_email.get(email, []):
+                email_comms[communication["id"]] = communication
+
+        same_school = [
+            communication
+            for communication in phone_comms.values()
+            if school_label_matches(communication.get("school"), school)
+        ]
+        unassigned_school = [communication for communication in phone_comms.values() if not communication.get("school")]
+        same_school_or_unassigned = same_school + unassigned_school
+        cross_school = [
+            communication
+            for communication in phone_comms.values()
+            if communication.get("school") and not school_label_matches(communication.get("school"), school)
+        ]
+        dialpad_7d = [
+            communication
+            for communication in same_school_or_unassigned
+            if lead_date <= communication["event_at"].date() <= window_end
+        ]
+        sms_7d = [communication for communication in dialpad_7d if communication.get("channel") == "sms"]
+        call_7d = [communication for communication in dialpad_7d if communication.get("channel") == "call"]
+        outbound_7d = [communication for communication in dialpad_7d if _is_outbound(communication.get("direction"))]
+        email_7d = [
+            communication
+            for communication in email_comms.values()
+            if school_label_matches(communication.get("school"), school)
+            and lead_date <= communication["event_at"].date() <= window_end
+        ]
+
+        diagnostic["leads"] += 1
+        diagnostic["with_phone_identity"] += 1 if phones else 0
+        diagnostic["with_email_identity"] += 1 if email_identities else 0
+        diagnostic["same_school_or_unassigned_dialpad_any"] += 1 if same_school_or_unassigned else 0
+        diagnostic["same_school_or_unassigned_dialpad_7d"] += 1 if dialpad_7d else 0
+        diagnostic["same_school_or_unassigned_sms_7d"] += 1 if sms_7d else 0
+        diagnostic["same_school_or_unassigned_call_7d"] += 1 if call_7d else 0
+        diagnostic["same_school_or_unassigned_outbound_7d"] += 1 if outbound_7d else 0
+        diagnostic["email_any"] += 1 if email_comms else 0
+        diagnostic["email_7d"] += 1 if email_7d else 0
+        diagnostic["cross_school_dialpad_only"] += 1 if cross_school and not same_school_or_unassigned else 0
+        all_dialpad_matches_unassigned = bool(unassigned_school) and not any(
+            communication.get("school") for communication in phone_comms.values()
+        )
+        diagnostic["unassigned_school_dialpad_only"] += 1 if all_dialpad_matches_unassigned else 0
+        outside_7d_only = bool(same_school_or_unassigned and not dialpad_7d)
+        diagnostic["dialpad_match_outside_7d_only"] += 1 if outside_7d_only else 0
+        diagnostic["no_dialpad_phone_match"] += 1 if phones and not phone_comms else 0
+        diagnostic["no_phone_identity"] += 1 if not phones else 0
+        no_communication_7d = not dialpad_7d and not email_7d
+        diagnostic["no_matched_communication_7d"] += 1 if no_communication_7d else 0
+        if no_communication_7d:
+            if not phones:
+                reason = "no_phone_identity"
+            elif not phone_comms:
+                reason = "no_dialpad_phone_match"
+            elif cross_school and not same_school_or_unassigned:
+                reason = "cross_school_dialpad_only"
+            elif all_dialpad_matches_unassigned:
+                reason = "unassigned_school_dialpad_only"
+            elif outside_7d_only:
+                reason = "dialpad_match_outside_7d_only"
+            elif email_identities and not email_comms:
+                reason = "no_email_match"
+            else:
+                reason = "unknown_unmatched"
+            reason_counts[reason] += 1
+    diagnostic["unmatched_7d_reason_counts"] = dict(sorted(reason_counts.items()))
+    if diagnostic["leads"]:
+        diagnostic["same_school_or_unassigned_dialpad_7d_rate"] = round(
+            diagnostic["same_school_or_unassigned_dialpad_7d"] / diagnostic["leads"],
+            4,
+        )
+        diagnostic["no_matched_communication_7d_rate"] = round(
+            diagnostic["no_matched_communication_7d"] / diagnostic["leads"],
+            4,
+        )
+    else:
+        diagnostic["same_school_or_unassigned_dialpad_7d_rate"] = None
+        diagnostic["no_matched_communication_7d_rate"] = None
+    return diagnostic
 
 
 def notes_operations(conn, start_date, end_date, school):
@@ -1054,7 +1285,7 @@ def group_exception_items_by_customer(items):
     )
 
 
-def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, limit=50):
+def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, limit=50, *, trial_limit=None):
     gap = build_gap_report(
         conn,
         school=hubspot_school(school),
@@ -1062,7 +1293,7 @@ def build_exception_queue(conn, start_date, end_date, school=DEFAULT_SCHOOL, lim
         start_date=start_date,
         end_date=end_date,
     )
-    trial = build_trial_followup_report(conn, start_date, end_date, pike13_school(school))
+    trial = build_trial_followup_report(conn, start_date, end_date, pike13_school(school), limit=trial_limit)
     items = []
     for row in gap["rows"]:
         if row["gap_category"] in {"ready_for_review", "hubspot_only_with_outreach", "excluded_stage"}:
@@ -1115,6 +1346,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
     notes = notes_operations(conn, start_date, end_date, school)
     recordings = recording_status(conn, start_date, end_date, school)
     lead_followup_pareto = lead_followup_pareto_grid(conn, start_date, end_date, school)
+    communication_match_diagnostic = lead_communication_match_diagnostic(conn, start_date, end_date, school)
     data_freshness = source_data_freshness(conn, end_date, school)
     followup_coverage = lead_followup_pareto.get("coverage", {})
     legacy_deal_contacted = sum(1 for row in gap["rows"] if row.get("outreach_evidence_found"))
@@ -1168,6 +1400,7 @@ def build_snapshot(conn, period, start_date=None, end_date=None, as_of=None, sch
             "converted": conversion_count(conn, start_date, end_date, school),
         },
         "communications": communications,
+        "communication_match_diagnostic": communication_match_diagnostic,
         "lead_followup_pareto": lead_followup_pareto,
         "notes_operations": notes,
         "dialpad_recordings": recordings["downloads"],
@@ -1313,6 +1546,10 @@ def render_snapshot_markdown(snapshot):
         "## Dialpad and Gmail Coverage",
         "",
         _markdown_counts(snapshot["communications"]),
+        "",
+        "### Lead Communication Match Diagnostic",
+        "",
+        _markdown_counts(snapshot.get("communication_match_diagnostic", {})),
         "",
         "## Lead Follow-Up Pareto",
         "",

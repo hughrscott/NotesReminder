@@ -2,7 +2,8 @@ import sqlite3
 import unittest
 
 from lead_followup_schema import ensure_lead_followup_schema, upsert_school_email_message, utc_now_iso
-from scripts.extract_school_emails import is_okta_login_url, okta_credentials_available
+from scripts.extract_hubspot_timeline_emails import hubspot_email_events
+from scripts.extract_school_emails import is_okta_login_url, okta_credentials_available, parse_gmail_sync_response
 from school_email import (
     classify_direction,
     external_email_for_message,
@@ -124,6 +125,173 @@ class SchoolEmailTests(unittest.TestCase):
         self.assertTrue(is_okta_login_url("https://sor.okta.com/login/login.htm?fromURI=abc"))
         self.assertFalse(is_okta_login_url("https://mail.google.com/mail/u/0/#inbox"))
         self.assertIsInstance(okta_credentials_available(), bool)
+
+    def test_gmail_sync_parser_keeps_true_school_customer_email_metadata_only(self):
+        payload = [
+            0,
+            [
+                [
+                    "thread-f:1|msg-f:1",
+                    None,
+                    [
+                        [
+                            "msg-f:1",
+                            [
+                                [[[1, "westu@schoolofrock.com", "West U"]]],
+                                None,
+                                None,
+                                [[1, "lead@example.com", "Lead"]],
+                                "Private customer subject",
+                                [None, [], 0, "https://mail.google.com/message/1"],
+                                "Private body text",
+                                1782261577245,
+                            ],
+                        ]
+                    ],
+                ]
+            ],
+        ]
+
+        rows = parse_gmail_sync_response(
+            __import__("json").dumps(payload),
+            "westu@schoolofrock.com",
+            "2026-06-01",
+            "2026-06-24",
+            "https://mail.google.com/search",
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["message_id"], "msg-f:1")
+        self.assertEqual(rows[0]["direction"], "outbound")
+        self.assertEqual(rows[0]["external_email_normalized"], "lead@example.com")
+        self.assertIn("2026-06-23", rows[0]["message_at"])
+        self.assertEqual(rows[0]["subject"], "[redacted Gmail sync subject]")
+        self.assertEqual(rows[0]["body"], "[redacted Gmail sync body]")
+        self.assertEqual(rows[0]["raw_text"], "")
+
+    def test_gmail_sync_parser_skips_system_notification_rows(self):
+        payload = [
+            0,
+            [
+                [
+                    "thread-f:2|msg-f:2",
+                    None,
+                    [
+                        [
+                            "msg-f:2",
+                            [
+                                [[[1, "westu@schoolofrock.com", "West U"]]],
+                                None,
+                                None,
+                                [[1, "voicemail@dialpad.com", "Dialpad"]],
+                                "West U has a new voicemail",
+                                [None, [], 0, "https://mail.google.com/message/2"],
+                                "Private voicemail body",
+                                1782261577245,
+                            ],
+                        ]
+                    ],
+                ]
+            ],
+        ]
+
+        rows = parse_gmail_sync_response(
+            __import__("json").dumps(payload),
+            "westu@schoolofrock.com",
+            "2026-06-01",
+            "2026-06-24",
+            "https://mail.google.com/search",
+        )
+
+        self.assertEqual(rows, [])
+
+    def test_gmail_sync_parser_skips_group_and_vendor_rows(self):
+        payload = [
+            0,
+            [
+                [
+                    "thread-f:3|msg-f:3",
+                    None,
+                    [
+                        [
+                            "msg-f:3",
+                            [
+                                [[[1, "westu@schoolofrock.com", "West U"]]],
+                                None,
+                                None,
+                                [[1, "family@example.com", "Family"]],
+                                "Private customer subject",
+                                [None, [], 0, "https://mail.google.com/message/3"],
+                                "Private body text",
+                                ["^smartlabel_group"],
+                                1782261577245,
+                            ],
+                        ],
+                        [
+                            "msg-f:4",
+                            [
+                                [[[1, "westu@schoolofrock.com", "West U"]]],
+                                None,
+                                None,
+                                [[1, "hello@jumbula.com", "Jumbula"]],
+                                "Vendor subject",
+                                [None, [], 0, "https://mail.google.com/message/4"],
+                                "Vendor body",
+                                1782261577245,
+                            ],
+                        ],
+                    ],
+                ]
+            ],
+        ]
+
+        rows = parse_gmail_sync_response(
+            __import__("json").dumps(payload),
+            "westu@schoolofrock.com",
+            "2026-06-01",
+            "2026-06-24",
+            "https://mail.google.com/search",
+        )
+
+        self.assertEqual(rows, [])
+
+    def test_hubspot_timeline_email_events_are_sanitized_and_lead_matched(self):
+        payload = {
+            "events": [
+                {
+                    "etype": "eventEmailSend",
+                    "timestamp": 1782325469010,
+                    "eventData": {
+                        "id": "email-event-1",
+                        "recipient": "lead@example.com",
+                        "subject": "Private subject",
+                        "messageId": {"to": "lead@example.com"},
+                    },
+                },
+                {
+                    "etype": "eventEmailSend",
+                    "timestamp": 1782325469010,
+                    "eventData": {
+                        "id": "email-event-other",
+                        "recipient": "other@example.com",
+                    },
+                },
+            ]
+        }
+
+        rows = hubspot_email_events(
+            payload,
+            {"contact_id": "contact-1", "email_normalized": "lead@example.com", "school": "The Heights"},
+            "2026-01-01",
+            "2026-06-24",
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["direction"], "outbound")
+        self.assertEqual(rows[0]["school"], "The Heights")
+        self.assertEqual(rows[0]["external_email_normalized"], "lead@example.com")
+        self.assertEqual(rows[0]["subject"], "[redacted HubSpot timeline email subject]")
+        self.assertNotIn("Private subject", rows[0]["raw_json"])
 
     def test_email_identity_match_and_sanitized_trial_timeline(self):
         conn = open_db()

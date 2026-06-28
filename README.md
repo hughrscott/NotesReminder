@@ -17,6 +17,26 @@ Copy the template once with `cp .env.example .env`, then fill in your real value
 
 Optional: update `run_daily.py` if you need different SMTP server settings or recipient emails.
 
+## Production Readiness Reading Guide
+
+Read these files to understand the current production shape, what has already
+been built, and what still needs to be finished:
+
+- `docs/operational_runbook.md`: day-to-day production checklist, Okta/MFA
+  renewal protocol, backup/restore steps, smoke tests, and incident response.
+- `docs/data_pipeline.md`: system architecture, source pipelines, scheduling
+  model, promotion gates, and the attended-auth automation design.
+- `docs/master_plan.md`: phased roadmap, phase gates, approval boundaries, and
+  remaining work before broader production promotion.
+- `docs/data_dictionary.md`: table ownership, source of truth, sensitivity, and
+  production/shadow/future status.
+- `docs/v1_lead_followup.md`: lead-follow-up source model, browser extractor
+  conventions, and proof-window rollout.
+- `docs/source_completeness_proof.md`: source readiness proof criteria and
+  rollout gate for lead intelligence.
+- `docs/SESSION_NOTES.md`: chronological decision log. Use it for history, not
+  as the canonical runbook.
+
 ## Quick map
 - `run_daily.py` : scrape Pike13 lessons, update `reminders.db`, email summary, sync to S3
 - `noteschecker.py` : Playwright scraper used by `run_daily.py`

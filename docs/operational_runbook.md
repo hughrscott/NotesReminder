@@ -16,6 +16,8 @@ database, `reminders.db`, and the tools that read or update it.
 - Do not archive raw captures to S3. Raw captures remain local under `raw/`.
 - Do not enable unattended production notes/email/DB/S3 cadence without explicit
   Hugh approval.
+- The production automation target is attended-auth automation: jobs may run on
+  a local schedule, but Okta/MFA renewal is a planned human approval step.
 
 ## Directory Map
 
@@ -79,6 +81,77 @@ Confirm:
 - notes health reports `Overall status: ready`
 - expected email evidence is `delivered` in the health report
 - S3 `reminders.db` `LastModified` changed after a production run
+
+## Okta/MFA Auth Steward Protocol
+
+The production path should retain approved browser sessions for as long as Okta
+and the source apps allow. The system must not bypass MFA. It should detect
+expired sessions, notify Hugh, and wait for Hugh to approve the expected Okta
+Verify push.
+
+Persistent browser profiles:
+
+| Source | Profile |
+| --- | --- |
+| Pike13 lesson notes | `browser_profiles/pike13` |
+| Pike13 lead/outcome extraction | `browser_profiles/pike13` |
+| HubSpot | `browser_profiles/hubspot` |
+| Dialpad | `browser_profiles/dialpad` |
+| Gmail/school email and shared SSO checks | `browser_profiles/sor_okta` |
+
+Auth-steward loop:
+
+1. Run a headless auth probe before any mutating production or source-refresh
+   job.
+2. If every required source reports authenticated, continue without contacting
+   Hugh.
+3. If a source redirects to Okta, Google login, app login, or another known auth
+   page, stop the mutating job before writing or uploading production data.
+4. Notify Hugh with the source name, target job, profile path, and exact action:
+   approve the Okta Verify push from NotesReminder.
+5. Launch the headed renewal flow from the relevant persistent profile so the
+   Okta approval refreshes the same profile later used by headless jobs.
+6. Wait for approval, then re-run the auth probe. Proceed only after the probe
+   returns authenticated.
+7. If renewal times out, mark the run `action_required`, preserve logs, and do
+   not upload `reminders.db` to S3.
+
+Current probe command:
+
+```bash
+venv/bin/python scripts/probe_sor_okta_auth.py \
+  --profile-dir browser_profiles/sor_okta \
+  --headless \
+  --probe okta \
+  --probe gmail \
+  --probe hubspot \
+  --probe dialpad
+```
+
+Current supervised renewal command:
+
+```bash
+venv/bin/python scripts/probe_sor_okta_auth.py \
+  --profile-dir browser_profiles/sor_okta \
+  --interactive-login \
+  --login-timeout 900
+```
+
+Pike13 notes use their own production profile and wrapper:
+
+```bash
+scripts/run_notes_local_mfa.sh --date YYYY-MM-DD --profile-dir browser_profiles/pike13
+```
+
+Notification requirements before promotion:
+
+- Hugh receives a clear local notification when auth renewal is needed.
+- The notification states that an Okta Verify push from NotesReminder is
+  expected.
+- The system retries the probe after approval and records the result in run
+  metadata.
+- Production notes/email/S3 sync remains blocked unless the required source auth
+  probe is green.
 
 ## Source Freshness SLAs
 

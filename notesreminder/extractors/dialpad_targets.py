@@ -211,6 +211,13 @@ def select_hubspot_contact_targets(conn, school, start_date, end_date, limit=500
     register_dashboard_sql_functions(conn)
     school_sql, school_params, school_join = _contact_school_filter(conn, school)
     school_select = "COALESCE(NULLIF(h.school, ''), NULLIF(pp.school, ''))" if school_join else "h.school"
+    pike13_phone_normalized_select = "pp.phone_normalized" if school_join else "NULL"
+    pike13_phone_select = "pp.phone" if school_join else "NULL"
+    phone_presence_expr = (
+        "COALESCE(h.phone_normalized, h.phone, pp.phone_normalized, pp.phone, '')"
+        if school_join
+        else "COALESCE(h.phone_normalized, h.phone, '')"
+    )
     rows = conn.execute(
         f"""
         SELECT
@@ -220,13 +227,15 @@ def select_hubspot_contact_targets(conn, school, start_date, end_date, limit=500
             dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')) AS lead_date,
             h.phone_normalized,
             h.phone,
+            {pike13_phone_normalized_select} AS pike13_phone_normalized,
+            {pike13_phone_select} AS pike13_phone,
             h.associated_deal_ids
         FROM hubspot_contacts h
         {school_join}
         WHERE dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, ''))
             BETWEEN dashboard_date(:start) AND dashboard_date(:end)
           AND {school_sql}
-          AND COALESCE(h.phone_normalized, h.phone, '') != ''
+          AND {phone_presence_expr} != ''
         ORDER BY dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')), h.contact_id
         LIMIT :limit
         """,
@@ -255,4 +264,85 @@ def select_hubspot_contact_targets(conn, school, start_date, end_date, limit=500
                 "window_start": start_date,
             }
         )
+    return targets
+
+
+def select_hubspot_no_dialpad_match_targets(conn, school, start_date, end_date, limit=500):
+    register_dashboard_sql_functions(conn)
+    school_sql, school_params, school_join = _contact_school_filter(conn, school)
+    school_select = "COALESCE(NULLIF(h.school, ''), NULLIF(pp.school, ''))" if school_join else "h.school"
+    pike13_phone_normalized_select = "pp.phone_normalized" if school_join else "NULL"
+    pike13_phone_select = "pp.phone" if school_join else "NULL"
+    phone_presence_expr = (
+        "COALESCE(h.phone_normalized, h.phone, pp.phone_normalized, pp.phone, '')"
+        if school_join
+        else "COALESCE(h.phone_normalized, h.phone, '')"
+    )
+    matched_dialpad_phones = {
+        normalize_phone(row["phone_normalized"])
+        for row in conn.execute(
+            """
+            SELECT DISTINCT phone_normalized
+            FROM vw_dialpad_communications
+            WHERE COALESCE(phone_normalized, '') != ''
+              AND COALESCE(event_at, '') != ''
+            """
+        ).fetchall()
+        if normalize_phone(row["phone_normalized"])
+    }
+    rows = conn.execute(
+        f"""
+        SELECT
+            h.contact_id,
+            h.full_name,
+            {school_select} AS school,
+            dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')) AS lead_date,
+            h.phone_normalized,
+            h.phone,
+            {pike13_phone_normalized_select} AS pike13_phone_normalized,
+            {pike13_phone_select} AS pike13_phone,
+            h.associated_deal_ids
+        FROM hubspot_contacts h
+        {school_join}
+        WHERE dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, ''))
+            BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+          AND {school_sql}
+          AND {phone_presence_expr} != ''
+        ORDER BY dashboard_date(NULLIF(h.create_date, ''), NULLIF(h.updated_at, '')), h.contact_id
+        """,
+        {"start": start_date, "end": end_date, **school_params},
+    ).fetchall()
+    targets = []
+    seen = set()
+    for row in rows:
+        candidate_phones = {
+            phone
+            for phone in (
+                normalize_phone(row["phone_normalized"] or row["phone"]),
+                normalize_phone(row["pike13_phone_normalized"] or row["pike13_phone"]),
+            )
+            if phone
+        }
+        if not candidate_phones or any(phone in matched_dialpad_phones for phone in candidate_phones):
+            continue
+        phone = sorted(candidate_phones)[0]
+        deal_id = _first_associated_deal_id(row["associated_deal_ids"]) or f"contact:{row['contact_id']}"
+        key = phone
+        if key in seen:
+            continue
+        seen.add(key)
+        targets.append(
+            {
+                "deal_id": deal_id,
+                "contact_id": row["contact_id"],
+                "school": row["school"] or school,
+                "target_type": "phone",
+                "target_value": phone,
+                "target_hash": target_hash(phone),
+                "lead_date": row["lead_date"],
+                "window_start": start_date,
+            }
+        )
+        if len(targets) >= limit:
+            break
     return targets

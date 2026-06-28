@@ -8,6 +8,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
@@ -32,6 +33,14 @@ HISTORY_URLS = {
     "voicemails": "https://dialpad.com/app/history/voicemails",
     "recordings": "https://dialpad.com/app/history/recordings",
     "conversation_history": "https://dialpad.com/conversationhistory",
+}
+CONVERSATION_HISTORY_API_URL = "https://dialpad.com/api/stats/v3/history/all"
+CONVERSATION_HISTORY_SCHOOL_BY_ENTRY_POINT = {
+    "2819097625": ("The Heights", "HEIGHTS"),
+    "8329007625": ("West U", "WESTU"),
+    # Legacy Dialpad call exports group these routed numbers with the West U entry point target.
+    "8325602761": ("West U", "WESTU"),
+    "8327623476": ("West U", "WESTU"),
 }
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
 DURATION_RE = re.compile(r"^\d+\s*(?:s|m|h)(?:\s+\d+\s*s)?$|^\d+:\d{2}$", re.IGNORECASE)
@@ -122,7 +131,14 @@ def infer_direction(text):
     lowered = text.lower()
     if "outbound" in lowered or "placed call" in lowered or "outgoing" in lowered:
         return "outbound"
-    if "inbound" in lowered or "incoming" in lowered or "missed call" in lowered or "voicemail" in lowered:
+    if (
+        "inbound" in lowered
+        or "incoming" in lowered
+        or lowered == "missed"
+        or "missed call" in lowered
+        or "abandoned" in lowered
+        or "voicemail" in lowered
+    ):
         return "inbound"
     return "unknown"
 
@@ -247,6 +263,25 @@ def normalize_dialpad_datetime(date_value, time_value, now=None):
     except ValueError:
         return date_part
     return f"{date_part}T{parsed_time.isoformat()}"
+
+
+def normalize_conversation_history_datetime(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(value, fmt).isoformat()
+        except ValueError:
+            continue
+    return value if re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:T|\s)\d{2}:\d{2}:\d{2}", value) else None
+
+
+def school_from_entry_point(value):
+    normalized = normalize_phone(value)
+    if not normalized:
+        return (None, None)
+    return CONVERSATION_HISTORY_SCHOOL_BY_ENTRY_POINT.get(normalized, (None, None))
 
 
 def is_noise_line(line):
@@ -403,6 +438,16 @@ def is_conversation_history_header(line):
     }
 
 
+def conversation_history_school_from_cell(value):
+    text = " ".join(str(value or "").split())
+    lowered = text.lower()
+    if "the heights" in lowered or re.search(r"\bheights\b", lowered):
+        return "The Heights"
+    if "west u" in lowered or "west university" in lowered or re.search(r"\bwestu\b", lowered):
+        return "West U"
+    return None
+
+
 def parse_conversation_history_rows(url, text, limit, now=None):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     rows = []
@@ -477,6 +522,8 @@ def parse_conversation_history_rows(url, text, limit, now=None):
 
 def conversation_history_row_from_dom(url, row, index, now=None):
     cells = row.get("cells") or []
+    if len(cells) >= 7 and not cells[0].strip():
+        cells = cells[1:]
     if len(cells) < 6:
         return None
     date_lines = [line.strip() for line in cells[3].splitlines() if line.strip()]
@@ -486,7 +533,7 @@ def conversation_history_row_from_dom(url, row, index, now=None):
     if not event_at:
         return None
     school_lines = [line.strip() for line in cells[0].splitlines() if line.strip()]
-    school = school_lines[0] if school_lines else None
+    school = conversation_history_school_from_cell(" ".join(school_lines))
     button_labels = row.get("button_labels") or []
     channel = cells[1].strip()
     if not channel:
@@ -564,6 +611,157 @@ def conversation_history_row_from_dom(url, row, index, now=None):
             sort_keys=True,
         ),
         "updated_at": utc_now_iso(),
+    }
+
+
+def conversation_history_api_item_to_row(item):
+    row_data = item.get("rowData") or {}
+    item_id = item.get("itemId")
+    if not item_id or item.get("itemType") != "call":
+        return None
+    event_at = normalize_conversation_history_datetime(item.get("createdAt"))
+    if not event_at:
+        return None
+    external_phone = row_data.get("displayExternalEndpoint")
+    raw_direction = row_data.get("direction") or row_data.get("detailedState")
+    entry_point = row_data.get("displayEntryPoint")
+    if not external_phone and not raw_direction and not entry_point:
+        return None
+    contact = row_data.get("contact") or {}
+    participant = item.get("participant") or {}
+    contact_name = (
+        contact.get("display_name")
+        or participant.get("name")
+        or None
+    )
+    if contact_name and PHONE_RE.fullmatch(str(contact_name)):
+        contact_name = None
+    if not external_phone:
+        primary_phone = contact.get("primary_phone")
+        external_phone = primary_phone if primary_phone else None
+    phone_normalized = normalize_phone(external_phone)
+    school, department = school_from_entry_point(entry_point)
+    direction = (raw_direction or "unknown").lower()
+    if direction == "missed" or "missed" in direction:
+        direction = "inbound"
+    detailed_state = (row_data.get("detailedState") or "").lower()
+    event_type = "call"
+    if "voicemail" in detailed_state:
+        event_type = "voicemail"
+    elif "missed" in detailed_state:
+        event_type = "missed_call"
+    call_review_url = f"https://dialpad.com/callhistory/callreview/{item_id}?source=conversation-history-api"
+    duration = row_data.get("duration")
+    connected_duration = row_data.get("durationConnected")
+    raw_json = {
+        "extraction": "conversation_history_api",
+        "source_view": "conversation_history",
+        "item_id": item_id,
+        "item_type": item.get("itemType"),
+        "direction": direction,
+        "detailed_state": row_data.get("detailedState"),
+        "display_entry_point": entry_point,
+        "duration": duration,
+        "connected_duration": connected_duration,
+        "has_any_recordings": row_data.get("hasAnyRecordings"),
+        "has_department_auto_recording": row_data.get("hasDepartmentAutoRecording"),
+        "has_summary_access": row_data.get("hasSummaryAccess"),
+        "recording_id_present": bool(row_data.get("recordingId")),
+        "school_mapping": "entry_point" if school else "unmapped_entry_point",
+        "source_timestamp_field": "createdAt",
+        "import_timestamp_field": "updated_at",
+    }
+    return {
+        "event_id": str(item_id),
+        "source_view": "conversation_history",
+        "event_type": event_type,
+        "call_id": str(item_id),
+        "phone": external_phone,
+        "phone_normalized": phone_normalized,
+        "contact_name": contact_name,
+        "direction": direction,
+        "event_at": event_at,
+        "school": school,
+        "department": department,
+        "outcome": row_data.get("detailedState") or "Conversation History API row",
+        "voicemail_transcript": None,
+        "recording_url": None,
+        "transcript_summary": None,
+        "source_url": call_review_url,
+        "raw_text": None,
+        "raw_json": json.dumps(raw_json, sort_keys=True),
+        "updated_at": utc_now_iso(),
+    }
+
+
+def conversation_history_request_headers(request):
+    blocked = {"content-length", "host", "connection", "accept-encoding"}
+    return {key: value for key, value in request.headers.items() if key.lower() not in blocked}
+
+
+def conversation_history_payload(base_payload, start_date, end_date):
+    payload = json.loads(json.dumps(base_payload))
+    where = payload.setdefault("where", {})
+    where["start_date"] = start_date
+    where["end_date"] = end_date
+    where.setdefault("timezone", "US/Central")
+    payload["order_by"] = ["-date_created"]
+    payload.setdefault("pagination", {})
+    return payload
+
+
+def extract_conversation_history_rows_from_api(page, start_date, end_date, limit):
+    seen_requests = []
+
+    def on_request(request):
+        if request.method == "POST" and "/api/stats/v3/history/all" in request.url and not seen_requests:
+            seen_requests.append(
+                {
+                    "headers": conversation_history_request_headers(request),
+                    "post_data": request.post_data,
+                }
+            )
+
+    page.on("request", on_request)
+    try:
+        page.goto(
+            f"{HISTORY_URLS['conversation_history']}?{urlencode({'days': '0-365'})}",
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+        wait_until_ready(page)
+        wait_for_dialpad_app_render(page)
+        if not seen_requests:
+            page.wait_for_timeout(3000)
+    finally:
+        page.remove_listener("request", on_request)
+    if not seen_requests:
+        raise RuntimeError("Dialpad Conversation History API request was not observed on the live page.")
+    base_payload = json.loads(seen_requests[0]["post_data"] or "{}")
+    payload = conversation_history_payload(base_payload, start_date, end_date)
+    response = page.request.post(
+        CONVERSATION_HISTORY_API_URL,
+        data=payload,
+        headers=seen_requests[0]["headers"],
+        timeout=60000,
+    )
+    if response.status != 200:
+        raise RuntimeError(f"Dialpad Conversation History API returned HTTP {response.status}.")
+    body = response.json()
+    items = body.get("items") or []
+    rows = []
+    for item in items:
+        row = conversation_history_api_item_to_row(item)
+        if row:
+            rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows, {
+        "api_rows_seen": len(items),
+        "api_rows_parsed": len(rows),
+        "api_pagination": body.get("pagination"),
+        "api_window_start": start_date,
+        "api_window_end": end_date,
     }
 
 
@@ -715,8 +913,14 @@ def upsert_voice_event(conn, row):
             contact_name = COALESCE(excluded.contact_name, dialpad_voice_events.contact_name),
             direction = excluded.direction,
             event_at = COALESCE(excluded.event_at, dialpad_voice_events.event_at),
-            school = COALESCE(excluded.school, dialpad_voice_events.school),
-            department = COALESCE(excluded.department, dialpad_voice_events.department),
+            school = CASE
+                WHEN excluded.source_view = 'conversation_history' THEN excluded.school
+                ELSE COALESCE(excluded.school, dialpad_voice_events.school)
+            END,
+            department = CASE
+                WHEN excluded.source_view = 'conversation_history' THEN excluded.department
+                ELSE COALESCE(excluded.department, dialpad_voice_events.department)
+            END,
             outcome = excluded.outcome,
             voicemail_transcript = COALESCE(excluded.voicemail_transcript, dialpad_voice_events.voicemail_transcript),
             recording_url = COALESCE(excluded.recording_url, dialpad_voice_events.recording_url),
@@ -740,6 +944,7 @@ def main():
     parser.add_argument("--views", default="calls,missed,voicemails,recordings")
     parser.add_argument("--limit-per-view", type=int, default=25)
     parser.add_argument("--start-date", default=DEFAULT_INITIAL_LOAD_START)
+    parser.add_argument("--end-date", help="Exclusive end date for API-backed Conversation History extraction.")
     args = parser.parse_args()
 
     requested_views = [item.strip() for item in args.views.split(",") if item.strip()]
@@ -770,18 +975,40 @@ def main():
             page = context.pages[0] if context.pages else context.new_page()
             for source_view in requested_views:
                 url = HISTORY_URLS[source_view]
-                page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                wait_until_ready(page)
-                wait_for_authenticated_page(page, url, args.interactive_login, args.login_timeout)
-                text = page.locator("body").inner_text(timeout=30000)
-                links = extract_links(page)
                 if source_view == "conversation_history":
-                    rows = extract_conversation_history_rows_from_dom(page, args.limit_per_view)
+                    api_summary = {}
+                    end_date = args.end_date or (datetime.now() + timedelta(days=1)).date().isoformat()
+                    try:
+                        rows, api_summary = extract_conversation_history_rows_from_api(
+                            page,
+                            args.start_date,
+                            end_date,
+                            args.limit_per_view,
+                        )
+                        links = []
+                    except Exception as exc:
+                        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        wait_until_ready(page)
+                        wait_for_authenticated_page(page, url, args.interactive_login, args.login_timeout)
+                        text = page.locator("body").inner_text(timeout=30000)
+                        links = extract_links(page)
+                        rows = extract_conversation_history_rows_from_dom(page, args.limit_per_view)
+                        api_summary = {"api_status": "fallback_to_dom", "api_error": str(exc)}
                     if not rows:
+                        text = page.locator("body").inner_text(timeout=30000)
                         rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
+                    view_summaries[source_view] = {
+                        **summarize_view(source_view, page.url, rows, links),
+                        **api_summary,
+                    }
                 else:
+                    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                    wait_until_ready(page)
+                    wait_for_authenticated_page(page, url, args.interactive_login, args.login_timeout)
+                    text = page.locator("body").inner_text(timeout=30000)
+                    links = extract_links(page)
                     rows = rows_from_visible_text(source_view, page.url, text, args.limit_per_view, links=links)
-                view_summaries[source_view] = summarize_view(source_view, page.url, rows, links)
+                    view_summaries[source_view] = summarize_view(source_view, page.url, rows, links)
                 rows_seen += len(rows)
                 for row in rows:
                     upsert_voice_event(conn, row)

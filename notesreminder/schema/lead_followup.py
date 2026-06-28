@@ -622,7 +622,10 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_sms_messages_time ON dialpad_sms_messages(message_at)",
             "CREATE INDEX IF NOT EXISTS idx_sms_messages_thread_time ON dialpad_sms_messages(thread_id, message_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_phone_time ON dialpad_voice_events(phone_normalized, event_at)",
+            "CREATE INDEX IF NOT EXISTS idx_voice_events_school_time ON dialpad_voice_events(school, event_at)",
+            "CREATE INDEX IF NOT EXISTS idx_voice_events_time ON dialpad_voice_events(event_at)",
             "CREATE INDEX IF NOT EXISTS idx_voice_events_type ON dialpad_voice_events(event_type)",
+            "CREATE INDEX IF NOT EXISTS idx_sms_threads_school_phone ON dialpad_sms_threads(school, phone_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_event ON dialpad_call_reviews(voice_event_id, event_at)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_url ON dialpad_call_reviews(call_review_url)",
             "CREATE INDEX IF NOT EXISTS idx_call_reviews_call_id ON dialpad_call_reviews(call_id)",
@@ -636,6 +639,7 @@ def ensure_lead_followup_schema(conn):
             "CREATE INDEX IF NOT EXISTS idx_target_searches_outcome ON dialpad_target_searches(outcome)",
             "CREATE INDEX IF NOT EXISTS idx_target_searches_hash ON dialpad_target_searches(target_hash)",
             "CREATE INDEX IF NOT EXISTS idx_school_email_message_at ON school_email_messages(message_at)",
+            "CREATE INDEX IF NOT EXISTS idx_school_email_school_time ON school_email_messages(school, message_at)",
             "CREATE INDEX IF NOT EXISTS idx_school_email_external ON school_email_messages(external_email_normalized)",
             "CREATE INDEX IF NOT EXISTS idx_school_email_mailbox ON school_email_messages(school_mailbox)",
             "CREATE INDEX IF NOT EXISTS idx_route_discoveries_run ON dialpad_route_discoveries(run_id)",
@@ -807,6 +811,8 @@ def _create_views(conn):
                 END,
                 COALESCE(phone_normalized, event_id)
             FROM dialpad_voice_events
+            WHERE COALESCE(json_extract(raw_json, '$.extraction'), '') != 'conversation_history_table'
+              AND COALESCE(json_extract(raw_json, '$.excluded_from_communication_view'), 0) != 1
             """,
             """
             CREATE VIEW vw_school_email_communications AS

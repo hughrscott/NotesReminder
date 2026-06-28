@@ -181,12 +181,26 @@ def parse_transcript_turns(lines):
     return [turn for turn in turns if turn["text"]]
 
 
+def visible_school_labels(lines):
+    labels = set()
+    for line in lines:
+        normalized = re.sub(r"\s+", " ", (line or "").strip()).lower()
+        if not normalized or len(normalized) > 80:
+            continue
+        if re.match(r"^(west\s*u|west\s+university|west\s+university\s+place)(?:\s+\(front desk\))?$", normalized):
+            labels.add("West U")
+        elif re.match(r"^(the\s+heights|heights)(?:\s+\(front desk\))?$", normalized):
+            labels.add("The Heights")
+    return sorted(labels)
+
+
 def parse_call_review_text(url, text):
     lines = clean_lines(text)
     call_review_id = call_review_id_from_url(url)
     recap_text = parse_recap(lines)
     action_items = parse_action_items(lines)
     turns = parse_transcript_turns(lines)
+    school_labels = visible_school_labels(lines)
     transcript_text = "\n".join(turn["text"] for turn in turns)
     audio_available = any("call audio seek slider" in line.lower() or re.search(r"\d+:\d{2}/\d+:\d{2}", line) for line in lines)
     return {
@@ -207,6 +221,7 @@ def parse_call_review_text(url, text):
                 "line_count": len(lines),
                 "turn_count": len(turns),
                 "action_item_count": len(action_items),
+                "visible_school_labels": school_labels,
                 "source": "dialpad_call_review",
             },
             sort_keys=True,
@@ -250,17 +265,28 @@ def upsert_call_review(conn, row):
     )
 
 
-def call_review_targets(conn, limit):
+def call_review_targets(conn, limit, *, missing_school_only=False, missing_review_only=False):
+    filters = ["v.source_url LIKE '%dialpad.com/callhistory/callreview/%'"]
+    if missing_school_only:
+        filters.append("COALESCE(v.school, '') = ''")
+    if missing_review_only:
+        filters.append("cr.call_review_id IS NULL")
+    where = " AND ".join(filters)
     return conn.execute(
-        """
+        f"""
         SELECT
-            event_id AS voice_event_id,
-            call_id,
-            source_url AS call_review_url,
-            event_at
-        FROM dialpad_voice_events
-        WHERE source_url LIKE '%dialpad.com/callhistory/callreview/%'
-        ORDER BY event_at DESC
+            v.event_id AS voice_event_id,
+            v.call_id,
+            v.source_url AS call_review_url,
+            v.event_at
+        FROM dialpad_voice_events v
+        LEFT JOIN dialpad_call_reviews cr
+          ON cr.voice_event_id = v.event_id
+          OR cr.call_id = v.call_id
+          OR cr.call_review_id = v.call_id
+        WHERE {where}
+        GROUP BY v.event_id, v.call_id, v.source_url, v.event_at
+        ORDER BY v.event_at DESC
         LIMIT ?
         """,
         (limit,),
@@ -361,6 +387,8 @@ def main():
     parser.add_argument("--profile-dir", default="browser_profiles/dialpad")
     parser.add_argument("--limit", type=int, default=25)
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--missing-school-only", action="store_true")
+    parser.add_argument("--missing-review-only", action="store_true")
     parser.add_argument("--interactive-login", action="store_true", help="Open a headed browser and wait for Dialpad login if the profile is expired.")
     parser.add_argument("--login-timeout", type=int, default=300, help="Seconds to wait for interactive Dialpad login.")
     args = parser.parse_args()
@@ -375,7 +403,12 @@ def main():
         metadata={"limit": args.limit},
     )
     conn.commit()
-    targets = call_review_targets(conn, args.limit)
+    targets = call_review_targets(
+        conn,
+        args.limit,
+        missing_school_only=args.missing_school_only,
+        missing_review_only=args.missing_review_only,
+    )
     rows_seen = rows_inserted = rows_updated = 0
     failures = []
     try:

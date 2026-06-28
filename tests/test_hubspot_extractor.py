@@ -299,7 +299,7 @@ class HubSpotExtractorTests(unittest.TestCase):
         self.assertEqual(rows[0][2]["email_normalized"], "bere0384@gmail.com")
         self.assertEqual(rows[0][2]["source_url"], "https://app.hubspot.com/contacts/6841203/contact/219226282497")
 
-    def test_parse_contact_detail_text_ignores_associated_contact_email(self):
+    def test_parse_contact_detail_text_uses_parent_guardian_identity(self):
         row = parse_contact_detail_text(
             "219179482293",
             "https://app.hubspot.com/contacts/6841203/record/0-1/219179482293",
@@ -324,8 +324,9 @@ class HubSpotExtractorTests(unittest.TestCase):
         )
 
         self.assertEqual(row["full_name"], "Hannie A")
-        self.assertIsNone(row["email_normalized"])
-        self.assertIsNone(row["phone_normalized"])
+        self.assertEqual(row["email_normalized"], "bere0384@gmail.com")
+        self.assertEqual(row["phone_normalized"], "8328966375")
+        self.assertEqual(row["school"], "West University Place")
         self.assertEqual(row["lead_source"], "Offline Sources")
 
     def test_parse_contact_detail_text_captures_associated_trial_deal(self):

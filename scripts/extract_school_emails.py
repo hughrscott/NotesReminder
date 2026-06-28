@@ -6,6 +6,7 @@ import re
 import sqlite3
 import sys
 import time
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -27,10 +28,12 @@ from lead_followup_schema import (  # noqa: E402
 )
 from notesreminder.lib.raw_capture import write_raw_capture  # noqa: E402
 from school_email import (  # noqa: E402
+    DEFAULT_TIMEZONE,
     SCHOOL_MAILBOXES,
     classify_direction,
     external_email_for_message,
     gmail_query,
+    is_school_email,
     normalize_email_list,
     parse_gmail_datetime,
     school_for_mailbox,
@@ -40,6 +43,22 @@ from school_email import (  # noqa: E402
 
 DEFAULT_PROFILE = "browser_profiles/sor_okta"
 DEFAULT_DB = "outputs/lead_intelligence/lead_intelligence_working.db"
+SYSTEM_EMAIL_DOMAINS = {
+    "dialpad.com",
+    "email.amazonses.com",
+    "hubspot.com",
+    "jumbula.com",
+    "paydici.com",
+    "pciapply.com",
+    "pike13.com",
+    "schoolofrock.com",
+}
+NON_CUSTOMER_SMARTLABELS = {
+    "^smartlabel_group",
+    "^smartlabel_notification",
+    "^smartlabel_promo",
+    "^smartlabel_social",
+}
 
 load_dotenv(ROOT / ".env")
 
@@ -141,6 +160,232 @@ def visible_message_rows(page, limit):
         except Exception:
             continue
     return result
+
+
+def current_result_range(page):
+    try:
+        return page.evaluate(
+            """
+            () => {
+              const candidates = Array.from(document.querySelectorAll('[role="button"], div, span'))
+                .map(element => (element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' '))
+                .filter(text => /^\\d+[–-]\\d+ of /.test(text));
+              return candidates[0] || '';
+            }
+            """
+        )
+    except Exception:
+        return ""
+
+
+def first_result_signature(page):
+    try:
+        return page.evaluate(
+            """
+            () => {
+              const row = document.querySelector('tr.zA');
+              if (!row) {
+                return '';
+              }
+              return row.getAttribute('data-legacy-message-id') ||
+                row.getAttribute('data-legacy-thread-id') ||
+                (row.innerText || row.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 160);
+            }
+            """
+        )
+    except Exception:
+        return ""
+
+
+def go_to_next_results_page(page, timeout_ms):
+    before_range = current_result_range(page)
+    before_first = first_result_signature(page)
+    next_button = page.locator('[role="button"][aria-label="Next results"]')
+    if next_button.count() < 1:
+        return False
+    try:
+        next_button.first.click(timeout=timeout_ms)
+    except PlaywrightTimeoutError:
+        return False
+    deadline = time.time() + (timeout_ms / 1000)
+    while time.time() < deadline:
+        page.wait_for_timeout(500)
+        after_range = current_result_range(page)
+        after_first = first_result_signature(page)
+        if after_range and (after_range != before_range or after_first != before_first):
+            return True
+    return False
+
+
+def collect_gmail_sync_responses(page):
+    responses = []
+
+    def on_response(response):
+        url = response.url
+        if "mail.google.com/sync/u/0/i/" not in url:
+            return
+        if "/bv?" not in url and "/fd?" not in url:
+            return
+        try:
+            body = response.text()
+        except Exception as exc:
+            responses.append({"url": url, "kind": "error", "error": type(exc).__name__})
+            return
+        responses.append(
+            {
+                "url": url,
+                "kind": "bv" if "/bv?" in url else "fd",
+                "body": body,
+            }
+        )
+
+    page.on("response", on_response)
+    return responses, on_response
+
+
+def iter_gmail_message_lists(value):
+    if isinstance(value, list):
+        if value and isinstance(value[0], str) and value[0].startswith("msg-f:"):
+            yield value
+        for item in value:
+            yield from iter_gmail_message_lists(item)
+
+
+def participant_emails(value):
+    emails = []
+    if isinstance(value, list):
+        if len(value) >= 2 and isinstance(value[0], int) and isinstance(value[1], str) and "@" in value[1]:
+            normalized = normalize_email(value[1])
+            if normalized and normalized not in emails:
+                emails.append(normalized)
+        for item in value:
+            for email in participant_emails(item):
+                if email not in emails:
+                    emails.append(email)
+    return emails
+
+
+def is_system_email(email):
+    normalized = normalize_email(email) or ""
+    domain = normalized.rsplit("@", 1)[-1]
+    return any(domain == item or domain.endswith(f".{item}") for item in SYSTEM_EMAIL_DOMAINS)
+
+
+def external_lead_email(candidates):
+    for email in normalize_email_list(candidates):
+        if not is_school_email(email) and not is_system_email(email):
+            return email
+    return None
+
+
+def iter_large_ints(value):
+    if isinstance(value, int):
+        if value > 1_000_000_000_000:
+            yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from iter_large_ints(item)
+
+
+def collect_smartlabels(value):
+    labels = set()
+    if isinstance(value, str) and value.startswith("^smartlabel_"):
+        labels.add(value)
+    elif isinstance(value, list):
+        for item in value:
+            labels.update(collect_smartlabels(item))
+    return labels
+
+
+def millis_to_iso(value):
+    try:
+        numeric = int(value)
+    except (TypeError, ValueError):
+        return None
+    if numeric <= 0:
+        return None
+    return datetime.fromtimestamp(numeric / 1000, tz=timezone.utc).astimezone(DEFAULT_TIMEZONE).isoformat()
+
+
+def pick_message_timestamp(message_list, start_date, end_date):
+    values = sorted(set(iter_large_ints(message_list)))
+    if not values:
+        return None
+    start = datetime.combine(date.fromisoformat(start_date) - timedelta(days=1), datetime.min.time(), tzinfo=DEFAULT_TIMEZONE)
+    end = datetime.combine(date.fromisoformat(end_date) + timedelta(days=2), datetime.min.time(), tzinfo=DEFAULT_TIMEZONE)
+    for value in values:
+        parsed = datetime.fromtimestamp(value / 1000, tz=timezone.utc).astimezone(DEFAULT_TIMEZONE)
+        if start <= parsed < end:
+            return parsed.isoformat()
+    return millis_to_iso(values[0])
+
+
+def parse_sync_message(message_list, school_mailbox, start_date, end_date, source_url):
+    if len(message_list) < 2 or not isinstance(message_list[1], list):
+        return None
+    message_id = message_list[0]
+    details = message_list[1]
+    mailbox = normalize_email(school_mailbox)
+    from_emails = participant_emails(details[0]) if len(details) > 0 else []
+    to_emails = participant_emails(details[3]) if len(details) > 3 else []
+    smartlabels = collect_smartlabels(message_list)
+    if smartlabels & NON_CUSTOMER_SMARTLABELS:
+        return None
+    direction = classify_direction(from_emails, to_emails, mailbox)
+    if direction == "outbound":
+        external_email = external_lead_email(to_emails)
+    elif direction == "inbound":
+        external_email = external_lead_email(from_emails)
+    else:
+        return None
+    if not external_email:
+        return None
+    message_at = pick_message_timestamp(message_list, start_date, end_date)
+    return {
+        "message_id": message_id,
+        "thread_id": None,
+        "school_mailbox": mailbox,
+        "school": school_for_mailbox(mailbox),
+        "direction": direction,
+        "message_at": message_at,
+        "from_email": from_emails[0] if from_emails else None,
+        "from_email_normalized": from_emails[0] if from_emails else None,
+        "to_emails": json.dumps(to_emails, sort_keys=True),
+        "to_emails_normalized": json.dumps(to_emails, sort_keys=True),
+        "cc_emails": json.dumps([], sort_keys=True),
+        "cc_emails_normalized": json.dumps([], sort_keys=True),
+        "external_email_normalized": external_email,
+        "subject": "[redacted Gmail sync subject]",
+        "snippet": "[redacted Gmail sync snippet]",
+        "body": "[redacted Gmail sync body]",
+        "source_url": source_url,
+        "raw_text": "",
+        "raw_json": json.dumps(
+            {
+                "extraction": "gmail_browser_sync",
+                "raw_body_redacted": True,
+                "raw_subject_redacted": True,
+            },
+            sort_keys=True,
+        ),
+        "updated_at": utc_now_iso(),
+    }
+
+
+def parse_gmail_sync_response(body, school_mailbox, start_date, end_date, source_url):
+    try:
+        payload = json.loads(body)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    rows = []
+    seen = set()
+    for message_list in iter_gmail_message_lists(payload):
+        row = parse_sync_message(message_list, school_mailbox, start_date, end_date, source_url)
+        if not row or row["message_id"] in seen:
+            continue
+        seen.add(row["message_id"])
+        rows.append(row)
+    return rows
 
 
 def open_message_row(page, row_meta, timeout_ms):
@@ -277,6 +522,9 @@ def clean_snippet(value):
 
 
 def run_extraction(args):
+    if args.mode == "sync":
+        return run_sync_extraction(args)
+
     validate_window(args.start_date, args.end_date)
     db_path = validate_target_db(args.db, allow_production=args.allow_production_db)
     conn = sqlite3.connect(db_path)
@@ -314,47 +562,179 @@ def run_extraction(args):
                             page.wait_for_load_state("networkidle", timeout=min(args.query_timeout, 15) * 1000)
                         except PlaywrightTimeoutError:
                             pass
-                        rows = visible_message_rows(page, args.limit_per_query)
-                        print(f"Found visible Gmail rows: {len(rows)}", flush=True)
-                        metadata["queries"].append({"mailbox": mailbox, "direction": direction, "rows": len(rows)})
-                        for row_meta in rows:
-                            rows_seen += 1
+                        query_rows = 0
+                        query_pages = 0
+                        seen_message_ids = set()
+                        while query_pages < args.max_pages:
+                            query_pages += 1
+                            rows = visible_message_rows(page, args.limit_per_query)
+                            page_range = current_result_range(page)
                             print(
-                                f"Opening Gmail row {rows_seen} mailbox={mailbox} direction={direction} "
-                                f"index={row_meta['index']}",
+                                f"Found visible Gmail rows: {len(rows)} mailbox={mailbox} "
+                                f"direction={direction} page={query_pages} range={page_range}",
                                 flush=True,
                             )
-                            open_message_row(page, row_meta, min(args.query_timeout, 10) * 1000)
+                            for row_meta in rows:
+                                message_key = row_meta.get("legacy_message_id") or row_meta.get("legacy_thread_id") or f"page{query_pages}:{row_meta.get('index')}"
+                                if message_key in seen_message_ids:
+                                    continue
+                                seen_message_ids.add(message_key)
+                                rows_seen += 1
+                                query_rows += 1
+                                print(
+                                    f"Opening Gmail row {rows_seen} mailbox={mailbox} direction={direction} "
+                                    f"page={query_pages} index={row_meta['index']}",
+                                    flush=True,
+                                )
+                                open_message_row(page, row_meta, min(args.query_timeout, 10) * 1000)
+                                try:
+                                    page.wait_for_load_state("networkidle", timeout=10000)
+                                except PlaywrightTimeoutError:
+                                    pass
+                                message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
+                                write_raw_capture(
+                                    conn,
+                                    source="school_email",
+                                    capture_type="school_email_message_text",
+                                    content=message_text,
+                                    source_url=page.url,
+                                    metadata={
+                                        "mailbox": mailbox,
+                                        "direction": direction,
+                                        "query": query,
+                                        "row_index": row_meta["index"],
+                                        "page": query_pages,
+                                        "range": page_range,
+                                    },
+                                    import_run_id=run_id,
+                                    extension="txt",
+                                    label=f"{mailbox}-{direction}-{rows_seen}",
+                                )
+                                parsed = parse_open_message(page, row_meta, mailbox, direction)
+                                upsert_school_email_message(conn, parsed)
+                                rows_written += 1
+                                conn.commit()
+                                page.go_back(wait_until="domcontentloaded", timeout=30000)
+                                try:
+                                    page.wait_for_selector("tr.zA", timeout=10000)
+                                except PlaywrightTimeoutError:
+                                    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                                    for _ in range(1, query_pages):
+                                        if not go_to_next_results_page(page, min(args.query_timeout, 15) * 1000):
+                                            break
+                            if not rows:
+                                break
+                            if not go_to_next_results_page(page, min(args.query_timeout, 15) * 1000):
+                                break
+                        metadata["queries"].append(
+                            {
+                                "mailbox": mailbox,
+                                "direction": direction,
+                                "rows": query_rows,
+                                "pages": query_pages,
+                            }
+                        )
+            finally:
+                context.close()
+        finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0, metadata=metadata)
+        conn.commit()
+    except Exception as exc:
+        finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, str(exc)[:240], metadata=metadata)
+        conn.commit()
+        raise
+    finally:
+        conn.close()
+    return rows_seen, rows_written
+
+
+def run_sync_extraction(args):
+    validate_window(args.start_date, args.end_date)
+    db_path = validate_target_db(args.db, allow_production=args.allow_production_db)
+    conn = sqlite3.connect(db_path)
+    ensure_lead_followup_schema(conn)
+    run_id = start_import_run(
+        conn,
+        "school_email",
+        Path(__file__).name,
+        args.start_date,
+        args.end_date,
+        {"mailboxes": args.mailbox, "profile_dir": args.profile_dir, "mode": "sync"},
+    )
+    conn.commit()
+    rows_seen = rows_written = 0
+    metadata = {"queries": []}
+    try:
+        with sync_playwright() as p:
+            context = p.chromium.launch_persistent_context(
+                str(Path(args.profile_dir)),
+                headless=args.headless and not args.interactive_login,
+                viewport={"width": 1440, "height": 1000},
+            )
+            try:
+                page = context.pages[0] if context.pages else context.new_page()
+                page.set_default_timeout(args.query_timeout * 1000)
+                page.set_default_navigation_timeout(args.query_timeout * 1000)
+                sync_responses, sync_listener = collect_gmail_sync_responses(page)
+                try:
+                    for mailbox in args.mailbox:
+                        for query_direction in ("inbound", "outbound"):
+                            query = gmail_query(mailbox, query_direction, args.start_date, args.end_date, args.query_term)
+                            url = gmail_search_url(query)
+                            print(f"Searching Gmail sync mailbox={mailbox} query_direction={query_direction}", flush=True)
+                            sync_responses.clear()
+                            page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
+                            wait_for_gmail(page, args.interactive_login, args.login_timeout)
                             try:
-                                page.wait_for_load_state("networkidle", timeout=10000)
+                                page.wait_for_selector("tr.zA", timeout=min(args.query_timeout, 20) * 1000)
                             except PlaywrightTimeoutError:
                                 pass
-                            message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
-                            write_raw_capture(
-                                conn,
-                                source="school_email",
-                                capture_type="school_email_message_text",
-                                content=message_text,
-                                source_url=page.url,
-                                metadata={
+                            page.wait_for_timeout(5000)
+                            query_rows = 0
+                            query_pages = 0
+                            seen_message_ids = set()
+                            while query_pages < args.max_pages:
+                                query_pages += 1
+                                page_range = current_result_range(page)
+                                page_rows = 0
+                                for response in list(sync_responses):
+                                    if response.get("kind") != "fd":
+                                        continue
+                                    for parsed in parse_gmail_sync_response(
+                                        response.get("body"),
+                                        mailbox,
+                                        args.start_date,
+                                        args.end_date,
+                                        page.url,
+                                    ):
+                                        message_id = parsed["message_id"]
+                                        if message_id in seen_message_ids:
+                                            continue
+                                        seen_message_ids.add(message_id)
+                                        rows_seen += 1
+                                        query_rows += 1
+                                        page_rows += 1
+                                        upsert_school_email_message(conn, parsed)
+                                        rows_written += 1
+                                conn.commit()
+                                print(
+                                    f"Parsed Gmail sync rows: {page_rows} mailbox={mailbox} "
+                                    f"query_direction={query_direction} page={query_pages} range={page_range}",
+                                    flush=True,
+                                )
+                                sync_responses.clear()
+                                if not go_to_next_results_page(page, min(args.query_timeout, 15) * 1000):
+                                    break
+                                page.wait_for_timeout(5000)
+                            metadata["queries"].append(
+                                {
                                     "mailbox": mailbox,
-                                    "direction": direction,
-                                    "query": query,
-                                    "row_index": row_meta["index"],
-                                },
-                                import_run_id=run_id,
-                                extension="txt",
-                                label=f"{mailbox}-{direction}-{rows_seen}",
+                                    "direction": query_direction,
+                                    "rows": query_rows,
+                                    "pages": query_pages,
+                                }
                             )
-                            parsed = parse_open_message(page, row_meta, mailbox, direction)
-                            upsert_school_email_message(conn, parsed)
-                            rows_written += 1
-                            conn.commit()
-                            page.go_back(wait_until="domcontentloaded", timeout=30000)
-                            try:
-                                page.wait_for_selector("tr.zA", timeout=10000)
-                            except PlaywrightTimeoutError:
-                                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                finally:
+                    page.remove_listener("response", sync_listener)
             finally:
                 context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0, metadata=metadata)
@@ -376,6 +756,8 @@ def main():
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--mailbox", action="append", choices=sorted(SCHOOL_MAILBOXES), default=[])
     parser.add_argument("--limit-per-query", type=int, default=50)
+    parser.add_argument("--max-pages", type=int, default=1)
+    parser.add_argument("--mode", choices=["visible", "sync"], default="visible")
     parser.add_argument("--query-timeout", type=int, default=45)
     parser.add_argument("--query-term", default="")
     parser.add_argument("--headless", action="store_true")

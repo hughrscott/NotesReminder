@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import urlencode
 
 from playwright.sync_api import sync_playwright
 
@@ -140,8 +141,8 @@ def feed_row_to_sms_rows(row, contact, target_key, school, department):
     return thread, message
 
 
-def api_get_json(context, url, auth_header):
-    response = context.request.get(url, headers={"authorization": auth_header})
+def api_get_json(context, url, auth_header, timeout_ms=60000):
+    response = context.request.get(url, headers={"authorization": auth_header}, timeout=timeout_ms)
     if response.status >= 400:
         raise RuntimeError(f"Dialpad API request failed status={response.status} path={urlsplit(url).path}")
     return response.json()
@@ -184,14 +185,11 @@ def collect_auth_header(page):
     return headers, on_request
 
 
-def fetch_contacts(context, target_key, auth_header, per_filter_limit):
+def fetch_contacts(context, target_key, auth_header, per_filter_limit, timeout_ms=60000):
     contacts = {}
     for filter_name in CONTACT_FILTERS:
-        url = (
-            "https://dialpad.com/api/contact/"
-            f"?filter={filter_name}&target_key={target_key}&limit={per_filter_limit}"
-        )
-        rows = api_get_json(context, url, auth_header)
+        url = contact_list_url(target_key, filter_name, per_filter_limit)
+        rows = api_get_json(context, url, auth_header, timeout_ms=timeout_ms)
         if not isinstance(rows, list):
             continue
         for row in rows:
@@ -201,12 +199,45 @@ def fetch_contacts(context, target_key, auth_header, per_filter_limit):
     return list(contacts.values())
 
 
-def fetch_feed_rows(context, target_key, contact_key, auth_header, limit):
+def contact_list_url(target_key, filter_name, limit):
+    return "https://dialpad.com/api/contact/?" + urlencode(
+        {"filter": filter_name, "target_key": target_key, "limit": limit}
+    )
+
+
+def contact_search_url(target_key, query, limit):
+    return "https://dialpad.com/api/contact/?" + urlencode(
+        {"filter": "all", "target_key": target_key, "limit": limit, "search": query}
+    )
+
+
+def fetch_contacts_by_search(context, target_key, auth_header, targets, limit, timeout_ms=60000):
+    contacts = {}
+    for target in targets:
+        query = str(target or "").strip()
+        if not query:
+            continue
+        rows = api_get_json(
+            context,
+            contact_search_url(target_key, query, limit),
+            auth_header,
+            timeout_ms=timeout_ms,
+        )
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            key = row.get("contact_key") or row.get("key")
+            if key:
+                contacts.setdefault(key, row)
+    return list(contacts.values())
+
+
+def fetch_feed_rows(context, target_key, contact_key, auth_header, limit, timeout_ms=60000):
     url = (
         "https://dialpad.com/api/feed/"
         f"?target_key={target_key}&contact_key={contact_key}&limit={limit}&support_link_media=true"
     )
-    rows = api_get_json(context, url, auth_header)
+    rows = api_get_json(context, url, auth_header, timeout_ms=timeout_ms)
     return rows if isinstance(rows, list) else []
 
 
@@ -223,7 +254,12 @@ def run(args):
         Path(__file__).name,
         args.start_date,
         None,
-        {"department": department, "school": school, "mode": "api"},
+        {
+            "department": department,
+            "school": school,
+            "mode": "api_search" if args.target_phone else "api",
+            "target_phone_count": len(args.target_phone or []),
+        },
     )
     conn.commit()
     rows_seen = rows_written = 0
@@ -248,12 +284,37 @@ def run(args):
                 raise RuntimeError("Could not capture Dialpad API authorization header.")
             auth_header = auth_headers[-1]
             page.remove_listener("request", auth_listener)
-            contacts = fetch_contacts(context, target_key, auth_header, args.contact_limit)
-            for contact in contacts:
+            request_timeout_ms = args.request_timeout * 1000
+            if args.target_phone:
+                contacts = fetch_contacts_by_search(
+                    context,
+                    target_key,
+                    auth_header,
+                    args.target_phone,
+                    args.search_limit,
+                    timeout_ms=request_timeout_ms,
+                )
+            else:
+                contacts = fetch_contacts(context, target_key, auth_header, args.contact_limit, timeout_ms=request_timeout_ms)
+            print(f"Resolved {len(contacts)} Dialpad contacts for department={department}", flush=True)
+            for index, contact in enumerate(contacts, start=1):
                 contact_key = contact.get("contact_key") or contact.get("key")
                 if not contact_key:
                     continue
-                feed_rows = fetch_feed_rows(context, target_key, contact_key, auth_header, args.feed_limit)
+                if index == 1 or index % 50 == 0 or index == len(contacts):
+                    print(
+                        f"Fetching Dialpad SMS feed {index}/{len(contacts)} "
+                        f"department={department} rows_seen={rows_seen}",
+                        flush=True,
+                    )
+                feed_rows = fetch_feed_rows(
+                    context,
+                    target_key,
+                    contact_key,
+                    auth_header,
+                    args.feed_limit,
+                    timeout_ms=request_timeout_ms,
+                )
                 for row in feed_rows:
                     if row.get("feed_type") != "TextMessage":
                         continue
@@ -291,7 +352,10 @@ def main():
     parser.add_argument("--department")
     parser.add_argument("--start-date", default="2026-01-01")
     parser.add_argument("--contact-limit", type=int, default=100)
+    parser.add_argument("--target-phone", action="append", default=[], help="Phone number to search directly in Dialpad contacts. Repeatable.")
+    parser.add_argument("--search-limit", type=int, default=10, help="Max contacts returned for each --target-phone search.")
     parser.add_argument("--feed-limit", type=int, default=50)
+    parser.add_argument("--request-timeout", type=int, default=60, help="Seconds to wait for each Dialpad API request.")
     parser.add_argument("--login-timeout", type=int, default=300)
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--interactive-login", action="store_true")

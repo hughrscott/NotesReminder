@@ -10,8 +10,10 @@ from notesreminder.reports.dashboard_sql import register_dashboard_sql_functions
 from notesreminder.reports.lead_operating_dashboard import (
     contact_date_expr,
     contact_person_expr,
+    column_exists,
     hubspot_contact_school_clause,
     hubspot_lead_count,
+    lead_followup_pareto_grid,
     table_exists,
 )
 
@@ -38,6 +40,20 @@ def month_start(as_of: str) -> str:
 
 def year_start(as_of: str) -> str:
     return date.fromisoformat(as_of).replace(month=1, day=1).isoformat()
+
+
+def complete_months_ytd(as_of: str) -> list[str]:
+    day = date.fromisoformat(as_of)
+    current = day.replace(month=1, day=1)
+    stop = day.replace(day=1)
+    months = []
+    while current < stop:
+        months.append(current.strftime("%Y-%m"))
+        if current.month == 12:
+            current = current.replace(year=current.year + 1, month=1)
+        else:
+            current = current.replace(month=current.month + 1)
+    return months
 
 
 def scalar(conn: sqlite3.Connection, sql: str, params: dict | None = None):
@@ -106,6 +122,7 @@ def hubspot_spine_gate(
     as_of: str,
     schools: tuple[str, ...] = DEFAULT_SCHOOLS,
     min_mtd_phone_rate: float = 0.5,
+    min_mtd_identity_rate: float = 0.7,
 ) -> dict:
     if not table_exists(conn, "hubspot_contacts"):
         return {"status": "blocked", "blockers": ["missing_hubspot_contacts"], "schools": []}
@@ -135,6 +152,7 @@ def hubspot_spine_gate(
     usable_mtd_ids = set()
     school_rows = []
     blockers = []
+    data_quality_flags = []
     for school in schools:
         school_sql, school_params = hubspot_contact_school_clause(school, conn)
         lead_date_sql = contact_date_expr(conn)
@@ -159,11 +177,28 @@ def hubspot_spine_gate(
         mtd_phone = _hubspot_filtered_count(conn, school, mtd_start, as_of, "COALESCE(c.phone_normalized, c.phone, '') != ''")
         ytd_email = _hubspot_filtered_count(conn, school, ytd_start, as_of, "COALESCE(c.email_normalized, c.email, '') != ''")
         mtd_email = _hubspot_filtered_count(conn, school, mtd_start, as_of, "COALESCE(c.email_normalized, c.email, '') != ''")
+        ytd_identity = _hubspot_filtered_count(
+            conn,
+            school,
+            ytd_start,
+            as_of,
+            "COALESCE(c.phone_normalized, c.phone, c.email_normalized, c.email, '') != ''",
+        )
+        mtd_identity = _hubspot_filtered_count(
+            conn,
+            school,
+            mtd_start,
+            as_of,
+            "COALESCE(c.phone_normalized, c.phone, c.email_normalized, c.email, '') != ''",
+        )
         dialpad_targets_ytd = len(select_hubspot_contact_targets(conn, school, ytd_start, as_of, limit=100000))
         mtd_phone_rate = _rate(mtd_phone, mtd_leads)
+        mtd_identity_rate = _rate(mtd_identity, mtd_leads)
         school_blockers = []
         if mtd_leads and (mtd_phone_rate or 0) < min_mtd_phone_rate:
             school_blockers.append(f"hubspot_mtd_phone_coverage_below_{int(min_mtd_phone_rate * 100)}pct")
+        if mtd_leads and (mtd_identity_rate or 0) < min_mtd_identity_rate:
+            school_blockers.append(f"hubspot_mtd_identity_coverage_below_{int(min_mtd_identity_rate * 100)}pct")
         school_rows.append(
             {
                 "school": school,
@@ -177,6 +212,10 @@ def hubspot_spine_gate(
                 "mtd_email_rows": mtd_email,
                 "ytd_email_rate": _rate(ytd_email, ytd_leads),
                 "mtd_email_rate": _rate(mtd_email, mtd_leads),
+                "ytd_identity_rows": ytd_identity,
+                "mtd_identity_rows": mtd_identity,
+                "ytd_identity_rate": _rate(ytd_identity, ytd_leads),
+                "mtd_identity_rate": mtd_identity_rate,
                 "dialpad_target_eligible_ytd": dialpad_targets_ytd,
                 "blockers": school_blockers,
             }
@@ -184,7 +223,6 @@ def hubspot_spine_gate(
         blockers.extend(f"{school}:{blocker}" for blocker in school_blockers)
     unassigned_ytd = max(total_ytd - len(usable_ytd_ids), 0)
     unassigned_mtd = max(total_mtd - len(usable_mtd_ids), 0)
-    data_quality_flags = []
     if unassigned_mtd:
         data_quality_flags.append(f"hubspot_mtd_unassigned_school_{unassigned_mtd}")
     if unassigned_ytd:
@@ -204,41 +242,262 @@ def hubspot_spine_gate(
     }
 
 
-def communication_coverage_gate(conn: sqlite3.Connection, *, as_of: str, schools: tuple[str, ...] = DEFAULT_SCHOOLS) -> dict:
+def communication_coverage_gate(
+    conn: sqlite3.Connection,
+    *,
+    as_of: str,
+    schools: tuple[str, ...] = DEFAULT_SCHOOLS,
+    min_matched_lead_rate: float = 0.5,
+    min_known_call_direction_rate: float = 0.5,
+    min_historical_monthly_call_rows: int = 10,
+) -> dict:
     if not table_exists(conn, "vw_dialpad_communications"):
         return {"status": "blocked", "blockers": ["missing_vw_dialpad_communications"], "schools": []}
     blockers = []
+    data_quality_flags = []
     rows = []
     mtd_start = month_start(as_of)
-    for school in schools:
-        call_rows = _count(
+    unmapped_voice_ytd = _count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+          AND COALESCE(school, '') = ''
+        """,
+        {"start": year_start(as_of), "end": as_of},
+    )
+    unmapped_voice_mtd = _count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM dialpad_voice_events
+        WHERE dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+          AND COALESCE(school, '') = ''
+        """,
+        {"start": mtd_start, "end": as_of},
+    )
+    if unmapped_voice_mtd:
+        data_quality_flags.append(f"dialpad_voice_mtd_unmapped_school_{unmapped_voice_mtd}")
+    if unmapped_voice_ytd:
+        data_quality_flags.append(f"dialpad_voice_ytd_unmapped_school_{unmapped_voice_ytd}")
+    sms_ytd_no_phone_rows = 0
+    sms_ytd_no_phone_school_attributed_rows = 0
+    if table_exists(conn, "dialpad_sms_messages") and table_exists(conn, "dialpad_sms_threads"):
+        sms_ytd_no_phone_rows = _count(
             conn,
             """
             SELECT COUNT(*)
+            FROM dialpad_sms_messages m
+            LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            WHERE dashboard_date(m.message_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+              AND COALESCE(t.phone_normalized, '') = ''
+            """,
+            {"start": year_start(as_of), "end": as_of},
+        )
+        sms_ytd_no_phone_school_attributed_rows = _count(
+            conn,
+            """
+            SELECT COUNT(*)
+            FROM dialpad_sms_messages m
+            LEFT JOIN dialpad_sms_threads t ON t.thread_id = m.thread_id
+            WHERE dashboard_date(m.message_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+              AND COALESCE(t.phone_normalized, '') = ''
+              AND COALESCE(t.school, t.department, '') != ''
+            """,
+            {"start": year_start(as_of), "end": as_of},
+        )
+        if sms_ytd_no_phone_rows:
+            data_quality_flags.append(f"dialpad_sms_ytd_no_phone_rows_{sms_ytd_no_phone_rows}")
+    voice_ytd_unmapped_known_entry_point_rows = 0
+    voice_ytd_unmapped_missing_entry_point_rows = 0
+    voice_ytd_unmapped_no_safe_evidence_rows = 0
+    if table_exists(conn, "dialpad_voice_events"):
+        entry_point_expr = (
+            "COALESCE(json_extract(raw_json, '$.display_entry_point'), '')"
+            if column_exists(conn, "dialpad_voice_events", "raw_json")
+            else "''"
+        )
+        not_excluded_sql = (
+            "COALESCE(json_extract(raw_json, '$.excluded_from_communication_view'), 0) != 1"
+            if column_exists(conn, "dialpad_voice_events", "raw_json")
+            else "1=1"
+        )
+        voice_ytd_unmapped_known_entry_point_rows = _count(
+            conn,
+            f"""
+            SELECT COUNT(*)
+            FROM dialpad_voice_events
+            WHERE dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+              AND COALESCE(school, '') = ''
+              AND {entry_point_expr} != ''
+              AND {not_excluded_sql}
+            """,
+            {"start": year_start(as_of), "end": as_of},
+        )
+        voice_ytd_unmapped_missing_entry_point_rows = _count(
+            conn,
+            f"""
+            SELECT COUNT(*)
+            FROM dialpad_voice_events
+            WHERE dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+              AND COALESCE(school, '') = ''
+              AND {entry_point_expr} = ''
+              AND {not_excluded_sql}
+            """,
+            {"start": year_start(as_of), "end": as_of},
+        )
+        voice_ytd_unmapped_no_safe_evidence_rows = _count(
+            conn,
+            f"""
+            SELECT COUNT(*)
+            FROM dialpad_voice_events v
+            WHERE dashboard_date(v.event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
+              AND COALESCE(v.school, '') = ''
+              AND {entry_point_expr.replace("raw_json", "v.raw_json")} = ''
+              AND {not_excluded_sql.replace("raw_json", "v.raw_json")}
+              AND NOT (
+                  COALESCE(json_extract(v.raw_json, '$.requested_school'), '') != ''
+                  AND COALESCE(json_extract(v.raw_json, '$.school_filter_applied'), 0) = 1
+                  AND COALESCE(json_extract(v.raw_json, '$.scope_school_mismatch'), 0) != 1
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM hubspot_contacts h
+                  WHERE h.phone_normalized = v.phone_normalized
+                    AND COALESCE(h.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM pike13_people p
+                  WHERE p.phone_normalized = v.phone_normalized
+                    AND COALESCE(p.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_sms_threads t
+                  WHERE t.phone_normalized = v.phone_normalized
+                    AND COALESCE(t.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_voice_events known
+                  WHERE known.phone_normalized = v.phone_normalized
+                    AND COALESCE(known.school, '') != ''
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM dialpad_call_reviews cr
+                  WHERE (cr.voice_event_id = v.event_id OR cr.call_id = v.call_id OR cr.call_review_id = v.call_id)
+                    AND json_array_length(COALESCE(json_extract(cr.raw_json, '$.visible_school_labels'), '[]')) = 1
+              )
+            """,
+            {"start": year_start(as_of), "end": as_of},
+        )
+        if voice_ytd_unmapped_known_entry_point_rows:
+            data_quality_flags.append(
+                f"dialpad_voice_ytd_unmapped_entry_point_rows_{voice_ytd_unmapped_known_entry_point_rows}"
+            )
+        if voice_ytd_unmapped_missing_entry_point_rows:
+            data_quality_flags.append(
+                f"dialpad_voice_ytd_missing_entry_point_rows_{voice_ytd_unmapped_missing_entry_point_rows}"
+            )
+    phone_expr = "phone_normalized" if column_exists(conn, "vw_dialpad_communications", "phone_normalized") else "''"
+    direction_expr = "direction" if column_exists(conn, "vw_dialpad_communications", "direction") else "''"
+    complete_months = complete_months_ytd(as_of)
+    for school in schools:
+        school_like = "%height%" if "height" in school.lower() else "%west%"
+        call_row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS rows,
+                SUM(CASE WHEN COALESCE({phone_expr}, '') != '' THEN 1 ELSE 0 END) AS with_phone,
+                SUM(CASE WHEN LOWER(COALESCE({direction_expr}, '')) IN ('inbound', 'outbound') THEN 1 ELSE 0 END)
+                    AS known_direction
             FROM vw_dialpad_communications
             WHERE channel = 'call'
               AND dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
               AND LOWER(COALESCE(school, '')) LIKE :school_like
-            """,
-            {"start": mtd_start, "end": as_of, "school_like": "%height%" if "height" in school.lower() else "%west%"},
-        )
-        sms_rows = _count(
-            conn,
+            """.format(phone_expr=phone_expr, direction_expr=direction_expr),
+            {"start": mtd_start, "end": as_of, "school_like": school_like},
+        ).fetchone()
+        sms_row = conn.execute(
             """
-            SELECT COUNT(*)
+            SELECT
+                COUNT(*) AS rows,
+                SUM(CASE WHEN COALESCE({phone_expr}, '') != '' THEN 1 ELSE 0 END) AS with_phone
             FROM vw_dialpad_communications
             WHERE channel = 'sms'
               AND dashboard_date(event_at) BETWEEN dashboard_date(:start) AND dashboard_date(:end)
               AND LOWER(COALESCE(school, '')) LIKE :school_like
-            """,
-            {"start": mtd_start, "end": as_of, "school_like": "%height%" if "height" in school.lower() else "%west%"},
-        )
+            """.format(phone_expr=phone_expr),
+            {"start": mtd_start, "end": as_of, "school_like": school_like},
+        ).fetchone()
+        call_rows = int(call_row["rows"] or 0)
+        call_with_phone = int(call_row["with_phone"] or 0)
+        call_known_direction = int(call_row["known_direction"] or 0)
+        sms_rows = int(sms_row["rows"] or 0)
+        sms_with_phone = int(sms_row["with_phone"] or 0)
+        pareto = lead_followup_pareto_grid(conn, mtd_start, as_of, school)
+        pareto_coverage = pareto.get("coverage", {})
+        matched_rate = pareto_coverage.get("communication_coverage_rate")
+        lead_identity_rate = pareto_coverage.get("lead_identity_rate")
+        call_known_direction_rate = _rate(call_known_direction, call_rows)
+        historical_call_months = []
+        for month in complete_months:
+            historical_rows = _count(
+                conn,
+                """
+                SELECT COUNT(*)
+                FROM vw_dialpad_communications
+                WHERE channel = 'call'
+                  AND substr(dashboard_date(event_at), 1, 7) = :month
+                  AND LOWER(COALESCE(school, '')) LIKE :school_like
+                """,
+                {"month": month, "school_like": school_like},
+            )
+            historical_call_months.append({"month": month, "call_rows": historical_rows})
         school_blockers = []
+        for item in historical_call_months:
+            if item["call_rows"] < min_historical_monthly_call_rows:
+                school_blockers.append(f"ytd_call_backfill_gap_{item['month']}")
         if sms_rows == 0:
             school_blockers.append("missing_mtd_sms_rows")
-        rows.append({"school": school, "mtd_call_rows": call_rows, "mtd_sms_rows": sms_rows, "blockers": school_blockers})
+        if call_rows and (call_known_direction_rate or 0) < min_known_call_direction_rate:
+            school_blockers.append(f"mtd_call_direction_coverage_below_{int(min_known_call_direction_rate * 100)}pct")
+        if pareto_coverage.get("leads") and (matched_rate or 0) < min_matched_lead_rate:
+            if lead_identity_rate is not None and lead_identity_rate < 0.7:
+                data_quality_flags.append(
+                    f"{school}:mtd_matched_communication_coverage_identity_limited"
+                )
+            else:
+                school_blockers.append(f"mtd_matched_communication_coverage_below_{int(min_matched_lead_rate * 100)}pct")
+        rows.append(
+            {
+                "school": school,
+                "mtd_call_rows": call_rows,
+                "mtd_call_phone_rows": call_with_phone,
+                "mtd_call_phone_rate": _rate(call_with_phone, call_rows),
+                "mtd_call_known_direction_rows": call_known_direction,
+                "mtd_call_known_direction_rate": call_known_direction_rate,
+                "mtd_sms_rows": sms_rows,
+                "mtd_sms_phone_rows": sms_with_phone,
+                "mtd_sms_phone_rate": _rate(sms_with_phone, sms_rows),
+                "mtd_matched_communication_rate": matched_rate,
+                "mtd_lead_identity_rate": lead_identity_rate,
+                "historical_call_months": historical_call_months,
+                "blockers": school_blockers,
+            }
+        )
         blockers.extend(f"{school}:{blocker}" for blocker in school_blockers)
-    return {"status": "ready" if not blockers else "blocked", "schools": rows, "blockers": blockers}
+    return {
+        "status": "ready" if not blockers else "blocked",
+        "schools": rows,
+        "unmapped_voice_ytd": unmapped_voice_ytd,
+        "unmapped_voice_mtd": unmapped_voice_mtd,
+        "sms_ytd_no_phone_rows": sms_ytd_no_phone_rows,
+        "sms_ytd_no_phone_school_attributed_rows": sms_ytd_no_phone_school_attributed_rows,
+        "voice_ytd_unmapped_known_entry_point_rows": voice_ytd_unmapped_known_entry_point_rows,
+        "voice_ytd_unmapped_missing_entry_point_rows": voice_ytd_unmapped_missing_entry_point_rows,
+        "voice_ytd_unmapped_no_safe_evidence_rows": voice_ytd_unmapped_no_safe_evidence_rows,
+        "blockers": blockers,
+        "data_quality_flags": data_quality_flags,
+    }
 
 
 def build_dashboard_readiness(conn: sqlite3.Connection, *, as_of: str | None = None, schools: tuple[str, ...] = DEFAULT_SCHOOLS) -> dict:
@@ -249,7 +508,7 @@ def build_dashboard_readiness(conn: sqlite3.Connection, *, as_of: str | None = N
     hubspot = hubspot_spine_gate(conn, as_of=as_of, schools=schools)
     communications = communication_coverage_gate(conn, as_of=as_of, schools=schools)
     blockers = freshness["blockers"] + hubspot["blockers"] + communications["blockers"]
-    data_quality_flags = hubspot.get("data_quality_flags", [])
+    data_quality_flags = hubspot.get("data_quality_flags", []) + communications.get("data_quality_flags", [])
     return {
         "report_type": "dashboard_readiness",
         "generated_at": utc_now_iso(),

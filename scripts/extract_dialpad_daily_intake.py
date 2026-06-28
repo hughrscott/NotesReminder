@@ -119,11 +119,14 @@ def enrich_daily_row(row, window_days, school, filter_diagnostics):
         raw = json.loads(row.get("raw_json") or "{}")
     except json.JSONDecodeError:
         raw = {"raw_json_parse_error": True}
+    original_school = row.get("school")
     raw.update(
         {
             "daily_intake": True,
             "window_days": window_days,
             "requested_school": school,
+            "original_parsed_school": original_school,
+            "school_normalized_from_active_filter": False,
             "filter_diagnostics": filter_diagnostics or {},
             "source_timestamp_field": "event_at",
             "import_timestamp_field": "updated_at",

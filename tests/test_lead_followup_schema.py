@@ -107,6 +107,46 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         for column in {"payer_name", "next_invoice_at", "terms_accepted_flag"}:
             self.assertIn(column, plan_columns)
 
+    def test_dialpad_communications_excludes_low_confidence_conversation_history_table_rows(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        rows = [
+            (
+                "dom-1",
+                "conversation_history_dom",
+                "outbound",
+                json.dumps({"extraction": "conversation_history_dom"}),
+            ),
+            (
+                "table-1",
+                "conversation_history_table",
+                "unknown",
+                json.dumps({"extraction": "conversation_history_table"}),
+            ),
+        ]
+        for event_id, extraction, direction, raw_json in rows:
+            conn.execute(
+                """
+                INSERT INTO dialpad_voice_events (
+                    event_id, source_view, event_type, direction, event_at,
+                    school, outcome, raw_text, raw_json, updated_at
+                )
+                VALUES (?, 'conversation_history', 'call', ?, '2026-06-24T12:00:00',
+                        'West U', ?, 'raw', ?, ?)
+                """,
+                (event_id, direction, extraction, raw_json, now),
+            )
+
+        visible_ids = {
+            row["communication_id"]
+            for row in conn.execute(
+                "SELECT communication_id FROM vw_dialpad_communications WHERE source_table = 'dialpad_voice_events'"
+            ).fetchall()
+        }
+
+        self.assertIn("dom-1", visible_ids)
+        self.assertNotIn("table-1", visible_ids)
+
     def test_import_run_logging(self):
         conn = self.open_db()
         run_id = start_import_run(conn, "hubspot", "extract_hubspot_leads.py", "2025-01-01")
@@ -483,6 +523,125 @@ class LeadFollowupSchemaTests(unittest.TestCase):
         self.assertEqual(report["sources"]["pike13"]["people_rows"], 1)
         self.assertIn(report["overall_status"], {"partial", "blocked"})
         self.assertGreaterEqual(report["matching"]["rows"], 1)
+
+    def test_source_completeness_counts_sms_extraction_fallback_key(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('msg-1', 'thread-1', '2026-04-21', 'outbound',
+                    'Redacted SMS body', 'https://dialpad/msg-1', '', ?, ?)
+            """,
+            (json.dumps({"extraction": "dialpad_sms_api"}), now),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+
+        self.assertEqual(report["sources"]["dialpad"]["sms_extraction_sources"]["dialpad_sms_api"], 1)
+
+    def test_source_completeness_reports_school_email_auth_failure(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        message_at = now[:10]
+        conn.execute(
+            """
+            INSERT INTO school_email_messages (
+                message_id, school_mailbox, school, direction, message_at,
+                external_email_normalized, updated_at
+            )
+            VALUES
+                ('email-1', 'westu@schoolofrock.com', 'West University Place',
+                 'inbound', ?, 'lead@example.com', ?),
+                ('email-2', 'theheights@schoolofrock.com', 'The Heights',
+                 'inbound', ?, '', ?)
+            """,
+            (message_at, now, message_at, now),
+        )
+        run_id = start_import_run(
+            conn,
+            "school_email",
+            "extract_school_emails.py",
+            window_start="2026-01-01",
+            window_end="2026-06-24",
+        )
+        finish_import_run(
+            conn,
+            run_id,
+            "error",
+            error="Gmail profile is not authenticated; final_url=https://accounts.google.com/",
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        email = report["sources"]["school_email"]
+
+        self.assertEqual(email["status"], "blocked")
+        self.assertEqual(email["rows"], 2)
+        self.assertEqual(email["recent_window_rows"], 2)
+        self.assertEqual(email["no_external_email_rows"], 1)
+        self.assertEqual(email["external_email_fill_rate"], 50.0)
+        self.assertIn("gmail_auth_required", email["blockers"])
+        self.assertEqual(len(email["mailboxes"]), 2)
+        self.assertEqual(report["overall_status"], "blocked")
+
+    def test_source_completeness_reports_sanitized_dialpad_identity_gaps(self):
+        conn = self.open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_threads (
+                thread_id, contact_name, school, source_url, raw_text, updated_at
+            )
+            VALUES ('thread-no-phone', 'No Phone Lead', 'The Heights',
+                    'https://dialpad/thread', '', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_sms_messages (
+                message_id, thread_id, message_at, direction, body, source_url, raw_text, raw_json, updated_at
+            )
+            VALUES ('msg-no-phone', 'thread-no-phone', '2026-04-21', 'inbound',
+                    '[redacted]', 'https://dialpad/msg', '', ?, ?)
+            """,
+            (json.dumps({"extraction_source": "message_list_row", "direction_source": "observed"}), now),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_at, school, direction, phone_normalized, raw_json, updated_at
+            )
+            VALUES ('voice-unmapped-entry', '2026-04-22', '', 'inbound', '7135551212',
+                    '{"display_entry_point": "(832) 555-0000"}', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO dialpad_voice_events (
+                event_id, event_at, school, direction, phone_normalized, raw_json, updated_at
+            )
+            VALUES ('voice-unmapped-missing-entry', '2026-04-23', '', 'inbound', '', '{}', ?)
+            """,
+            (now,),
+        )
+
+        report = build_source_completeness_report(conn, window_days=7, pike13_lookahead_days=30)
+        dialpad = report["sources"]["dialpad"]
+        gaps = dialpad["communication_identity_gaps"]
+
+        self.assertEqual(gaps["sms_ytd_no_phone_rows"], 1)
+        self.assertEqual(gaps["sms_ytd_no_phone_school_attributed_rows"], 1)
+        self.assertEqual(gaps["voice_ytd_unmapped_school_rows"], 2)
+        self.assertEqual(gaps["voice_ytd_unmapped_known_entry_point_rows"], 1)
+        self.assertEqual(gaps["voice_ytd_unmapped_missing_entry_point_rows"], 1)
+        self.assertEqual(gaps["voice_ytd_unmapped_entry_point_groups"], 1)
+        self.assertIn("dialpad_sms_ytd_no_phone_rows_1", dialpad["data_quality_flags"])
+        self.assertIn("dialpad_voice_ytd_unmapped_school_rows_2", dialpad["data_quality_flags"])
+        self.assertNotIn("(832) 555-0000", json.dumps(dialpad))
 
     def test_source_completeness_blocks_future_dialpad_timestamps(self):
         conn = self.open_db()

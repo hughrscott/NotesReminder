@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -107,6 +108,10 @@ SCHOOL_DEPARTMENTS = {
     "heights": "HEIGHTS",
     "theheights": "HEIGHTS",
     "theheights-sor": "HEIGHTS",
+}
+OFFICE_PHONES = {
+    "2819097625",
+    "8329007625",
 }
 
 
@@ -409,39 +414,85 @@ def select_department_messages(page, department):
         raise RuntimeError(f"Dialpad department selector not found or ambiguous for {department}.")
     department_link.click(timeout=10000)
     page.wait_for_timeout(1500)
-    messages_tab = page.locator(".d-tab, button.d-tab, [role='tab']").filter(has_text="Messages")
-    if messages_tab.count() == 0:
-        raise RuntimeError(f"Dialpad Messages tab not found after selecting department {department}.")
-    for index in range(messages_tab.count()):
-        try:
-            messages_tab.nth(index).click(timeout=10000)
-            page.wait_for_timeout(2000)
-            if visible_message_list_rows(page):
-                break
-            selected_text = page.locator(".d-tab--selected, [aria-selected='true']").inner_text(timeout=1000)
-            if "messages" in selected_text.lower():
-                break
-        except PlaywrightTimeoutError:
-            continue
-    if not visible_message_list_rows(page):
-        selected_tab = ""
-        try:
-            selected_tab = page.locator(".d-tab--selected, [aria-selected='true']").inner_text(timeout=1000)
-        except Exception:
-            pass
+    click_department_messages_tab(page)
+    state = message_list_render_state(page)
+    if not state["ready"]:
         raise RuntimeError(
-            f"Dialpad Messages tab did not load message rows for {department}; selected_tab={selected_tab!r}."
+            "Dialpad Messages tab did not load message rows "
+            f"for {department}; selected_tab={state['selected_tab']!r}; "
+            f"message_rows={state['message_row_count']}; "
+            f"contact_rows={state['contact_row_count']}; url={state['url']}"
         )
     selected = page.locator(f"[data-qa='leftbar-links-cc-{department}'][data-qa-selected='true']")
     if selected.count() != 1:
         raise RuntimeError(f"Dialpad department {department} was not selected after click.")
-    try:
-        page.locator("[data-qa='contact-row']").first.wait_for(state="visible", timeout=10000)
-    except PlaywrightTimeoutError:
-        # Some departments can legitimately have no visible rows in a narrow filter. Let the caller
-        # decide whether zero rows is acceptable for that run.
-        pass
     return department
+
+
+def click_department_messages_tab(page):
+    selectors = [
+        "#dt-tab-group-inbox-tab-messages",
+        "[aria-controls='dt-panel-messages']",
+    ]
+    messages_tab = page.locator(".d-tab, button.d-tab, [role='tab']").filter(has_text="Messages")
+    if messages_tab.count():
+        selectors.append("__text_locator__")
+    last_error = None
+    for selector in selectors:
+        try:
+            locator = messages_tab if selector == "__text_locator__" else page.locator(selector)
+            if locator.count() == 0:
+                continue
+            target = locator.nth(0)
+            try:
+                target.scroll_into_view_if_needed(timeout=5000)
+            except (AttributeError, PlaywrightError, PlaywrightTimeoutError) as exc:
+                last_error = exc
+            target.click(timeout=10000)
+            page.wait_for_timeout(2000)
+            if message_list_render_state(page)["ready"]:
+                return True
+        except (PlaywrightError, PlaywrightTimeoutError) as exc:
+            last_error = exc
+            if click_messages_tab_with_dom_fallback(page, selector):
+                page.wait_for_timeout(2000)
+                if message_list_render_state(page)["ready"]:
+                    return True
+    if last_error:
+        state = message_list_render_state(page)
+        state["last_click_error"] = str(last_error)
+        state.setdefault("blockers", []).append("messages_tab_click_failed")
+    return False
+
+
+def click_messages_tab_with_dom_fallback(page, selector):
+    return bool(
+        page.evaluate(
+            """
+            (selector) => {
+              const tab = selector === '__text_locator__'
+                ? Array.from(document.querySelectorAll('[role="tab"], .d-tab, button')).find((el) => {
+                    const text = (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ');
+                    return text === 'Messages';
+                  })
+                : document.querySelector(selector);
+              if (!tab) return false;
+              tab.scrollIntoView({block: 'nearest', inline: 'center'});
+              for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) {
+                tab.dispatchEvent(new MouseEvent(type, {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                  button: 0,
+                }));
+              }
+              if (typeof tab.click === 'function') tab.click();
+              return true;
+            }
+            """,
+            selector,
+        )
+    )
 
 
 def upsert_parsed_messages(conn, parsed, source_url, include_unknown_direction=False):
@@ -486,7 +537,10 @@ def message_list_row_to_records(row, school, department, source_url, now=None):
     date_text = (row.get("date_text") or "").strip()
     if not contact or not snippet or not date_text:
         return None, None
-    message_at = normalize_dialpad_date(date_text, now=now)
+    if re.fullmatch(r"\d{1,2}:\d{2}\s*(?:am|pm)", date_text.lower()):
+        message_at = (now or datetime.now()).date().isoformat()
+    else:
+        message_at = normalize_dialpad_date(date_text, now=now)
     if not message_at:
         return None, None
     phone = None
@@ -495,14 +549,27 @@ def message_list_row_to_records(row, school, department, source_url, now=None):
     if phone_match:
         phone = phone_match.group(0)
         phone_normalized = normalize_phone(phone)
+    elif row.get("phone"):
+        phone = row.get("phone")
+        phone_normalized = normalize_phone(phone)
     thread_id = stable_id("dialpad_sms_web_thread", department, contact)
+    operator_present = bool((row.get("operator") or "").strip())
+    direction = "outbound" if operator_present else "inbound"
     raw_json = json.dumps(
         {
             "extraction": "message_list_row",
             "raw_body_redacted": True,
             "date_text": date_text,
-            "operator_present": bool(row.get("operator")),
+            "operator_present": operator_present,
+            "direction_source": "message_list_operator_present"
+            if operator_present
+            else "message_list_no_operator",
             "row_text_hash": stable_id("dialpad_sms_web_row", row.get("row_text")),
+            "phone_supplied": bool(row.get("phone")),
+            "phone_source": row.get("phone_source"),
+            "detail_url_hash": stable_id("dialpad_sms_detail_url", row.get("detail_url"))
+            if row.get("detail_url")
+            else None,
         },
         sort_keys=True,
     )
@@ -511,7 +578,7 @@ def message_list_row_to_records(row, school, department, source_url, now=None):
         "feed_id": thread_id,
         "phone": phone,
         "phone_normalized": phone_normalized,
-        "contact_name": None if phone_normalized else contact,
+        "contact_name": contact if contact and not PHONE_RE.search(contact) else None,
         "last_message_at": message_at,
         "unread_count": 1 if row.get("unread") else 0,
         "school": school,
@@ -525,7 +592,7 @@ def message_list_row_to_records(row, school, department, source_url, now=None):
         "message_id": stable_id("dialpad_sms_web_list", department, contact, message_at, snippet),
         "thread_id": thread_id,
         "message_at": message_at,
-        "direction": "unknown",
+        "direction": direction,
         "sender": None,
         "recipient": None,
         "body": "[redacted Dialpad SMS web list snippet]",
@@ -558,6 +625,102 @@ def visible_message_list_rows(page):
     )
 
 
+def existing_message_list_contact_phone(conn, department, contact):
+    contact = (contact or "").strip()
+    if not contact:
+        return None
+    thread_id = stable_id("dialpad_sms_web_thread", department, contact)
+    row = conn.execute(
+        """
+        SELECT phone, phone_normalized
+        FROM dialpad_sms_threads
+        WHERE thread_id = ?
+          AND COALESCE(phone_normalized, '') != ''
+        """,
+        (thread_id,),
+    ).fetchone()
+    if not row:
+        return None
+    phone = row["phone"] if hasattr(row, "keys") else row[0]
+    phone_normalized = row["phone_normalized"] if hasattr(row, "keys") else row[1]
+    return {"phone": phone, "phone_normalized": phone_normalized, "phone_source": "existing_thread_identity"}
+
+
+def contact_phone_from_detail_text(text):
+    phones = []
+    for match in PHONE_RE.finditer(text or ""):
+        phone = match.group(0)
+        normalized = normalize_phone(phone)
+        if not normalized or normalized in OFFICE_PHONES:
+            continue
+        if normalized not in {item["phone_normalized"] for item in phones}:
+            phones.append({"phone": phone, "phone_normalized": normalized})
+    return phones[0] if phones else None
+
+
+def enrich_visible_message_row_from_detail(page, row_index, department):
+    rows = page.locator("tr.inbox-aff-row")
+    if rows.count() <= row_index:
+        return {}
+    detail = {}
+    start_url = page.url
+    opened_detail = False
+    try:
+        rows.nth(row_index).click(timeout=10000)
+        page.wait_for_timeout(1500)
+        opened_detail = page.url != start_url
+        text = page.locator("body").inner_text(timeout=10000)
+        phone = contact_phone_from_detail_text(text)
+        if phone:
+            detail.update(phone)
+            detail["phone_source"] = "dialpad_thread_detail"
+        detail["detail_url"] = page.url
+    except PlaywrightTimeoutError:
+        detail["detail_error"] = "timeout"
+    finally:
+        if not opened_detail:
+            return detail
+        try:
+            page.go_back(wait_until="domcontentloaded", timeout=30000)
+            wait_until_ready(page)
+            if not message_list_render_state(page)["ready"]:
+                select_department_messages(page, department)
+        except Exception:
+            detail["return_error"] = "message_list_not_restored"
+    return detail
+
+
+def message_list_state_status(state):
+    selected_tab = (state.get("selected_tab") or "").strip().lower()
+    blockers = []
+    if selected_tab and "messages" not in selected_tab:
+        blockers.append(f"selected_tab_not_messages:{selected_tab}")
+    if int(state.get("message_row_count") or 0) <= 0:
+        blockers.append("no_message_list_rows")
+    return {"ready": not blockers, "blockers": blockers}
+
+
+def message_list_render_state(page):
+    state = page.evaluate(
+        """
+        () => {
+          const selected = Array.from(document.querySelectorAll('[role="tab"], .d-tab, button')).find((el) => {
+            const className = (el.className || '').toString();
+            return el.getAttribute('aria-selected') === 'true' || className.includes('d-tab--selected');
+          });
+          return {
+            url: location.href,
+            selected_tab: selected ? (selected.innerText || selected.textContent || '').trim() : '',
+            message_row_count: document.querySelectorAll('tr.inbox-aff-row').length,
+            contact_row_count: document.querySelectorAll('[data-qa="contact-row"]').length,
+          };
+        }
+        """
+    )
+    state.update(message_list_state_status(state))
+    return state
+
+
 def scroll_message_list(page):
     return page.evaluate(
         """
@@ -583,19 +746,47 @@ def scroll_message_list(page):
     )
 
 
-def extract_visible_message_list_rows(conn, page, thread_limit, school, department):
+def extract_visible_message_list_rows(
+    conn,
+    page,
+    thread_limit,
+    school,
+    department,
+    enrich_row_details=False,
+    detail_click_limit=None,
+    progress_every=25,
+):
     rows_seen = rows_written = 0
     seen = set()
     stagnant_scrolls = 0
+    detail_clicks = 0
     while rows_seen < thread_limit and stagnant_scrolls < 3:
         batch = visible_message_list_rows(page)
         before_seen = len(seen)
-        for row in batch:
+        for row_index, row in enumerate(batch):
             key = stable_id("dialpad_sms_web_seen", department, row.get("contact"), row.get("date_text"), row.get("snippet"))
             if key in seen:
                 continue
             seen.add(key)
-            thread, message = message_list_row_to_records(row, school, department, page.url)
+            if enrich_row_details and not row.get("phone"):
+                row.update(existing_message_list_contact_phone(conn, department, row.get("contact")) or {})
+            if enrich_row_details and not row.get("phone"):
+                if detail_click_limit is not None and detail_clicks >= detail_click_limit:
+                    print(
+                        "Dialpad SMS detail-click chunk complete: "
+                        f"rows_seen={rows_seen} rows_written={rows_written} detail_clicks={detail_clicks}",
+                        flush=True,
+                    )
+                    return rows_seen, rows_written
+                row.update(enrich_visible_message_row_from_detail(page, row_index, department))
+                detail_clicks += 1
+                if progress_every and detail_clicks % progress_every == 0:
+                    print(
+                        "Dialpad SMS detail enrichment progress: "
+                        f"department={department} detail_clicks={detail_clicks} rows_seen={rows_seen}",
+                        flush=True,
+                    )
+            thread, message = message_list_row_to_records(row, school, department, row.get("source_url") or page.url)
             if not thread or not message:
                 continue
             rows_seen += 1
@@ -617,40 +808,37 @@ def extract_visible_message_list_rows(conn, page, thread_limit, school, departme
     return rows_seen, rows_written
 
 
-def extract_selected_department_rows(conn, page, thread_limit, department, base_url=None):
-    rows_seen = rows_written = 0
+def extract_selected_department_rows(
+    conn,
+    page,
+    thread_limit,
+    department,
+    base_url=None,
+    enrich_row_details=False,
+    detail_click_limit=None,
+    progress_every=25,
+):
     department = normalize_department(department)
     school, _ = department_school(department)
-    visible_rows = visible_message_list_rows(page)
-    if visible_rows:
-        return extract_visible_message_list_rows(conn, page, thread_limit, school, department)
-    index = 0
-    while rows_seen < thread_limit:
-        contact_rows = page.locator("[data-qa='contact-row']")
-        if index >= contact_rows.count():
-            break
-        try:
-            row = contact_rows.nth(index)
-            row.scroll_into_view_if_needed(timeout=5000)
-            row.click(timeout=10000)
-        except PlaywrightTimeoutError:
-            index += 1
-            continue
-        rows_seen += 1
-        page.wait_for_timeout(1500)
-        parsed = parse_thread(page, expected_department=department)
-        rows_written += upsert_parsed_messages(
-            conn,
-            parsed,
-            page.url,
-            include_unknown_direction=True,
+    state = message_list_render_state(page)
+    if not state["ready"]:
+        raise RuntimeError(
+            "Dialpad message list is not ready for extraction "
+            f"for {department}; blockers={','.join(state['blockers'])}; "
+            f"selected_tab={state['selected_tab']!r}; "
+            f"message_rows={state['message_row_count']}; "
+            f"contact_rows={state['contact_row_count']}; url={state['url']}"
         )
-        index += 1
-        if base_url and rows_seen < thread_limit:
-            page.goto(base_url, wait_until="domcontentloaded", timeout=60000)
-            wait_until_ready(page)
-            select_department_messages(page, department)
-    return rows_seen, rows_written
+    return extract_visible_message_list_rows(
+        conn,
+        page,
+        thread_limit,
+        school,
+        department,
+        enrich_row_details,
+        detail_click_limit,
+        progress_every,
+    )
 
 
 def delete_known_sms_noise(conn):
@@ -805,6 +993,17 @@ def main():
     parser.add_argument("--start-date", default=DEFAULT_INITIAL_LOAD_START)
     parser.add_argument("--department", help="Dialpad department to select before extracting messages, e.g. HEIGHTS or WESTU.")
     parser.add_argument("--school", help="School label used to infer the Dialpad department, e.g. The Heights or West U.")
+    parser.add_argument(
+        "--enrich-row-details",
+        action="store_true",
+        help="Click department message rows to capture a customer phone/contact key for name-only rows.",
+    )
+    parser.add_argument(
+        "--detail-click-limit",
+        type=int,
+        help="Stop after this many row-detail clicks so long backfills can be committed in chunks.",
+    )
+    parser.add_argument("--progress-every", type=int, default=25, help="Print progress every N row-detail clicks.")
     args = parser.parse_args()
     department = normalize_department(args.department) or normalize_department(args.school)
 
@@ -840,6 +1039,9 @@ def main():
                     args.thread_limit,
                     department,
                     args.url,
+                    args.enrich_row_details,
+                    args.detail_click_limit,
+                    args.progress_every,
                 )
                 if rows_seen == 0:
                     raise RuntimeError(f"No Dialpad SMS/contact rows were visible for department {department}.")
@@ -857,6 +1059,10 @@ def main():
             context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0)
         conn.commit()
+    except KeyboardInterrupt:
+        finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, "Interrupted Dialpad SMS extraction.")
+        conn.commit()
+        raise
     except Exception as exc:
         finish_import_run(conn, run_id, "error", rows_seen, rows_written, 0, str(exc))
         conn.commit()
