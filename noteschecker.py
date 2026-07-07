@@ -35,7 +35,7 @@ async def scrape_lessons(
         raise ValueError("Provide either 'dates' or 'start_date' and 'end_date'.")
 
     lessons_data = []
-    
+
     # Create screenshots directory if it doesn't exist
     os.makedirs('screenshots', exist_ok=True)
 
@@ -82,13 +82,13 @@ async def scrape_lessons(
                 headless=True,  # Keep headless for CI
                 args=['--disable-dev-shm-usage']  # Helps with memory issues in CI
             )
-            
+
             # Create a new context with tracing enabled
             context = await browser.new_context(**context_options)
-        
+
         # Start tracing
         await context.tracing.start(screenshots=True, snapshots=True, sources=True)
-        
+
         page = next((candidate for candidate in context.pages if not candidate.is_closed()), None)
         if page is None:
             page = await context.new_page()
@@ -192,7 +192,7 @@ async def scrape_lessons(
         try:
             if verbose:
                 print(f"Logging into {school_subdomain}.pike13.com...")
-            
+
             login_url = f"https://{school_subdomain}.pike13.com/accounts/sign_in"
             schedule_home_url = f"https://{school_subdomain}.pike13.com/schedule"
             if profile_dir or os.path.exists(state_file):
@@ -211,18 +211,18 @@ async def scrape_lessons(
                 # Navigate to login page
                 await page.goto(login_url)
                 await safe_screenshot("screenshots/01_login_page.png")
-                
+
                 # Fill login form
                 await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
                 await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
                 await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
                 await safe_screenshot("screenshots/02_login_form_filled.png")
-                
+
                 # Click login and wait for navigation
                 await page.click('button:has-text("Sign In")')
                 await page.wait_for_timeout(1500)
                 await handle_post_login_interstitial()
-            
+
             # Wait for successful login
             try:
                 # Interstitial can appear a bit later; try once more before failing login.
@@ -250,7 +250,7 @@ async def scrape_lessons(
                     continue
                 if not await is_authenticated():
                     await wait_for_interactive_login(schedule_url)
-                
+
                 # Wait for calendar to load
                 try:
                     await page.wait_for_selector("div.calendar-lane", timeout=30000)
@@ -264,12 +264,12 @@ async def scrape_lessons(
                         if verbose:
                             print(f"⚠️ Could not confirm date label {date_label}: {e}")
                     await safe_screenshot(f"screenshots/schedule_{date}.png", full_page=True)
-                    
+
                     # Print page title and URL for debugging
                     if verbose:
                         print(f"Page title: {await page.title()}")
                         print(f"Current URL: {page.url}")
-                    
+
                     # Try waiting for a lesson block to appear
                     try:
                         await page.wait_for_selector('.calendar-lane .event', timeout=15000)
@@ -278,7 +278,7 @@ async def scrape_lessons(
                             print(f"⚠️ Could not find any event blocks on {date}: {e}")
                             schedule_html = await page.inner_html("div.calendar-lane")
                             print(f"\n===== HTML for {date} =====\n{schedule_html}\n==========================\n")
-                    
+
                     # Get all lesson links (broader search across the page)
                     lesson_links = await page.evaluate("""
                         () => Array.from(document.querySelectorAll("a[href*='/e/']"))
@@ -365,10 +365,10 @@ async def scrape_lessons(
                             except Exception as e:
                                 if verbose:
                                     print(f"⚠️ Could not load list view {list_url}: {e}")
-                    
+
                     if verbose:
                         print(f"🔍 Found {len(lesson_links)} lessons on {date}.")
-                    
+
                     # Process each lesson
                     for idx, link in enumerate(lesson_links, start=1):
                         lesson_url = f"https://{school_subdomain}.pike13.com{link}"
@@ -509,7 +509,7 @@ async def scrape_lessons(
     df.to_csv(file_name, index=False)
     if verbose:
         print(f"📂 Data saved to {file_name}")
-    
+
     return df
 
 if __name__ == "__main__":
