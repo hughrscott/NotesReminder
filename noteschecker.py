@@ -24,6 +24,7 @@ async def scrape_lessons(
     profile_dir=None,
     interactive_login=False,
     login_timeout=300,
+    state_file="state.json",
 ):
     if dates is None and start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
@@ -59,6 +60,13 @@ async def scrape_lessons(
             "viewport": {'width': 1920, 'height': 1080},
             "user_agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         }
+
+        # Use state file if it exists
+        if os.path.exists(state_file):
+            if verbose:
+                print(f"Using saved session state from {state_file}")
+            context_options["storage_state"] = state_file
+
         if profile_dir:
             context = await p.chromium.launch_persistent_context(
                 profile_dir,
@@ -67,8 +75,8 @@ async def scrape_lessons(
                 **context_options,
             )
         else:
-            if not PIKE13_USER or not PIKE13_PASS:
-                raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
+            if not os.path.exists(state_file) and (not PIKE13_USER or not PIKE13_PASS):
+                raise ValueError("Pike13 credentials or state.json not found. Please set PIKE13_USER and PIKE13_PASSWORD or generate state.json.")
             # Launch browser with more debugging options
             browser = await p.chromium.launch(
                 headless=True,  # Keep headless for CI
@@ -187,13 +195,18 @@ async def scrape_lessons(
             
             login_url = f"https://{school_subdomain}.pike13.com/accounts/sign_in"
             schedule_home_url = f"https://{school_subdomain}.pike13.com/schedule"
-            if profile_dir:
+            if profile_dir or os.path.exists(state_file):
                 await page.goto(schedule_home_url)
                 await wait_until_ready()
                 if not await is_authenticated():
+                    if verbose:
+                        print("Saved session is invalid or expired. Navigating to login...")
                     await page.goto(login_url)
                     await safe_screenshot("screenshots/01_login_page.png")
-                    await wait_for_interactive_login(schedule_home_url)
+                    if profile_dir:
+                        await wait_for_interactive_login(schedule_home_url)
+                    else:
+                        raise RuntimeError(f"Session state in {state_file} is invalid or expired. Please regenerate it using scripts/login_and_save_state.py")
             else:
                 # Navigate to login page
                 await page.goto(login_url)
