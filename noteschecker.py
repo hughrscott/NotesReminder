@@ -11,6 +11,14 @@ from datetime import datetime, timedelta
 import os
 import time
 
+from notesreminder.lib.cookie_auth import (
+    CookieAuthError,
+    inject_cookies_into_context,
+    inject_storage_into_page,
+    load_cookies,
+    check_cookie_freshness,
+)
+
 PIKE13_USER = os.environ.get("PIKE13_USER")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
@@ -187,28 +195,63 @@ async def scrape_lessons(
             
             login_url = f"https://{school_subdomain}.pike13.com/accounts/sign_in"
             schedule_home_url = f"https://{school_subdomain}.pike13.com/schedule"
-            if profile_dir:
-                await page.goto(schedule_home_url)
-                await wait_until_ready()
-                if not await is_authenticated():
+
+            # --- Try cookie injection first (Okta SSO bypass) ---
+            cookie_auth_attempted = False
+            if not profile_dir:
+                try:
+                    cookie_payload = load_cookies()
+                    freshness = check_cookie_freshness(cookie_payload)
+                    if freshness["status"] == "fresh":
+                        if verbose:
+                            print(f"ℹ️ Injecting {cookie_payload.get('cookie_count', 0)} saved Pike13 cookies...")
+                        injected = inject_cookies_into_context(context, cookie_payload)
+                        if verbose:
+                            print(f"  Injected {injected} valid cookies")
+                        cookie_auth_attempted = True
+
+                        # Navigate to schedule directly (skip login page entirely)
+                        await page.goto(schedule_home_url)
+                        await wait_until_ready()
+
+                        if await is_authenticated():
+                            if verbose:
+                                print("✅ Authenticated via injected cookies — skipping login")
+                        else:
+                            if verbose:
+                                print("⚠️ Cookie injection did not grant access. Falling through to normal login.")
+                            cookie_auth_attempted = False
+                    else:
+                        if verbose:
+                            print(f"⚠️ Cookie freshness check failed: {freshness['status']} — {freshness.get('error', '')}")
+                except CookieAuthError as e:
+                    if verbose:
+                        print(f"⚠️ Cannot use cookie auth: {e}")
+            # --- End cookie injection ---
+
+            if not cookie_auth_attempted or not await is_authenticated():
+                if profile_dir:
+                    await page.goto(schedule_home_url)
+                    await wait_until_ready()
+                    if not await is_authenticated():
+                        await page.goto(login_url)
+                        await safe_screenshot("screenshots/01_login_page.png")
+                        await wait_for_interactive_login(schedule_home_url)
+                else:
+                    # Navigate to login page
                     await page.goto(login_url)
                     await safe_screenshot("screenshots/01_login_page.png")
-                    await wait_for_interactive_login(schedule_home_url)
-            else:
-                # Navigate to login page
-                await page.goto(login_url)
-                await safe_screenshot("screenshots/01_login_page.png")
-                
-                # Fill login form
-                await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
-                await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
-                await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
-                await safe_screenshot("screenshots/02_login_form_filled.png")
-                
-                # Click login and wait for navigation
-                await page.click('button:has-text("Sign In")')
-                await page.wait_for_timeout(1500)
-                await handle_post_login_interstitial()
+                    
+                    # Fill login form
+                    await page.wait_for_selector('input[placeholder="Email address"]', timeout=30000)
+                    await page.fill('input[placeholder="Email address"]', PIKE13_USER or "")
+                    await page.fill('input[placeholder="Password"]', PIKE13_PASS or "")
+                    await safe_screenshot("screenshots/02_login_form_filled.png")
+                    
+                    # Click login and wait for navigation
+                    await page.click('button:has-text("Sign In")')
+                    await page.wait_for_timeout(1500)
+                    await handle_post_login_interstitial()
             
             # Wait for successful login
             try:
@@ -483,6 +526,22 @@ async def scrape_lessons(
                         if verbose:
                             print(f"⚠️ Could not capture error screenshot for {date}: {screenshot_exc}")
                     continue
+
+            # Post-scrape cookie health check
+            if cookie_auth_attempted:
+                freshness = check_cookie_freshness()
+                days_left = freshness.get("soonest_expiry_days")
+                if days_left is not None and days_left < 3:
+                    alert_msg = (
+                        f"⚠️ Pike13 cookies expire in ~{days_left} days. "
+                        f"Refresh them soon by running scripts/extract_pike13_cookies.py on your Mac."
+                    )
+                    print(alert_msg)
+                    # Write to a notification file for cron/MCP monitoring
+                    alert_path = os.path.join(os.path.dirname(__file__), "outputs", "cookie_alert.txt")
+                    os.makedirs(os.path.dirname(alert_path), exist_ok=True)
+                    with open(alert_path, "w") as f:
+                        f.write(f"{datetime.now().isoformat()} | {alert_msg}\n")
 
         finally:
             # Stop tracing and save trace

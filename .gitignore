@@ -21,6 +21,7 @@ debug_theheights.py
 node_modules/
 dialpad_profile/
 browser_profiles/
+pike13_cookies.json
 docs/discovery/evidence/
 logs/
 recordings/

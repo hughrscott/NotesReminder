@@ -23,6 +23,7 @@ from notesreminder.lib.person_identity import (
 )
 from notesreminder.reports.management_scorecards import build_note_quality_scorecard_for_period
 from notesreminder.reports.communication_insights import generate_insights
+from notesreminder.mcp.tools import register_pike13_tools
 from source_completeness import build_source_completeness_report
 
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "reminders.db")
@@ -513,5 +514,18 @@ def lead_conversion_path(search: str, limit: int = 50) -> str:
     )
 
 
+# Register Pike13 scraping tools (cookie-based auth)
+register_pike13_tools(mcp)
+
+
 if __name__ == "__main__":
-    mcp.run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--transport", default="stdio", choices=["stdio", "sse"])
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8090)
+    args = parser.parse_args()
+    if args.transport == "sse":
+        mcp.run(transport="sse", host=args.host, port=args.port)
+    else:
+        mcp.run()

@@ -660,6 +660,268 @@ def should_skip_lesson(lesson_type, students, instructor=None):
             return True
     return False
 
+def update_reminders_from_dataframe(
+    conn: sqlite3.Connection,
+    df: pd.DataFrame,
+    school: str,
+    verbose: bool = False,
+    skip_note_scoring: bool = True,
+    note_score_model: str = "gpt-4o-mini",
+    note_score_version: str = "v1-note-quality",
+    return_completed_lessons: bool = False,
+) -> dict:
+    """Upsert scraped lesson data into the reminders table. Returns counts.
+
+    Args:
+        conn: An open sqlite3.Connection to the reminders database.
+        df: DataFrame from scrape_lessons with column names matching the scraper output.
+        school: School subdomain (e.g., 'westu-sor').
+        verbose: Print progress messages.
+        skip_note_scoring: If True, skip OpenAI note scoring (default True for MCP use; run_daily sets False).
+        note_score_model: OpenAI model for note scoring.
+        note_score_version: Version tag for scoring prompt.
+        return_completed_lessons: If True, also return the completed_lessons list in the result.
+
+    Returns:
+        dict with keys: rows_inserted, rows_upserted, (and optionally completed_lessons list)
+    """
+    has_location_column = 'Location' in df.columns
+    rows_inserted = 0
+    rows_upserted = 0
+    completed_lessons = []
+
+    for _index, row in df.iterrows():
+        base_lesson_id = f"{row['Lesson Type']}-{row['Date']}-{row['Time']}-{row['Students']}"
+        pike13_lesson_id = row.get('Lesson ID', None)
+        if isinstance(pike13_lesson_id, float) and pd.isna(pike13_lesson_id):
+            pike13_lesson_id = None
+        if pike13_lesson_id:
+            lesson_id = f"{school}-{pike13_lesson_id}"
+        else:
+            lesson_id = f"{school}-{base_lesson_id}"
+        instructor_name = row['Instructor']
+        lesson_date = row['Date']
+        lesson_time = row['Time']
+        lesson_type = row['Lesson Type']
+        students = normalize_students_field(row['Students'])
+        location_value = row['Location'] if has_location_column else None
+        if isinstance(location_value, str):
+            location_clean = location_value.strip()
+        elif pd.notna(location_value):
+            location_clean = str(location_value).strip()
+        else:
+            location_clean = None
+        if location_clean == "":
+            location_clean = None
+        notes_value = row['Notes']
+        notes_str = (notes_value if isinstance(notes_value, str) else str(notes_value or "")).strip()
+        normalized_notes = notes_str.lower()
+        has_notes = notes_str != "" and normalized_notes not in ("no notes", "nan", "none")
+        notes_text = notes_str if has_notes else None
+        note_timestamp = row.get('Note Timestamp', None)
+
+        note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
+        note_score = None
+        note_score_explanation = None
+
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+            FROM reminders
+            WHERE lesson_id = ? AND school = ?
+            ''',
+            (lesson_id, school),
+        )
+        existing_lesson = cursor.fetchone()
+        if not existing_lesson:
+            legacy_lesson_id = base_lesson_id
+            cursor.execute('''
+                SELECT lesson_id FROM reminders
+                WHERE lesson_id = ? AND school = ?
+            ''', (legacy_lesson_id, school))
+            legacy_lesson = cursor.fetchone()
+            if legacy_lesson:
+                cursor.execute('''
+                    UPDATE reminders
+                    SET lesson_id = ?
+                    WHERE lesson_id = ? AND school = ?
+                ''', (lesson_id, legacy_lesson_id, school))
+                conn.commit()
+                cursor.execute(
+                    '''
+                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+                    FROM reminders
+                    WHERE lesson_id = ? AND school = ?
+                    ''',
+                    (lesson_id, school),
+                )
+                existing_lesson = cursor.fetchone()
+        if not existing_lesson and pike13_lesson_id:
+            legacy_prefixed = f"{school}-{base_lesson_id}"
+            cursor.execute('''
+                SELECT lesson_id FROM reminders
+                WHERE lesson_id = ? AND school = ?
+            ''', (legacy_prefixed, school))
+            legacy_prefixed_row = cursor.fetchone()
+            if legacy_prefixed_row:
+                cursor.execute('''
+                    UPDATE reminders
+                    SET lesson_id = ?
+                    WHERE lesson_id = ? AND school = ?
+                ''', (lesson_id, legacy_prefixed, school))
+                conn.commit()
+                cursor.execute(
+                    '''
+                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
+                    FROM reminders
+                    WHERE lesson_id = ? AND school = ?
+                    ''',
+                    (lesson_id, school),
+                )
+                existing_lesson = cursor.fetchone()
+
+        if has_notes:
+            if (
+                existing_lesson
+                and existing_lesson[1] is not None
+                and existing_lesson[3]
+                and existing_lesson[3] == note_hash
+            ):
+                note_score = existing_lesson[1]
+                note_score_explanation = existing_lesson[2]
+            elif skip_note_scoring:
+                note_score = None
+                note_score_explanation = None
+            else:
+                try:
+                    note_score, note_score_explanation = score_note_quality(
+                        notes_text,
+                        lesson_type,
+                        note_score_model,
+                    )
+                except FatalScoringError:
+                    raise
+
+        if existing_lesson:
+            cursor.execute('''
+                UPDATE reminders
+                SET note_completed = ?,
+                    last_checked = CURRENT_DATE,
+                    instructor_name = ?,
+                    lesson_date = ?,
+                    lesson_time = ?,
+                    lesson_type = ?,
+                    students = ?,
+                    location = COALESCE(?, location),
+                    attendance_status = ?,
+                    notes_text = ?,
+                    note_timestamp = ?,
+                    pike13_lesson_id = COALESCE(?, pike13_lesson_id),
+                    note_score = ?,
+                    note_score_explanation = ?,
+                    note_score_model = ?,
+                    note_score_version = ?,
+                    note_score_updated_at = ?,
+                    note_score_hash = ?
+                WHERE lesson_id = ? AND school = ?
+            ''', (
+                1 if has_notes else 0,
+                instructor_name,
+                lesson_date,
+                lesson_time,
+                lesson_type,
+                students,
+                location_clean,
+                row.get('Attendance Status', 'unknown'),
+                notes_text,
+                note_timestamp,
+                pike13_lesson_id,
+                note_score if has_notes else None,
+                note_score_explanation if has_notes else None,
+                note_score_model if has_notes else None,
+                note_score_version if has_notes else None,
+                datetime.now().isoformat(timespec="seconds") if has_notes else None,
+                note_hash if has_notes else None,
+                lesson_id,
+                school,
+            ))
+            rows_upserted += 1
+            if verbose:
+                print(f"🔁 Updated lesson {lesson_id}")
+        else:
+            cursor.execute('''
+                INSERT INTO reminders (
+                    lesson_id,
+                    school,
+                    instructor_name,
+                    lesson_date,
+                    lesson_time,
+                    lesson_type,
+                    students,
+                    location,
+                    note_completed,
+                    attendance_status,
+                    notes_text,
+                    note_timestamp,
+                    pike13_lesson_id,
+                    note_score,
+                    note_score_explanation,
+                    note_score_model,
+                    note_score_version,
+                    note_score_updated_at,
+                    note_score_hash,
+                    last_checked
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
+            ''', (
+                lesson_id,
+                school,
+                instructor_name,
+                lesson_date,
+                lesson_time,
+                lesson_type,
+                students,
+                location_clean,
+                1 if has_notes else 0,
+                row.get('Attendance Status', 'unknown'),
+                notes_text,
+                note_timestamp,
+                pike13_lesson_id,
+                note_score if has_notes else None,
+                note_score_explanation if has_notes else None,
+                note_score_model if has_notes else None,
+                note_score_version if has_notes else None,
+                datetime.now().isoformat(timespec="seconds") if has_notes else None,
+                note_hash if has_notes else None,
+            ))
+            rows_inserted += 1
+            if verbose:
+                print(f"🆕 Inserted lesson {lesson_id}")
+        conn.commit()
+
+        if has_notes and not should_skip_lesson(lesson_type, students, instructor_name):
+            completed_lessons.append({
+                'date': lesson_date,
+                'time': lesson_time,
+                'instructor': instructor_name,
+                'students': students,
+                'lesson_type': lesson_type,
+                'location': location_clean,
+                'note_text': notes_str,
+                'note_score': note_score,
+                'note_score_explanation': note_score_explanation,
+            })
+
+    result = {
+        "rows_inserted": rows_inserted,
+        "rows_upserted": rows_upserted,
+    }
+    if return_completed_lessons:
+        result["completed_lessons"] = completed_lessons
+    return result
+
+
 async def main():
     args = parse_args()
     global VERBOSE, DB_PATH
@@ -743,246 +1005,35 @@ async def main():
             f"CSV file {csv_file} has no columns. "
             "Scrape likely returned no data (login/permissions/network)."
         )
-    has_location_column = 'Location' in df.columns
-    completed_lessons = []
-
-    # Process each lesson from the scraped data
-    # This part updates the database based on the latest scrape
-    for index, row in df.iterrows():
-        base_lesson_id = f"{row['Lesson Type']}-{row['Date']}-{row['Time']}-{row['Students']}"
-        pike13_lesson_id = row.get('Lesson ID', None)
-        if isinstance(pike13_lesson_id, float) and pd.isna(pike13_lesson_id):
-            pike13_lesson_id = None
-        if pike13_lesson_id:
-            lesson_id = f"{school_subdomain}-{pike13_lesson_id}"
-        else:
-            lesson_id = f"{school_subdomain}-{base_lesson_id}"
-        instructor_name = row['Instructor']
-        lesson_date = row['Date']
-        lesson_time = row['Time']
-        lesson_type = row['Lesson Type']
-        students = normalize_students_field(row['Students'])
-        location_value = row['Location'] if has_location_column else None
-        if isinstance(location_value, str):
-            location_clean = location_value.strip()
-        elif pd.notna(location_value):
-            location_clean = str(location_value).strip()
-        else:
-            location_clean = None
-        if location_clean == "":
-            location_clean = None
-        notes_value = row['Notes']
-        notes_str = (notes_value if isinstance(notes_value, str) else str(notes_value or "")).strip()
-        normalized_notes = notes_str.lower()
-        has_notes = notes_str != "" and normalized_notes not in ("no notes", "nan", "none")
-        notes_text = notes_str if has_notes else None
-        note_timestamp = row.get('Note Timestamp', None)
-
-        note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
-        note_score = None
-        note_score_explanation = None
-
-        # Check if the lesson already exists in the database
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute(
-            '''
-            SELECT lesson_id, note_score, note_score_explanation, note_score_hash
-            FROM reminders
-            WHERE lesson_id = ? AND school = ?
-            ''',
-            (lesson_id, school_subdomain),
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        result = update_reminders_from_dataframe(
+            conn, df, school_subdomain,
+            verbose=args.verbose,
+            skip_note_scoring=args.skip_note_scoring,
+            note_score_model=args.note_score_model,
+            note_score_version=args.note_score_version,
+            return_completed_lessons=True,
         )
-        existing_lesson = cursor.fetchone()
-        if not existing_lesson:
-            legacy_lesson_id = base_lesson_id
-            cursor.execute('''
-                SELECT lesson_id FROM reminders
-                WHERE lesson_id = ? AND school = ?
-            ''', (legacy_lesson_id, school_subdomain))
-            legacy_lesson = cursor.fetchone()
-            if legacy_lesson:
-                cursor.execute('''
-                    UPDATE reminders
-                    SET lesson_id = ?
-                    WHERE lesson_id = ? AND school = ?
-                ''', (lesson_id, legacy_lesson_id, school_subdomain))
-                conn.commit()
-                cursor.execute(
-                    '''
-                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
-                    FROM reminders
-                    WHERE lesson_id = ? AND school = ?
-                    ''',
-                    (lesson_id, school_subdomain),
-                )
-                existing_lesson = cursor.fetchone()
-        if not existing_lesson and pike13_lesson_id:
-            legacy_prefixed = f"{school_subdomain}-{base_lesson_id}"
-            cursor.execute('''
-                SELECT lesson_id FROM reminders
-                WHERE lesson_id = ? AND school = ?
-            ''', (legacy_prefixed, school_subdomain))
-            legacy_prefixed_row = cursor.fetchone()
-            if legacy_prefixed_row:
-                cursor.execute('''
-                    UPDATE reminders
-                    SET lesson_id = ?
-                    WHERE lesson_id = ? AND school = ?
-                ''', (lesson_id, legacy_prefixed, school_subdomain))
-                conn.commit()
-                cursor.execute(
-                    '''
-                    SELECT lesson_id, note_score, note_score_explanation, note_score_hash
-                    FROM reminders
-                    WHERE lesson_id = ? AND school = ?
-                    ''',
-                    (lesson_id, school_subdomain),
-                )
-                existing_lesson = cursor.fetchone()
-
-        if has_notes:
-            if (
-                existing_lesson
-                and existing_lesson[1] is not None
-                and existing_lesson[3]
-                and existing_lesson[3] == note_hash
-            ):
-                note_score = existing_lesson[1]
-                note_score_explanation = existing_lesson[2]
-            elif args.skip_note_scoring:
-                note_score = None
-                note_score_explanation = None
-            else:
-                try:
-                    note_score, note_score_explanation = score_note_quality(
-                        notes_text,
-                        lesson_type,
-                        args.note_score_model,
-                    )
-                except FatalScoringError as exc:
-                    conn.close()
-                    if not args.no_email:
-                        try:
-                            send_delay_notice(
-                                school_subdomain=school_subdomain,
-                                start_date=start_date,
-                                end_date=end_date,
-                                issue_summary=str(exc),
-                                to_recipients=args.to,
-                            )
-                        except Exception as email_exc:
-                            print(f"⚠️ Failed to send delay notice: {email_exc}")
-                    raise SystemExit(f"Fatal note scoring error: {exc}")
-
-        if existing_lesson:
-            cursor.execute('''
-                UPDATE reminders
-                SET note_completed = ?,
-                    last_checked = CURRENT_DATE,
-                    instructor_name = ?,
-                    lesson_date = ?,
-                    lesson_time = ?,
-                    lesson_type = ?,
-                    students = ?,
-                    location = COALESCE(?, location),
-                    attendance_status = ?,
-                    notes_text = ?,
-                    note_timestamp = ?,
-                    pike13_lesson_id = COALESCE(?, pike13_lesson_id),
-                    note_score = ?,
-                    note_score_explanation = ?,
-                    note_score_model = ?,
-                    note_score_version = ?,
-                    note_score_updated_at = ?,
-                    note_score_hash = ?
-                WHERE lesson_id = ? AND school = ?
-            ''', (
-                1 if has_notes else 0,
-                instructor_name,
-                lesson_date,
-                lesson_time,
-                lesson_type,
-                students,
-                location_clean,
-                row.get('Attendance Status', 'unknown'),
-                notes_text,
-                note_timestamp,
-                pike13_lesson_id,
-                note_score if has_notes else None,
-                note_score_explanation if has_notes else None,
-                args.note_score_model if has_notes else None,
-                args.note_score_version if has_notes else None,
-                datetime.now().isoformat(timespec="seconds") if has_notes else None,
-                note_hash if has_notes else None,
-                lesson_id,
-                school_subdomain
-            ))
-            if args.verbose:
-                print(f"🔁 Updated lesson {lesson_id}")
-        else:
-            cursor.execute('''
-                INSERT INTO reminders (
-                    lesson_id,
-                    school,
-                    instructor_name,
-                    lesson_date,
-                    lesson_time,
-                    lesson_type,
-                    students,
-                    location,
-                    note_completed,
-                    attendance_status,
-                    notes_text,
-                    note_timestamp,
-                    pike13_lesson_id,
-                    note_score,
-                    note_score_explanation,
-                    note_score_model,
-                    note_score_version,
-                    note_score_updated_at,
-                    note_score_hash,
-                    last_checked
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
-            ''', (
-                lesson_id,
-                school_subdomain,
-                instructor_name,
-                lesson_date,
-                lesson_time,
-                lesson_type,
-                students,
-                location_clean,
-                1 if has_notes else 0,
-                row.get('Attendance Status', 'unknown'),
-                notes_text,
-                note_timestamp,
-                pike13_lesson_id,
-                note_score if has_notes else None,
-                note_score_explanation if has_notes else None,
-                args.note_score_model if has_notes else None,
-                args.note_score_version if has_notes else None,
-                datetime.now().isoformat(timespec="seconds") if has_notes else None,
-                note_hash if has_notes else None,
-            ))
-            if args.verbose:
-                print(f"🆕 Inserted lesson {lesson_id}")
         conn.commit()
+    except FatalScoringError as exc:
+        conn.close()
+        if not args.no_email:
+            try:
+                send_delay_notice(
+                    school_subdomain=school_subdomain,
+                    start_date=start_date,
+                    end_date=end_date,
+                    issue_summary=str(exc),
+                    to_recipients=args.to,
+                )
+            except Exception as email_exc:
+                print(f"⚠️ Failed to send delay notice: {email_exc}")
+        raise SystemExit(f"Fatal note scoring error: {exc}")
+    else:
         conn.close()
 
-        if has_notes and not should_skip_lesson(lesson_type, students, instructor_name):
-            completed_lessons.append({
-                'date': lesson_date,
-                'time': lesson_time,
-                'instructor': instructor_name,
-                'students': students,
-                'lesson_type': lesson_type,
-                'location': location_clean,
-                'note_text': notes_str,
-                'note_score': note_score,
-                'note_score_explanation': note_score_explanation,
-            })
+    completed_lessons = result.get("completed_lessons", [])
 
     if not args.skip_reporting_sync:
         sync_reporting_tables(DB_PATH)

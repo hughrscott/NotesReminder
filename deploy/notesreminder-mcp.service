@@ -1,0 +1,18 @@
+[Unit]
+Description=NotesReminder MCP Server (Pike13 + DB queries)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/projects/hughrscott/NotesReminder
+ExecStart=/home/ubuntu/projects/hughrscott/NotesReminder/scripts/run_mcp_server.sh --transport sse --host 127.0.0.1 --port 8090
+Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="REMINDERS_DB_PATH=/home/ubuntu/projects/hughrscott/NotesReminder/reminders.db"
+Environment="PIKE13_COOKIES_PATH=/home/ubuntu/projects/hughrscott/NotesReminder/pike13_cookies.json"
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
