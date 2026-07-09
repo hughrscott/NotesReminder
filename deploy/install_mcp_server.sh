@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -euo pipefail
 
 echo "Installing NotesReminder MCP server as systemd service..."

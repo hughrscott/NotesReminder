@@ -40,12 +40,18 @@ def register_pike13_tools(mcp):
 
         async with PIKE13_SCRAPE_LOCK:
             from noteschecker import scrape_lessons
-            df = await scrape_lessons(
-                school_subdomain=school,
-                start_date=start_date,
-                end_date=end_date,
-                verbose=True,
-            )
+            try:
+                df = await scrape_lessons(
+                    school_subdomain=school,
+                    start_date=start_date,
+                    end_date=end_date,
+                    verbose=True,
+                )
+            except Exception as e:
+                return json.dumps({
+                    "status": "error",
+                    "error": str(e),
+                }, indent=2)
         return json.dumps({
             "status": "success",
             "school": school,
@@ -97,12 +103,18 @@ def register_pike13_tools(mcp):
 
         async with PIKE13_SCRAPE_LOCK:
             from noteschecker import scrape_lessons
-            df = await scrape_lessons(
-                school_subdomain=school,
-                start_date=start_date,
-                end_date=end_date,
-                verbose=True,
-            )
+            try:
+                df = await scrape_lessons(
+                    school_subdomain=school,
+                    start_date=start_date,
+                    end_date=end_date,
+                    verbose=True,
+                )
+            except Exception as e:
+                return json.dumps({
+                    "status": "error",
+                    "error": str(e),
+                }, indent=2)
 
         if df.empty:
             return json.dumps({"status": "no_data", "school": school, "lessons": 0}, indent=2)

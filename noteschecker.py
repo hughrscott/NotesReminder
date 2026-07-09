@@ -214,6 +214,9 @@ async def scrape_lessons(
                         await page.goto(schedule_home_url)
                         await wait_until_ready()
 
+                        # Restore localStorage tokens from the cookie payload
+                        inject_storage_into_page(page, cookie_payload, school=school_subdomain)
+
                         if await is_authenticated():
                             if verbose:
                                 print("✅ Authenticated via injected cookies — skipping login")

@@ -140,6 +140,7 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
 
     output = Path(output_path)
     output.write_text(json.dumps(payload, indent=2))
+    os.chmod(output_path, 0o600)
     print(f"\nExtracted {len(cookie_list)} cookies to {output_path}")
     if soonest_expiry:
         days_left = (soonest_expiry - now_utc).days
