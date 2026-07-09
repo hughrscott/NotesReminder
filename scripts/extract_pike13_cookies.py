@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Extract Pike13 auth cookies from an existing browser profile for injection into headless scrapers."""
+"""Extract Pike13 auth cookies via sor.okta.com SSO authentication.
+
+The script:
+1. Opens a browser with a persistent profile
+2. Navigates to sor.okta.com (the SSO gateway for all SOR services)
+3. Waits for you to complete Okta login/MFA manually
+4. Once authenticated, navigates to Pike13 to confirm staff access
+5. Extracts all cookies (Okta + Pike13) and localStorage
+6. Saves to pike13_cookies.json with secure permissions
+"""
 import argparse
 import json
 import os
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,8 +24,7 @@ OKTA_DOMAINS = [".okta.com", "sor.okta.com"]
 
 
 def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = False):
-    """Open browser, navigate to Pike13, dump cookies + storage."""
-    launch_kwargs = {"headless": False, "viewport": {"width": 1440, "height": 900}}
+    """Open browser, authenticate via sor.okta.com, then extract Pike13 cookies."""
 
     # Create a fresh profile directory if none provided
     if not profile_dir:
@@ -29,34 +36,116 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
     if not profile_path.exists():
         profile_path.mkdir(parents=True, exist_ok=True)
 
+    launch_kwargs = {"headless": False, "viewport": {"width": 1440, "height": 900}}
+
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(str(profile_path), **launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
 
-        # Navigate to login page — user will complete Okta MFA manually
-        print("Opening Pike13 login page...")
-        print("Please complete Okta login/MFA in the browser window.")
-        print("The script will wait up to 5 minutes for you to authenticate as STAFF.")
-        login_url = "https://westu-sor.pike13.com/accounts/sign_in"
-        page.goto(login_url, wait_until="domcontentloaded", timeout=30000)
+        # Step 1: Authenticate via sor.okta.com (the SSO gateway)
+        print("=" * 60)
+        print("STEP 1: Authenticating via sor.okta.com")
+        print("=" * 60)
+        print("Opening sor.okta.com in the browser...")
+        print("Please complete Okta login/MFA as a STAFF member.")
+        print("The script will wait up to 5 minutes for you to authenticate.")
+        print()
+
+        okta_url = "https://sor.okta.com"
+        page.goto(okta_url, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(2000)
 
-        # Wait for user to complete login (up to 5 min)
+        # Wait for Okta authentication (up to 5 min)
+        # After Okta login, the user will be on the Okta dashboard
+        # which shows app tiles or a welcome page
         deadline = time.time() + 300
-        authenticated = False
+        okta_authenticated = False
         while time.time() < deadline:
             page.wait_for_timeout(3000)
             current_url = page.url.lower()
-            if "/schedule" in current_url and "sign_in" not in current_url:
-                print("  Authenticated! Detected schedule page.")
-                authenticated = True
+
+            # Okta dashboard typically shows after login
+            # Could be at sor.okta.com/app/UserHome or similar
+            if "okta" in current_url:
+                # Check if we're past the login form
+                try:
+                    body_text = page.locator("body").inner_text(timeout=3000)
+                    lowered = body_text.lower()
+                    # Okta dashboard has "My Apps" or user name or "Sign Out"
+                    if any(marker in lowered for marker in ("my apps", "sign out", "logout", "dashboard")):
+                        print("  Okta authentication detected!")
+                        okta_authenticated = True
+                        break
+                except Exception:
+                    pass
+
+            # Or check if redirected away from okta login
+            if not any(x in current_url for x in ("login", "signin", "sign_in", "authenticate")):
+                if "okta" in current_url:
+                    # Still on okta but past login
+                    print(f"  On Okta page: {page.url}")
+                    okta_authenticated = True
+                    break
+
+        if not okta_authenticated:
+            print("  WARNING: Okta login not detected within 5 minutes.")
+            print("  Continuing anyway — will try Pike13 directly.")
+
+        # Step 2: Navigate to Pike13 to establish staff session
+        print()
+        print("=" * 60)
+        print("STEP 2: Navigating to Pike13 (westu-sor) to confirm staff access")
+        print("=" * 60)
+
+        # The Okta SSO should redirect us through to Pike13 with staff auth
+        pike13_url = "https://westu-sor.pike13.com/schedule"
+        print(f"Opening {pike13_url}...")
+        page.goto(pike13_url, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
+
+        # Check if we need to complete an Okta→Pike13 redirect
+        # Sometimes Okta SSO redirects through an intermediate page
+        if "/accounts/sign_in" in page.url.lower():
+            print("  Redirected to Pike13 sign-in. Waiting for SSO redirect...")
+            page.wait_for_timeout(5000)
+            # Try clicking sign in if there's a button (Okta SSO button)
+            try:
+                sign_in = page.locator('a:has-text("Sign In"), button:has-text("Sign In")')
+                if sign_in.count() > 0:
+                    print("  Clicking Sign In to trigger Okta SSO redirect...")
+                    sign_in.first.click()
+                    page.wait_for_timeout(10000)
+            except Exception:
+                pass
+
+        current_url = page.url.lower()
+        print(f"  Current URL: {page.url}")
+
+        if "/schedule" in current_url and "sign_in" not in current_url:
+            print("  Reached Pike13 schedule — authenticated!")
+        else:
+            print("  Not yet on schedule. Waiting up to 2 more minutes for SSO redirect...")
+            deadline2 = time.time() + 120
+            while time.time() < deadline2:
                 page.wait_for_timeout(3000)
-                break
+                if "/schedule" in page.url.lower() and "sign_in" not in page.url.lower():
+                    print("  Reached Pike13 schedule — authenticated!")
+                    break
+            page.wait_for_timeout(3000)
 
-        if not authenticated:
-            print("  WARNING: Login not detected within 5 minutes. Extracting whatever cookies we have.")
+        # Step 3: Also visit The Heights to capture that session
+        print()
+        print("Visiting The Heights (theheights-sor) to capture that session too...")
+        page.goto("https://theheights-sor.pike13.com/schedule", wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(3000)
+        print(f"  The Heights URL: {page.url}")
 
-        # Extract cookies for Pike13 + Okta domains
+        # Step 4: Extract all cookies and storage
+        print()
+        print("=" * 60)
+        print("Extracting cookies and storage...")
+        print("=" * 60)
+
         all_cookies = []
         for domain in PIKE13_DOMAINS + OKTA_DOMAINS:
             try:
@@ -68,17 +157,18 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
         # Also extract from unrestricted cookie jar
         try:
             all_cookies_raw = context.cookies()
-            existing_names = {c["name"] for c in all_cookies}
+            existing_names = {f"{c['name']}:{c.get('domain','')}" for c in all_cookies}
             for c in all_cookies_raw:
-                if c["name"] not in existing_names:
+                key = f"{c['name']}:{c.get('domain','')}"
+                if key not in existing_names:
                     all_cookies.append(c)
         except Exception:
             pass
 
         # Extract storage
         storage = {}
-        try:
-            for school in ["westu-sor", "theheights-sor"]:
+        for school in ["westu-sor", "theheights-sor"]:
+            try:
                 page.goto(f"https://{school}.pike13.com/schedule", wait_until="domcontentloaded")
                 page.wait_for_timeout(1000)
                 storage[school] = page.evaluate("""() => {
@@ -89,8 +179,8 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
                     }
                     return items;
                 }""")
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         context.close()
 
@@ -100,9 +190,10 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
     soonest_expiry = None
     for c in all_cookies:
         expires_raw = c.get("expires")
-        expires_ts = None
         if expires_raw and expires_raw > 0:
             expires_ts = datetime.fromtimestamp(expires_raw, tz=timezone.utc).isoformat()
+        else:
+            expires_ts = None
         cookie_list.append({
             "name": c["name"],
             "domain": c["domain"],
@@ -120,7 +211,7 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
 
     payload = {
         "extracted_at": now_utc.isoformat(),
-        "source": "manual_extraction_from_mac",
+        "source": "okta_sso_extraction_from_mac",
         "cookies": cookie_list,
         "storage": storage,
         "cookie_count": len(cookie_list),
@@ -135,18 +226,23 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
     if soonest_expiry:
         days_left = (soonest_expiry - now_utc).days
         print(f"Soonest cookie expires in ~{days_left} days ({soonest_expiry.date()})")
-        print(f"Recommended refresh: every {min(7, max(1, days_left - 2))} days")
     else:
-        print("No expiry dates found — cookies may be session cookies. Recommend refreshing daily.")
-    print("\nNext step: Securely copy this file to the Oracle Cloud server.")
+        print("No expiry dates found — cookies may be session cookies.")
+    print(f"\nCookie domains:")
+    for c in cookie_list:
+        print(f"  {c['name']:30s} | {c['domain']}")
+    print(f"\nNext step: Copy the profile to the Oracle Cloud server:")
+    print(f"  scp -r ~/.pike13_profile ubuntu@<server>:~/projects/hughrscott/NotesReminder/pike13_profile")
+    print(f"\nOr copy just the cookies JSON:")
+    print(f"  scp {output_path} ubuntu@<server>:~/projects/hughrscott/NotesReminder/")
 
     return payload
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract Pike13 auth cookies from browser profile")
-    parser.add_argument("--profile-dir", default="", help="Path to browser profile (optional — if not found, launches fresh browser)")
+    parser = argparse.ArgumentParser(description="Extract Pike13 auth cookies via sor.okta.com SSO")
+    parser.add_argument("--profile-dir", default="", help="Path to browser profile (optional)")
     parser.add_argument("--output", default="pike13_cookies.json", help="Output JSON file for cookies")
-    parser.add_argument("--chrome-channel", action="store_true", help="Use system Chrome instead of Playwright's Chromium")
+    parser.add_argument("--chrome-channel", action="store_true", help="Use system Chrome")
     args = parser.parse_args()
     extract_cookies(args.profile_dir, args.output, args.chrome_channel)
