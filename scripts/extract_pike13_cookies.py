@@ -27,7 +27,7 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
             print("No profile directory found. Launching fresh browser.")
             print("You will need to complete Okta login/MFA manually when prompted.")
             browser = p.chromium.launch(headless=False)
-            context = browser.new_context(**launch_kwargs)
+            context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.pages[0] if context.pages else context.new_page()
 
         # Try both schools
