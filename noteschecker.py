@@ -75,14 +75,20 @@ async def scrape_lessons(
                 **context_options,
             )
         else:
-            if not PIKE13_USER or not PIKE13_PASS:
-                raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD.")
+            # Check for cookies first — if available, we don't need PIKE13_USER/PASS
+            from notesreminder.lib.cookie_auth import load_cookies, CookieAuthError
+            try:
+                load_cookies()
+                # Cookies available — skip the env var requirement
+            except CookieAuthError:
+                if not PIKE13_USER or not PIKE13_PASS:
+                    raise ValueError("Pike13 username or password not found in environment variables. Please set PIKE13_USER and PIKE13_PASSWORD, or provide cookies via pike13_cookies.json.")
             # Launch browser with more debugging options
             browser = await p.chromium.launch(
                 headless=True,  # Keep headless for CI
                 args=['--disable-dev-shm-usage']  # Helps with memory issues in CI
             )
-            
+
             # Create a new context with tracing enabled
             context = await browser.new_context(**context_options)
         

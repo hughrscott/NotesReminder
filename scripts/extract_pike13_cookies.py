@@ -19,15 +19,18 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
     """Open browser, navigate to Pike13, dump cookies + storage."""
     launch_kwargs = {"headless": False, "viewport": {"width": 1440, "height": 900}}
 
+    # Create a fresh profile directory if none provided
+    if not profile_dir:
+        profile_dir = str(Path.home() / ".pike13_profile")
+        Path(profile_dir).mkdir(parents=True, exist_ok=True)
+        print(f"No profile dir specified — using {profile_dir}")
+
+    profile_path = Path(profile_dir)
+    if not profile_path.exists():
+        profile_path.mkdir(parents=True, exist_ok=True)
+
     with sync_playwright() as p:
-        if profile_dir and Path(profile_dir).exists():
-            print(f"Using persistent profile at {profile_dir}")
-            context = p.chromium.launch_persistent_context(str(profile_dir), **launch_kwargs)
-        else:
-            print("No profile directory found. Launching fresh browser.")
-            print("You will need to complete Okta login/MFA manually when prompted.")
-            browser = p.chromium.launch(headless=False)
-            context = browser.new_context(viewport={"width": 1440, "height": 900})
+        context = p.chromium.launch_persistent_context(str(profile_path), **launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
 
         # Try both schools
