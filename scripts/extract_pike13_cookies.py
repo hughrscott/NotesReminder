@@ -16,17 +16,18 @@ OKTA_DOMAINS = [".okta.com", "sor.okta.com"]
 
 
 def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = False):
-    """Open existing browser profile, navigate to Pike13, dump cookies + storage."""
-    profile = Path(profile_dir)
-    if not profile.exists():
-        raise FileNotFoundError(f"Profile directory not found: {profile_dir}")
-
+    """Open browser, navigate to Pike13, dump cookies + storage."""
     launch_kwargs = {"headless": False, "viewport": {"width": 1440, "height": 900}}
-    if chrome_channel:
-        launch_kwargs["channel"] = "chrome"
 
     with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(str(profile), **launch_kwargs)
+        if profile_dir and Path(profile_dir).exists():
+            print(f"Using persistent profile at {profile_dir}")
+            context = p.chromium.launch_persistent_context(str(profile_dir), **launch_kwargs)
+        else:
+            print("No profile directory found. Launching fresh browser.")
+            print("You will need to complete Okta login/MFA manually when prompted.")
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context(**launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
 
         # Try both schools
@@ -155,7 +156,7 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract Pike13 auth cookies from browser profile")
-    parser.add_argument("--profile-dir", required=True, help="Path to browser profile (e.g., 'browser_profiles/pike13')")
+    parser.add_argument("--profile-dir", default="", help="Path to browser profile (optional — if not found, launches fresh browser)")
     parser.add_argument("--output", default="pike13_cookies.json", help="Output JSON file for cookies")
     parser.add_argument("--chrome-channel", action="store_true", help="Use system Chrome instead of Playwright's Chromium")
     args = parser.parse_args()
