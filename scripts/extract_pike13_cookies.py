@@ -33,42 +33,28 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
         context = p.chromium.launch_persistent_context(str(profile_path), **launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
 
-        # Try both schools
-        schools = ["westu-sor", "theheights-sor"]
-        authenticated = False
-        for school in schools:
-            url = f"https://{school}.pike13.com/schedule"
-            print(f"Navigating to {url}...")
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(2000)
+        # Navigate to login page — user will complete Okta MFA manually
+        print("Opening Pike13 login page...")
+        print("Please complete Okta login/MFA in the browser window.")
+        print("The script will wait up to 5 minutes for you to authenticate as STAFF.")
+        login_url = "https://westu-sor.pike13.com/accounts/sign_in"
+        page.goto(login_url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(2000)
 
-            # Check if we landed on schedule (authenticated) or got redirected to sign_in
-            if "/accounts/sign_in" in page.url.lower() or "/login" in page.url.lower():
-                print(f"  Not authenticated for {school}. Opening Okta login page...")
-                # Navigate to Okta to trigger login
-                page.goto(f"https://{school}.pike13.com/accounts/sign_in", wait_until="domcontentloaded")
-                print(f"  Please complete Okta login/MFA in the opened browser.")
-                print(f"  Waiting for authentication (checking every 3s, timeout 5 min)...")
-                deadline = time.time() + 300
-                while time.time() < deadline:
-                    page.wait_for_timeout(3000)
-                    if "/schedule" in page.url.lower() and "sign_in" not in page.url.lower():
-                        # Try navigating directly to schedule
-                        page.goto(url, wait_until="domcontentloaded")
-                        page.wait_for_timeout(2000)
-                    if "/schedule" in page.url.lower() and "sign_in" not in page.url.lower():
-                        authenticated = True
-                        print(f"  Authenticated for {school}!")
-                        break
-            else:
-                print(f"  Already authenticated for {school}!")
+        # Wait for user to complete login (up to 5 min)
+        deadline = time.time() + 300
+        authenticated = False
+        while time.time() < deadline:
+            page.wait_for_timeout(3000)
+            current_url = page.url.lower()
+            if "/schedule" in current_url and "sign_in" not in current_url:
+                print("  Authenticated! Detected schedule page.")
                 authenticated = True
-            if authenticated:
+                page.wait_for_timeout(3000)
                 break
 
         if not authenticated:
-            print("ERROR: Could not authenticate to Pike13. Please log in manually and retry.")
-            # Dump whatever cookies we have anyway
+            print("  WARNING: Login not detected within 5 minutes. Extracting whatever cookies we have.")
 
         # Extract cookies for Pike13 + Okta domains
         all_cookies = []
@@ -92,7 +78,7 @@ def extract_cookies(profile_dir: str, output_path: str, chrome_channel: bool = F
         # Extract storage
         storage = {}
         try:
-            for school in schools:
+            for school in ["westu-sor", "theheights-sor"]:
                 page.goto(f"https://{school}.pike13.com/schedule", wait_until="domcontentloaded")
                 page.wait_for_timeout(1000)
                 storage[school] = page.evaluate("""() => {
