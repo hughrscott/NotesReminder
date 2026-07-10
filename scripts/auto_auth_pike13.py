@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Fully automated Pike13 authentication using email-based MFA."""
+"""Fully automated Pike13 authentication using email-based MFA.
+
+Two paths:
+  - Default: email-based MFA (reads code from Himalaya) — legacy fallback.
+  - --okta-session: inherit the warm Okta session established by the
+    @sorauthbot Telegram trigger (okta_auth). Skips MFA entirely.
+"""
+import argparse
 import asyncio
 import os
 import re
@@ -10,6 +17,44 @@ from playwright.async_api import async_playwright
 
 PIKE13_USER = os.environ.get("PIKE13_USER", "")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD", "")
+
+
+async def auto_authenticate_okta_session(school="westu-sor", verbose=True):
+    """Authenticate to Pike13 by inheriting the warm Okta session.
+
+    Returns (context, page, browser) like auto_authenticate, but with no MFA.
+    Raises SessionNotReady if the Telegram bot hasn't authenticated yet.
+    """
+    from okta_auth.scraper_session import launch_okta_context, SessionNotReady
+
+    if verbose:
+        print("Using warm Okta session from @sorauthbot...")
+    try:
+        ctx_cm = launch_okta_context(headless=True)
+    except SessionNotReady as e:
+        if verbose:
+            print(f"Session not ready: {e}")
+        return None
+    context = await ctx_cm.__aenter__()
+    browser = None  # managed by the context manager
+    page = await context.new_page()
+    login_url = f"https://{school}.pike13.com/accounts/sign_in"
+    if verbose:
+        print(f"Navigating to {school}.pike13.com (SSO via Okta)...")
+    await page.goto(login_url, wait_until="domcontentloaded", timeout=30000)
+    await page.wait_for_timeout(8000)
+    current = page.url
+    if verbose:
+        print(f"After SSO: {current}")
+    if "sign_in" not in current and "two_factor" not in current:
+        if verbose:
+            print("✅ AUTHENTICATED via warm Okta session!")
+        # Return context/page; caller must close via ctx_cm.__aexit__.
+        return {"context": context, "page": page, "manager": ctx_cm}
+    if verbose:
+        print("❌ Not authenticated via session.")
+    await ctx_cm.__aexit__(None, None, None)
+    return None
 
 
 def read_mfa_code_from_himalaya(timeout_s=120, exclude_codes=None):
@@ -206,8 +251,22 @@ async def auto_authenticate(school="westu-sor", verbose=True):
 
 
 if __name__ == "__main__":
-    result = asyncio.run(auto_authenticate())
-    if result:
-        context, page, browser = result
-        input("Press Enter to close...")
-        browser.close()
+    parser = argparse.ArgumentParser(description="Pike13 auth (email MFA or warm Okta session)")
+    parser.add_argument(
+        "--okta-session", action="store_true",
+        help="Inherit the warm Okta session from @sorauthbot (no MFA).",
+    )
+    args = parser.parse_args()
+
+    if args.okta_session:
+        result = asyncio.run(auto_authenticate_okta_session())
+        if result:
+            print("Authenticated via warm Okta session. Caller owns the context.")
+            input("Press Enter to close...")
+            asyncio.run(result["manager"].__aexit__(None, None, None))
+    else:
+        result = asyncio.run(auto_authenticate())
+        if result:
+            context, page, browser = result
+            input("Press Enter to close...")
+            browser.close()

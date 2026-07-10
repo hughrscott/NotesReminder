@@ -1,6 +1,6 @@
 #!/bin/bash
 # run_daily_cron.sh — Daily Pike13 lesson notes pipeline
-# Called by cron at 9pm CT (2am UTC) Mon-Sat for both schools
+# Called by cron at 10pm CT (3am UTC) Mon-Sat for both schools
 
 set -uo pipefail
 
