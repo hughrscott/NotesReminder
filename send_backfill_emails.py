@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Send summary emails for backfilled dates without re-scraping."""
+"""Send summary emails for backfilled dates without re-scraping.
+Uses the correct key names expected by send_email_report."""
 import os
 import sys
 import sqlite3
-from datetime import datetime, timedelta
 
 # Load credentials
 env = {}
@@ -42,8 +42,8 @@ for school in SCHOOLS:
     for date in DATES:
         print(f"\nSending email for {school} {date}...")
         try:
+            # Get missing notes (same as run_daily.py does)
             all_missing = get_lessons_without_notes(school, date, date)
-
             report_missing = []
             seen = set()
             for note in all_missing:
@@ -67,13 +67,15 @@ for school in SCHOOLS:
                     'location': location
                 })
 
-            # Get completed notes from DB
+            # Get completed notes WITH scores from DB
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.execute("""
-                SELECT l.lesson_date, l.lesson_time, l.lesson_type, l.students_raw,
-                       ln.notes_text, ln.note_score
+                SELECT l.lesson_date, l.lesson_time, l.lesson_type, l.students_raw, l.location,
+                       i.instructor_name,
+                       ln.notes_text, ln.note_score, ln.note_score_explanation
                 FROM lessons l
                 JOIN lesson_notes ln ON l.lesson_id = ln.lesson_id
+                LEFT JOIN instructors i ON l.instructor_id = i.instructor_id
                 WHERE l.school_id = (SELECT school_id FROM schools WHERE school_code = ?)
                   AND l.lesson_date = ?
                   AND ln.notes_text IS NOT NULL AND TRIM(ln.notes_text) != ''
@@ -81,9 +83,10 @@ for school in SCHOOLS:
             report_completed = []
             seen_completed = set()
             for row in cursor.fetchall():
-                lesson_date, lesson_time, lesson_type, students_raw, notes_text, note_score = row
+                (lesson_date, lesson_time, lesson_type, students_raw, location,
+                 instructor_name, notes_text, note_score, note_score_explanation) = row
                 normalized_time = normalize_lesson_time(lesson_time or "")
-                instructor_clean = ""
+                instructor_clean = (instructor_name or "").strip()
                 lesson_type_clean = (lesson_type or "").strip()
                 students_clean = normalize_students_field(students_raw)
                 dedup_key = (instructor_clean, lesson_date, normalized_time, lesson_type_clean, students_clean)
@@ -96,13 +99,16 @@ for school in SCHOOLS:
                     'instructor': instructor_clean,
                     'lesson_type': lesson_type_clean,
                     'students': students_clean,
-                    'notes': notes_text[:200],
-                    'score': note_score,
+                    'location': location or '',
+                    'note_text': notes_text[:200],
+                    'note_score': note_score,
+                    'note_score_explanation': note_score_explanation or '',
                 })
             conn.close()
 
             total = len(report_missing) + len(report_completed)
             print(f"  {len(report_completed)} notes completed, {len(report_missing)} missing, {total} total")
+            print(f"  Sample score: {report_completed[0]['note_score'] if report_completed else 'none'}")
 
             send_email_report(
                 report_missing,
@@ -121,5 +127,7 @@ for school in SCHOOLS:
             print(f"  Email sent!")
         except Exception as e:
             print(f"  ERROR: {e}")
+            import traceback
+            traceback.print_exc()
 
 print("\nAll emails sent!")
