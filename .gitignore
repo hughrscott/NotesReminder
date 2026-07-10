@@ -26,3 +26,7 @@ docs/discovery/evidence/
 logs/
 recordings/
 raw/
+pike13_profile/
+reminders.db
+screenshots/
+*.csv

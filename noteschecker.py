@@ -22,6 +22,13 @@ from notesreminder.lib.cookie_auth import (
 PIKE13_USER = os.environ.get("PIKE13_USER")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
+# Auto-MFA support: import the auto-auth MFA handler
+try:
+    from pike13_auto_auth import read_mfa_code_via_imap, enter_mfa_code, snapshot_inbox
+    _AUTO_MFA_AVAILABLE = True
+except ImportError:
+    _AUTO_MFA_AVAILABLE = False
+
 
 async def scrape_lessons(
     school_subdomain,
@@ -119,6 +126,9 @@ async def scrape_lessons(
                     print(f"⚠️ Pike13 networkidle wait skipped: {exc}")
 
         async def is_authenticated():
+            # Primary check: if URL contains /schedule (not sign_in/login), we're authenticated
+            if "/schedule" in page.url and "/accounts/sign_in" not in page.url and "/login" not in page.url:
+                return True
             if any(marker in page.url for marker in ("/accounts/sign_in", "/account/two_factor", "/login")):
                 return False
             try:
@@ -126,7 +136,8 @@ async def scrape_lessons(
             except Exception:
                 body_text = ""
             lowered = body_text.lower()
-            if any(marker in lowered for marker in ("two-factor", "two factor", "verification code", "sign in", "password")):
+            # Only fail on auth markers that indicate a login page, not nav links
+            if any(marker in lowered for marker in ("two-factor", "two factor", "verification code", "password")):
                 return False
             if "schedule" in lowered:
                 return True
@@ -264,6 +275,26 @@ async def scrape_lessons(
             
             # Wait for successful login
             try:
+                # Auto-handle MFA if we hit the two_factor page
+                if "/account/two_factor" in page.url and _AUTO_MFA_AVAILABLE:
+                    if verbose:
+                        print("MFA required — auto-handling via email code...")
+                    existing_ids = snapshot_inbox()
+                    resend_btn = page.locator('button:has-text("Resend")')
+                    if await resend_btn.count() > 0:
+                        await resend_btn.first.click()
+                        await page.wait_for_timeout(2000)
+                    code = await read_mfa_code_via_imap(
+                        existing_ids=existing_ids,
+                        timeout_s=240,
+                        poll_interval=5,
+                    )
+                    if code:
+                        await enter_mfa_code(page, code)
+                        await page.wait_for_timeout(5000)
+                    else:
+                        if verbose:
+                            print("Could not auto-read MFA code")
                 # Interstitial can appear a bit later; try once more before failing login.
                 try:
                     await page.wait_for_selector('a:has-text("Schedule")', timeout=15000)
