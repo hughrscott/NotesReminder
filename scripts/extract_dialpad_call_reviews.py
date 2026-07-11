@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -294,6 +295,13 @@ def main():
                 headless=args.headless and not args.interactive_login,
                 viewport={"width": 1440, "height": 1000},
             )
+            # Seed from dialpad_storage.json
+            _st_json = os.path.join(os.path.dirname(os.path.abspath(args.profile_dir)), "dialpad_storage.json")
+            if os.path.exists(_st_json):
+                _st = json.load(open(_st_json))
+                _cookies = _st.get("cookies", [])
+                if _cookies:
+                    context.add_cookies(_cookies)
             page = context.pages[0] if context.pages else context.new_page()
             for target in targets:
                 rows_seen += 1

@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -452,37 +453,55 @@ def wait_until_ready(page, timeout=30000):
 
 
 def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
-    text = page.locator("body").inner_text(timeout=30000)
-    if is_dialpad_app_page(page.url, text):
-        return
-    if not interactive_login:
-        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
-    print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+    # Poll for the SSO redirect to complete (Dialpad SAML can take several
+    # seconds after the warm Okta session / push approval). Don't bail on the
+    # first instant just because we're briefly on a login/redirect URL.
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
-        time.sleep(2)
         try:
             text = page.locator("body").inner_text(timeout=5000)
-        except PlaywrightTimeoutError:
-            continue
+        except Exception:
+            text = ""
         if is_dialpad_app_page(page.url, text):
-            page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-            wait_until_ready(page)
-            text = page.locator("body").inner_text(timeout=30000)
-            if is_dialpad_app_page(page.url, text):
-                return
-        elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
-            continue
-        else:
-            try:
-                page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-                wait_until_ready(page)
-            except PlaywrightTimeoutError:
-                pass
-            text = page.locator("body").inner_text(timeout=30000)
-            if is_dialpad_app_page(page.url, text):
-                return
-    raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+            return
+        # If we're on the Dialpad login and NOT in interactive mode, keep waiting
+        # a bit in case an SSO redirect is in flight (e.g. just approved a push).
+        if interactive_login:
+            print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+            while time.time() < deadline:
+                time.sleep(2)
+                try:
+                    text = page.locator("body").inner_text(timeout=5000)
+                except PlaywrightTimeoutError:
+                    continue
+                if is_dialpad_app_page(page.url, text):
+                    page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                    wait_until_ready(page)
+                    text = page.locator("body").inner_text(timeout=30000)
+                    if is_dialpad_app_page(page.url, text):
+                        return
+                elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
+                    continue
+                else:
+                    try:
+                        page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                        wait_until_ready(page)
+                    except PlaywrightTimeoutError:
+                        pass
+                    text = page.locator("body").inner_text(timeout=30000)
+                    if is_dialpad_app_page(page.url, text):
+                        return
+            raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+        # non-interactive: give SSO a chance to redirect, then re-check
+        time.sleep(2)
+    # final check
+    try:
+        text = page.locator("body").inner_text(timeout=5000)
+    except Exception:
+        text = ""
+    if is_dialpad_app_page(page.url, text):
+        return
+    raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
 
 
 def main():
@@ -510,6 +529,18 @@ def main():
                 headless=args.headless and not args.interactive_login,
                 viewport={"width": 1440, "height": 1000},
             )
+            # Seed from saved storage_state JSON (Dialpad session cached by
+            # bootstrap_dialpad.py), since cookies may not persist to Default/Cookies.
+            _st_json = os.path.join(os.path.dirname(os.path.abspath(args.profile_dir)), "dialpad_storage.json")
+            if os.path.exists(_st_json):
+                try:
+                    import json as _json
+                    _cookies = _json.load(open(_st_json)).get("cookies", [])
+                    if _cookies:
+                        context.add_cookies(_cookies)
+                        print(f"Seeded Dialpad context with {len(_cookies)} cookies from {_st_json}")
+                except Exception as _e:
+                    print(f"dialpad cookie seed failed: {_e}")
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(args.url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)

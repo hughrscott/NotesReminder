@@ -1,0 +1,214 @@
+{
+  "chunks": {
+    "pike13:westu-sor:2026-01-17": {
+      "key": "pike13:westu-sor:2026-01-17",
+      "rc": 0,
+      "before": 702,
+      "after": 702,
+      "verdict": "FAIL",
+      "deepseek": "VERDICT: FAIL \u2014 window row count unchanged at 702 > 0, no new data added for the backfill window.",
+      "end": "2026-01-31",
+      "finished_at": "2026-07-11T05:33:59"
+    },
+    "pike13:theheights-sor:2026-01-17": {
+      "key": "pike13:theheights-sor:2026-01-17",
+      "rc": 0,
+      "before": 702,
+      "after": 702,
+      "verdict": "FAIL",
+      "deepseek": "VERDICT: FAIL \u2014 BEFORE=702, AFTER=702 (no new rows added in window 2026-01-17..2026-01-31; chunk did no work)",
+      "end": "2026-01-31",
+      "finished_at": "2026-07-11T05:49:10"
+    },
+    "pike13:westu-sor:2026-02-01": {
+      "key": "pike13:westu-sor:2026-02-01",
+      "rc": -9,
+      "before": 1507,
+      "after": 1507,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-02-28",
+      "finished_at": "2026-07-11T06:14:10"
+    },
+    "pike13:theheights-sor:2026-02-01": {
+      "key": "pike13:theheights-sor:2026-02-01",
+      "rc": -9,
+      "before": 1507,
+      "after": 1507,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-02-28",
+      "finished_at": "2026-07-11T06:39:10"
+    },
+    "pike13:westu-sor:2026-03-01": {
+      "key": "pike13:westu-sor:2026-03-01",
+      "rc": -9,
+      "before": 1606,
+      "after": 1606,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-03-31",
+      "finished_at": "2026-07-11T07:04:10"
+    },
+    "pike13:theheights-sor:2026-03-01": {
+      "key": "pike13:theheights-sor:2026-03-01",
+      "rc": -9,
+      "before": 1606,
+      "after": 1606,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-03-31",
+      "finished_at": "2026-07-11T07:29:10"
+    },
+    "pike13:westu-sor:2026-04-01": {
+      "key": "pike13:westu-sor:2026-04-01",
+      "rc": -9,
+      "before": 1664,
+      "after": 1664,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-04-30",
+      "finished_at": "2026-07-11T07:54:10"
+    },
+    "pike13:theheights-sor:2026-04-01": {
+      "key": "pike13:theheights-sor:2026-04-01",
+      "rc": -9,
+      "before": 1664,
+      "after": 1664,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-04-30",
+      "finished_at": "2026-07-11T08:19:10"
+    },
+    "pike13:westu-sor:2026-05-01": {
+      "key": "pike13:westu-sor:2026-05-01",
+      "rc": -9,
+      "before": 1328,
+      "after": 1328,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-05-31",
+      "finished_at": "2026-07-11T08:44:10"
+    },
+    "pike13:theheights-sor:2026-05-01": {
+      "key": "pike13:theheights-sor:2026-05-01",
+      "rc": -9,
+      "before": 1328,
+      "after": 1328,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-05-31",
+      "finished_at": "2026-07-11T09:09:11"
+    },
+    "pike13:westu-sor:2026-06-01": {
+      "key": "pike13:westu-sor:2026-06-01",
+      "rc": -9,
+      "before": 1149,
+      "after": 1149,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-06-30",
+      "finished_at": "2026-07-11T09:34:11"
+    },
+    "pike13:theheights-sor:2026-06-01": {
+      "key": "pike13:theheights-sor:2026-06-01",
+      "rc": -9,
+      "before": 1149,
+      "after": 1149,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "end": "2026-06-30",
+      "finished_at": "2026-07-11T09:59:11"
+    },
+    "pike13:westu-sor:2026-07-01": {
+      "key": "pike13:westu-sor:2026-07-01",
+      "rc": 0,
+      "before": 408,
+      "after": 434,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 Row count increased from 408 to 434 for the window 2026-07-01 to 2026-07-11, indicating new data was added.",
+      "end": "2026-07-11",
+      "finished_at": "2026-07-11T10:12:34"
+    },
+    "pike13:theheights-sor:2026-07-01": {
+      "key": "pike13:theheights-sor:2026-07-01",
+      "rc": 0,
+      "before": 434,
+      "after": 448,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 Row count increased from 434 to 448, confirming new data was added for the backfill window.",
+      "end": "2026-07-11",
+      "finished_at": "2026-07-11T10:24:03"
+    },
+    "dialpad_sms:-:2026-01-17": {
+      "key": "dialpad_sms:-:2026-01-17",
+      "rc": 1,
+      "before": 740,
+      "after": 740,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-01-31",
+      "finished_at": "2026-07-11T04:08:57"
+    },
+    "dialpad_sms:-:2026-02-01": {
+      "key": "dialpad_sms:-:2026-02-01",
+      "rc": 1,
+      "before": 1119,
+      "after": 1119,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-02-28",
+      "finished_at": "2026-07-11T04:09:00"
+    },
+    "dialpad_sms:-:2026-03-01": {
+      "key": "dialpad_sms:-:2026-03-01",
+      "rc": 1,
+      "before": 1467,
+      "after": 1467,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-03-31",
+      "finished_at": "2026-07-11T04:09:02"
+    },
+    "dialpad_sms:-:2026-04-01": {
+      "key": "dialpad_sms:-:2026-04-01",
+      "rc": 1,
+      "before": 1305,
+      "after": 1305,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-04-30",
+      "finished_at": "2026-07-11T04:09:04"
+    },
+    "dialpad_sms:-:2026-05-01": {
+      "key": "dialpad_sms:-:2026-05-01",
+      "rc": 1,
+      "before": 1402,
+      "after": 1402,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-05-31",
+      "finished_at": "2026-07-11T04:09:07"
+    },
+    "dialpad_sms:-:2026-06-01": {
+      "key": "dialpad_sms:-:2026-06-01",
+      "rc": 1,
+      "before": 1120,
+      "after": 1120,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-06-30",
+      "finished_at": "2026-07-11T04:09:09"
+    },
+    "dialpad_sms:-:2026-07-01": {
+      "key": "dialpad_sms:-:2026-07-01",
+      "rc": 1,
+      "before": 0,
+      "after": 0,
+      "verdict": "FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
+      "end": "2026-07-11",
+      "finished_at": "2026-07-11T04:09:11"
+    }
+  }
+}

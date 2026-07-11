@@ -10,6 +10,7 @@ from lead_followup_schema import normalize_email
 SCHOOL_MAILBOXES = {
     "westu@schoolofrock.com": "West University Place",
     "theheights@schoolofrock.com": "The Heights",
+    "huscott@schoolofrock.com": "",
 }
 SCHOOL_DOMAIN = "schoolofrock.com"
 DEFAULT_TIMEZONE = ZoneInfo("America/Chicago")

@@ -4,6 +4,7 @@ import asyncio
 import pandas as pd
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from playwright.async_api import async_playwright
 import argparse
 import asyncio
@@ -81,6 +82,24 @@ async def scrape_lessons(
                 args=['--disable-dev-shm-usage'],
                 **context_options,
             )
+            # Seed from the saved storage_state JSON (valid cwr_u cookies), since
+            # Playwright's persistent Default/Cookies file does not reliably persist
+            # the Pike13 session on this profile. The JSON is written by
+            # refresh_pike13_session.py after a successful login. Loaded post-launch
+            # via add_cookies (storage_state launch-arg unsupported on this Playwright).
+            storage_json = str(Path(profile_dir) / ".." / "sor_shared_storage.json")
+            if Path(storage_json).exists():
+                try:
+                    import json as _json
+                    _st = _json.load(open(storage_json))
+                    _cookies = _st.get("cookies", [])
+                    if _cookies:
+                        await context.add_cookies(_cookies)
+                        if verbose:
+                            print(f"Seeded Pike13 context with {len(_cookies)} cookies from {storage_json}")
+                except Exception as _e:
+                    if verbose:
+                        print(f"cookie seed failed: {_e}")
         else:
             # Check for cookies first — if available, we don't need PIKE13_USER/PASS
             from notesreminder.lib.cookie_auth import load_cookies, CookieAuthError

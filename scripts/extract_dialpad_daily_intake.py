@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -190,6 +191,13 @@ def run_daily_intake(
             if chrome_channel:
                 launch_kwargs["channel"] = "chrome"
             context = p.chromium.launch_persistent_context(str(profile_dir), **launch_kwargs)
+            # Seed from dialpad_storage.json
+            _st_json = os.path.join(os.path.dirname(os.path.abspath(str(profile_dir))), "dialpad_storage.json")
+            if os.path.exists(_st_json):
+                _st = json.load(open(_st_json))
+                _cookies = _st.get("cookies", [])
+                if _cookies:
+                    context.add_cookies(_cookies)
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             wait_until_ready(page)

@@ -60,7 +60,19 @@ async def _notify(message: str):
             chat_id = None
     if chat_id is not None:
         from telegram import Bot
-        Bot(CONFIG["TELEGRAM_BOT_TOKEN"]).send_message(chat_id=chat_id, text=message)
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            # We're inside a running loop (bootstrap calls _notify from async).
+            # Schedule the coroutine so it actually executes.
+            loop.create_task(Bot(CONFIG["TELEGRAM_BOT_TOKEN"]).send_message(
+                chat_id=chat_id, text=message, parse_mode="Markdown"))
+        else:
+            asyncio.run(Bot(CONFIG["TELEGRAM_BOT_TOKEN"]).send_message(
+                chat_id=chat_id, text=message, parse_mode="Markdown"))
 
 
 async def trigger_mfa(update: Update, context: ContextTypes.DEFAULT_TYPE):

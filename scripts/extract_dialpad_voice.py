@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -290,37 +291,51 @@ def is_dialpad_app_page(url, text):
 
 
 def wait_for_authenticated_page(page, target_url, interactive_login=False, timeout_seconds=300):
-    text = page.locator("body").inner_text(timeout=30000)
-    if is_dialpad_app_page(page.url, text):
-        return
-    if not interactive_login:
-        raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
-    print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+    # Poll for the SSO redirect to complete (Dialpad SAML can take several
+    # seconds after the warm Okta session / push approval). Don't bail on the
+    # first instant just because we're briefly on a login/redirect URL.
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
-        time.sleep(2)
         try:
             text = page.locator("body").inner_text(timeout=5000)
-        except PlaywrightTimeoutError:
-            continue
+        except Exception:
+            text = ""
         if is_dialpad_app_page(page.url, text):
-            page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-            wait_until_ready(page)
-            text = page.locator("body").inner_text(timeout=30000)
-            if is_dialpad_app_page(page.url, text):
-                return
-        elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
-            continue
-        else:
-            try:
-                page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-                wait_until_ready(page)
-            except PlaywrightTimeoutError:
-                pass
-            text = page.locator("body").inner_text(timeout=30000)
-            if is_dialpad_app_page(page.url, text):
-                return
-    raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+            return
+        if interactive_login:
+            print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
+            while time.time() < deadline:
+                time.sleep(2)
+                try:
+                    text = page.locator("body").inner_text(timeout=5000)
+                except PlaywrightTimeoutError:
+                    continue
+                if is_dialpad_app_page(page.url, text):
+                    page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                    wait_until_ready(page)
+                    text = page.locator("body").inner_text(timeout=30000)
+                    if is_dialpad_app_page(page.url, text):
+                        return
+                elif "dialpad.com/app/" not in page.url and "dialpad.com/login" not in page.url:
+                    continue
+                else:
+                    try:
+                        page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                        wait_until_ready(page)
+                    except PlaywrightTimeoutError:
+                        pass
+                    text = page.locator("body").inner_text(timeout=30000)
+                    if is_dialpad_app_page(page.url, text):
+                        return
+            raise RuntimeError("Timed out waiting for Dialpad interactive login.")
+        time.sleep(2)
+    try:
+        text = page.locator("body").inner_text(timeout=5000)
+    except Exception:
+        text = ""
+    if is_dialpad_app_page(page.url, text):
+        return
+    raise RuntimeError("Dialpad profile is not authenticated; landed on login page.")
 
 
 def is_outcome_line(line):
@@ -722,6 +737,15 @@ def main():
                 headless=args.headless and not args.interactive_login,
                 viewport={"width": 1440, "height": 1000},
             )
+            # Seed from saved storage_state JSON (Dialpad session cached by
+            # bootstrap_dialpad.py via Google Workspace SSO).
+            _st_json = os.path.join(os.path.dirname(os.path.abspath(args.profile_dir)), "dialpad_storage.json")
+            if os.path.exists(_st_json):
+                _st = json.load(open(_st_json))
+                _cookies = _st.get("cookies", [])
+                if _cookies:
+                    context.add_cookies(_cookies)
+                    print(f"Seeded Dialpad context with {len(_cookies)} cookies from {_st_json}")
             page = context.pages[0] if context.pages else context.new_page()
             for source_view in requested_views:
                 url = HISTORY_URLS[source_view]

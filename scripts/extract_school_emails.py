@@ -285,12 +285,16 @@ def run_extraction(args):
                         for row_meta in rows:
                             rows_seen += 1
                             row = page.locator("tr.zA").nth(row_meta["index"])
-                            row.click(timeout=10000)
                             try:
-                                page.wait_for_load_state("networkidle", timeout=10000)
+                                row.click(timeout=15000)
+                                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                                page.wait_for_timeout(1500)
                             except PlaywrightTimeoutError:
-                                pass
-                            message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
+                                print(f"[warn] mail view did not settle for row {row_meta['index']}; continuing", flush=True)
+                            try:
+                                message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
+                            except PlaywrightTimeoutError:
+                                message_text = ""
                             write_raw_capture(
                                 conn,
                                 source="school_email",
@@ -308,13 +312,17 @@ def run_extraction(args):
                                 label=f"{mailbox}-{direction}-{rows_seen}",
                             )
                             parsed = parse_open_message(page, row_meta, mailbox, direction)
-                            upsert_school_email_message(conn, parsed)
-                            rows_written += 1
-                            page.go_back(wait_until="domcontentloaded", timeout=30000)
+                            if parsed.get("message_id"):
+                                upsert_school_email_message(conn, parsed)
+                                rows_written += 1
+                                print(f"[info] wrote message_id={parsed['message_id']} subject={parsed['subject']!r}", flush=True)
+                            else:
+                                print(f"[warn] skipped row {row_meta['index']} because no message_id could be extracted", flush=True)
                             try:
-                                page.wait_for_selector("tr.zA", timeout=10000)
-                            except PlaywrightTimeoutError:
-                                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                                page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
+                                page.wait_for_selector("tr.zA", timeout=args.query_timeout * 1000)
+                            except Exception as nav_exc:
+                                print(f"[error] failed to return to search results: {nav_exc!r}", flush=True)
             finally:
                 context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0, metadata=metadata)
