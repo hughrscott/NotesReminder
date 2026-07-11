@@ -66,10 +66,18 @@ def load(cutoff=None):
 
 # ── churn labels ──
 
-def churn_labels(lessons, fc: date, churn_days=60):
+def churn_labels(lessons, fc: date, today: date, churn_days=60, active_window=60):
+    """Label churn for training + add is_active flag for prediction filtering.
+
+    fc: training cutoff (features computed from data before this date)
+    today: current date (used for is_active flag)
+    active_window: days back from today to consider a student 'currently active'
+    """
     fc = pd.Timestamp(fc)
+    today_ts = pd.Timestamp(today)
     a0 = fc - timedelta(days=30)
     c1 = fc + timedelta(days=churn_days)
+    active_since = today_ts - timedelta(days=active_window)
 
     recs = []
     for nm, g in lessons.groupby("student_name"):
@@ -80,13 +88,17 @@ def churn_labels(lessons, fc: date, churn_days=60):
         last = dt.max().date()
         sch = int(g["school_id"].mode().iloc[0]) if not g["school_id"].empty else 0
 
+        # Training label: active in feature window, no lessons in subsequent window
         active_30 = int(((dt >= a0) & (dt < fc)).sum())
         after_60 = int(((dt >= fc) & (dt < c1)).sum())
 
         if active_30 > 0:
             churned = 1 if after_60 == 0 else 0
         else:
-            churned = -1
+            churned = -1  # not in training window
+
+        # Current activity flag: any lessons in the last active_window days?
+        is_active = int(((dt >= active_since) & (dt <= today_ts)).sum()) > 0
 
         before = int((dt < fc).sum())
         before_g = g[dt < fc]
@@ -115,6 +127,7 @@ def churn_labels(lessons, fc: date, churn_days=60):
             first_lesson=first, last_lesson=last,
             lessons_before_cutoff=before, active_30d_before=active_30,
             lessons_after_cutoff=after_60, churned=churned,
+            is_active=is_active,
             days_since_last=idle, tenure_days=ten,
             unique_lesson_types=ut, group_lesson_ratio=gr,
             weeks_active=wk, avg_lessons_per_window=aw,
@@ -211,15 +224,12 @@ def _explain(row):
 
     reasons, actions = [], []
 
-    if idle > 90:
-        reasons.append(f"No lessons in {idle} days — likely already left")
-        actions.append("Call parent to confirm status; consider win-back offer")
-    elif idle > 45:
-        reasons.append(f"Last lesson {idle} days ago — long gap")
-        actions.append("Send re-engagement text: availability check")
-    elif idle > 21:
-        reasons.append(f"Gap of {idle} days since last lesson")
-        actions.append("Check-in call: resolve scheduling issues")
+    if idle > 21:
+        reasons.append(f"No lesson in {idle} days — gap growing")
+        actions.append("Check-in call: ensure no scheduling issues")
+    elif idle > 14:
+        reasons.append(f"{idle} days since last lesson — monitor closely")
+        actions.append("Send friendly reminder text about upcoming availability")
 
     if trend < -0.3:
         reasons.append(f"Attendance declining sharply ({trend:+.1f}/window)")
@@ -245,8 +255,8 @@ def _explain(row):
         actions.append("Offer 1-on-1 session to re-engage individually")
 
     if not reasons:
-        reasons.append("Moderate risk based on attendance patterns")
-        actions.append("Monitor 2 more weeks; escalate if no return")
+        reasons.append("Moderate risk — attendance pattern shows early warning")
+        actions.append("Monitor for 1-2 more weeks; escalate if gap widens")
 
     return "; ".join(reasons[:3]), "; ".join(actions[:2])
 
@@ -263,7 +273,7 @@ def score_and_explain(model, scaler, cols, df, today):
         if s_max > s_min: scores = (scores - s_min) / (s_max - s_min)
 
     out = df[["student_name", "school_id", "total_lessons", "last_lesson",
-              "days_since_last", "avg_lessons_per_window", "lesson_trend",
+              "days_since_last", "is_active", "avg_lessons_per_window", "lesson_trend",
               "total_communications", "group_lesson_ratio", "tenure_days"]].copy()
     out["churn_risk"] = scores
 
@@ -279,6 +289,9 @@ def score_and_explain(model, scaler, cols, df, today):
         whys.append(w); dos.append(d)
     out["why_at_risk"] = whys
     out["recommended_action"] = dos
+
+    # Only return active students — inactive ones have already churned
+    out = out[out["is_active"] == True].copy()
     return out.sort_values("churn_risk", ascending=False)
 
 
@@ -313,7 +326,8 @@ def main():
     print(f"    {len(lessons):,} student-records (group lessons split)")
 
     print("[2] Labels...")
-    students = churn_labels(lessons, tcut)
+    students = churn_labels(lessons, tcut, today)
+    print(f"    Active (last 60d): {students['is_active'].sum()} / {len(students)} students")
 
     print("[3] Comm features...")
     full = add_comm(students, people, sms, calls, emails, tcut)
