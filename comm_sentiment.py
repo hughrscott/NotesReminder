@@ -127,6 +127,42 @@ def build_student_phone_map():
     return phone_map
 
 
+def build_client_bridge():
+    """Build parent → student mapping from pike13_clients.
+    Returns: (phone_to_student, email_to_student)
+    pike13_clients has account_manager_phone_digits, guardian_email_lower,
+    mobile_digits — these are PARENT contact info, linked to Client (student name)."""
+    c = sqlite3.connect(DB)
+    clients = pd.read_sql_query("""
+        SELECT Client, "Client ID", guardian_email_lower,
+               account_manager_phone_digits, mobile_digits
+        FROM pike13_clients
+    """, c)
+    c.close()
+
+    phone_bridge = defaultdict(list)   # normalized_phone → [(student_name, client_id)]
+    email_bridge = defaultdict(list)   # email_lower → [(student_name, client_id)]
+
+    for _, row in clients.iterrows():
+        student_name = str(row.get("Client", "")).strip().lower()
+        client_id = str(row.get("Client ID", "")).strip()
+        if not student_name:
+            continue
+
+        # Parent phones
+        for phone_col in ["account_manager_phone_digits", "mobile_digits"]:
+            phone = normalize_phone(str(row.get(phone_col, "")))
+            if phone:
+                phone_bridge[phone].append((student_name, client_id))
+
+        # Parent email
+        email = str(row.get("guardian_email_lower", "")).strip().lower()
+        if email:
+            email_bridge[email].append((student_name, client_id))
+
+    return phone_bridge, email_bridge
+
+
 def build_student_email_map():
     """Build mapping: email_normalized → list of student names."""
     c = sqlite3.connect(DB)
@@ -146,8 +182,9 @@ def build_student_email_map():
 
 # ── Channel processors ────────────────────────────────────────
 
-def process_voicemails(phone_map):
-    """Voicemail transcripts: match by external_number → phone → student."""
+def process_voicemails(phone_map, client_phone_bridge):
+    """Voicemail transcripts: match by external_number → phone → student.
+    Falls back to client bridge (parent phone → student via pike13_clients)."""
     c = sqlite3.connect(DB)
     vms = pd.read_sql_query("""
         SELECT call_id, external_number, name, email, date, transcription_text
@@ -158,7 +195,8 @@ def process_voicemails(phone_map):
     print(f"  Voicemails: {len(vms)} with transcripts")
 
     results = []
-    matched = 0
+    matched_direct = 0
+    matched_bridge = 0
     for _, row in vms.iterrows():
         phone = normalize_phone(row.get("external_number", ""))
         text = str(row.get("transcription_text", ""))
@@ -170,7 +208,11 @@ def process_voicemails(phone_map):
 
         students = phone_map.get(phone, [])
         if students:
-            matched += 1
+            matched_direct += 1
+        elif phone in client_phone_bridge:
+            students = [name for name, _ in client_phone_bridge[phone]]
+            matched_bridge += 1
+
         for student in (students if students else ["__unmatched__"]):
             results.append(dict(
                 channel="voicemail",
@@ -188,12 +230,13 @@ def process_voicemails(phone_map):
                 financial_hits=phrases.get("financial", 0),
                 positive_hits=phrases.get("positive_engagement", 0),
             ))
-    print(f"    Matched to students: {matched}/{len(vms)}")
+    print(f"    Matched direct: {matched_direct}, via client bridge: {matched_bridge}, unmatched: {len(vms)-matched_direct-matched_bridge}")
     return results
 
 
-def process_sms(phone_map):
-    """SMS messages: join threads for phone → match to students."""
+def process_sms(phone_map, client_phone_bridge):
+    """SMS messages: join threads for phone → match to students.
+    Falls back to client bridge (parent phone → student via pike13_clients)."""
     c = sqlite3.connect(DB)
     msgs = pd.read_sql_query("""
         SELECT m.message_id, m.message_at, m.direction, m.body,
@@ -207,7 +250,8 @@ def process_sms(phone_map):
     print(f"  SMS: {len(msgs)} joined messages with phone numbers")
 
     results = []
-    matched = 0
+    matched_direct = 0
+    matched_bridge = 0
     for _, row in msgs.iterrows():
         phone = normalize_phone(row.get("phone", ""))
         text = str(row.get("body", ""))
@@ -219,7 +263,11 @@ def process_sms(phone_map):
 
         students = phone_map.get(phone, [])
         if students:
-            matched += 1
+            matched_direct += 1
+        elif phone in client_phone_bridge:
+            students = [name for name, _ in client_phone_bridge[phone]]
+            matched_bridge += 1
+
         for student in (students if students else ["__unmatched__"]):
             results.append(dict(
                 channel="sms",
@@ -237,12 +285,12 @@ def process_sms(phone_map):
                 financial_hits=phrases.get("financial", 0),
                 positive_hits=phrases.get("positive_engagement", 0),
             ))
-    print(f"    Matched to students: {matched}/{len(msgs)}")
+    print(f"    Matched direct: {matched_direct}, via client bridge: {matched_bridge}, unmatched: {len(msgs)-matched_direct-matched_bridge}")
     return results
 
 
-def process_emails():
-    """Emails: match by person_id AND by external_email → student."""
+def process_emails(client_email_bridge):
+    """Emails: match by external_email AND by guardian_email (client bridge)."""
     c = sqlite3.connect(DB)
     emails = pd.read_sql_query("""
         SELECT e.message_id, e.message_at, e.direction, e.subject, e.body,
@@ -251,24 +299,35 @@ def process_emails():
         FROM school_email_messages e
         LEFT JOIN pike13_people p ON e.person_id = p.person_id
         WHERE e.body IS NOT NULL AND e.body != ''
+          AND e.direction = 'inbound'
     """, c)
     c.close()
-    print(f"  Emails: {len(emails)} with body text")
+    print(f"  Emails (inbound only): {len(emails)} with body text")
 
     email_map = build_student_email_map()
 
     results = []
     matched_person = 0
     matched_email = 0
+    matched_bridge = 0
     for _, row in emails.iterrows():
         text = str(row.get("body", ""))
         subject = str(row.get("subject", ""))
         full_text = subject + " " + text
 
+        # Skip automated emails: receipts, newsletters, system notifications
+        if len(full_text) > 3000:
+            continue
+        # Skip obvious automated subjects
+        auto_subjects = ["receipt", "invoice", "payment confirmation", "your statement",
+                         "newsletter", "weekly update", "reminder:"]
+        if any(s in subject.lower() for s in auto_subjects):
+            continue
+
         sentiment = get_sentiment(full_text)
         phrases = mine_phrases(full_text)
 
-        # Try person_id first, then email matching
+        # Try person_id first, then email_map, then client bridge
         person_name = row.get("person_name")
         external_email = str(row.get("external_email_normalized", "")).strip().lower()
 
@@ -280,6 +339,9 @@ def process_emails():
             students = email_map.get(external_email, [])
             if students:
                 matched_email += 1
+            elif external_email in client_email_bridge:
+                students = [name for name, _ in client_email_bridge[external_email]]
+                matched_bridge += 1
 
         for student in (students if students else ["__unmatched__"]):
             results.append(dict(
@@ -298,7 +360,7 @@ def process_emails():
                 financial_hits=phrases.get("financial", 0),
                 positive_hits=phrases.get("positive_engagement", 0),
             ))
-    print(f"    Matched via person_id: {matched_person}, via email: {matched_email}")
+    print(f"    Matched via person_id: {matched_person}, via email: {matched_email}, via client bridge: {matched_bridge}")
     return results
 
 
@@ -416,19 +478,22 @@ def main():
     # Build matching maps
     print("[0] Building student matching maps...")
     phone_map = build_student_phone_map()
-    print(f"    {len(phone_map)} unique phones → {sum(len(v) for v in phone_map.values())} student links")
+    client_phone_bridge, client_email_bridge = build_client_bridge()
+    print(f"    {len(phone_map)} direct student phones → {sum(len(v) for v in phone_map.values())} links")
+    print(f"    {len(client_phone_bridge)} parent phones → {sum(len(v) for v in client_phone_bridge.values())} students (client bridge)")
+    print(f"    {len(client_email_bridge)} guardian emails → {sum(len(v) for v in client_email_bridge.values())} students (client bridge)")
 
     # Process each channel
     all_results = []
 
     print("\n[1] Voicemails...")
-    all_results.extend(process_voicemails(phone_map))
+    all_results.extend(process_voicemails(phone_map, client_phone_bridge))
 
     print("\n[2] SMS messages...")
-    all_results.extend(process_sms(phone_map))
+    all_results.extend(process_sms(phone_map, client_phone_bridge))
 
     print("\n[3] Emails...")
-    all_results.extend(process_emails())
+    all_results.extend(process_emails(client_email_bridge))
 
     print("\n[4] Call reviews...")
     all_results.extend(process_call_reviews(phone_map))
