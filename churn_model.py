@@ -56,15 +56,13 @@ def load():
         "SELECT person_id, full_name, email_normalized, phone, phone_normalized, "
         "membership_state, school FROM pike13_people", c)
 
-    voicemails = pd.read_sql_query("""
-        SELECT call_id, external_number, name, email, date, transcription_text
-        FROM dialpad_voicemails WHERE transcription_text IS NOT NULL AND transcription_text != ''
-    """, c)
-
-    calls = pd.read_sql_query("""
-        SELECT call_id, external_number, direction, talk_duration, date_started
-        FROM dialpad_calls
-        WHERE external_number IS NOT NULL AND external_number != ''
+    # Use voice_events as primary call/voicemail source (current through Jul 2026)
+    # dialpad_calls and dialpad_voicemails are stale CSV imports (end Jan 2026)
+    voice_events = pd.read_sql_query("""
+        SELECT event_id, call_id, event_type, phone_normalized, direction,
+               event_at, outcome, voicemail_transcript
+        FROM dialpad_voice_events
+        WHERE phone_normalized IS NOT NULL AND phone_normalized != ''
     """, c)
 
     reviews = pd.read_sql_query("""
@@ -94,9 +92,7 @@ def load():
     lessons["lesson_date"] = pd.to_datetime(lessons["lesson_date"])
     if len(emails) and "message_at" in emails.columns:
         emails["message_at"] = pd.to_datetime(emails["message_at"], format="mixed", utc=True)
-    calls["date_started"] = pd.to_datetime(calls["date_started"], format="mixed")
-    calls["talk_duration"] = pd.to_numeric(calls["talk_duration"], errors="coerce").fillna(0)
-    voicemails["date"] = pd.to_datetime(voicemails["date"], format="mixed")
+    voice_events["event_at"] = pd.to_datetime(voice_events["event_at"], format="mixed")
     if len(reviews) and "event_at" in reviews.columns:
         reviews["event_at"] = pd.to_datetime(reviews["event_at"], format="mixed")
     visits["starts_at"] = pd.to_datetime(visits["starts_at"], format="mixed", utc=True)
@@ -119,13 +115,13 @@ def load():
             ))
     lessons_split = pd.DataFrame(rows)
 
-    return lessons_split, notes, reviews, people, sms, calls, emails, \
-           voicemails, call_matches, visits
+    return lessons_split, notes, reviews, people, sms, voice_events, emails, \
+           call_matches, visits
 
 
 # ── PHONE/IDENTITY MAPPING ───────────────────────────────────────────────
 
-def build_phone_maps(people, call_matches, calls, reviews):
+def build_phone_maps(people, call_matches, voice_events, reviews):
     nmap = {}
     for _, p in people.iterrows():
         n = S(p.get("full_name"))
@@ -150,18 +146,20 @@ def build_phone_maps(people, call_matches, calls, reviews):
             if client in pid_to_phone:
                 call_phone[cid] = pid_to_phone[client]
 
-    for _, row in calls.iterrows():
-        ph = P(str(row["external_number"]))
-        if ph and row["call_id"] not in call_phone:
-            call_phone[str(row["call_id"])] = ph
+    # Also: call_id → phone directly from voice_events phone_normalized
+    for _, row in voice_events.iterrows():
+        ph = P(str(row.get("phone_normalized", "")))
+        cid = str(row.get("call_id", ""))
+        if ph and cid and cid not in call_phone:
+            call_phone[cid] = ph
 
     return nmap, phone_to_names, call_phone
 
 
 # ── FEATURE ENGINEERING ──────────────────────────────────────────────────
 
-def build_features(lessons, notes, reviews, people, sms, calls, emails,
-                   voicemails, call_matches, visits,
+def build_features(lessons, notes, reviews, people, sms, voice_events, emails,
+                   call_matches, visits,
                    today, ref_date=None, student_ref_dates=None):
     """Build per-student features.
 
@@ -173,7 +171,7 @@ def build_features(lessons, notes, reviews, people, sms, calls, emails,
     if ref_date is None and student_ref_dates is None:
         ref_date = pd.Timestamp(today)
 
-    nmap, phone_to_names, call_phone = build_phone_maps(people, call_matches, calls, reviews)
+    nmap, phone_to_names, call_phone = build_phone_maps(people, call_matches, voice_events, reviews)
 
     # Instructor last-seen for departure detection
     instructor_last_seen = {}
@@ -181,15 +179,18 @@ def build_features(lessons, notes, reviews, people, sms, calls, emails,
     for inst, last_dt in all_instructor_dates.items():
         instructor_last_seen[inst] = last_dt
 
-    # Voicemail concern regex
+    # Voicemail concern detection from voice_events
+    # voice_events has event_type='voicemail' with voicemail_transcript (rarely populated)
     vm_concern_words = re.compile(
         r'cancel|quitting|can\'t\s+make|won\'t\s+be|stopping|not\s+coming|'
         r'unhappy|frustrat|concern|problem|issue|not\s+happy|too\s+expensive|'
         r'scheduling\s+conflict|switch|looking\s+at\s+other|refund', re.IGNORECASE)
-    if len(voicemails):
-        voicemails["has_concern"] = voicemails["transcription_text"].fillna("").str.contains(
+    # Mark concern voicemails where transcript is available
+    voice_events["has_concern"] = 0
+    vm_mask = (voice_events["event_type"] == "voicemail") & voice_events["voicemail_transcript"].notna()
+    if vm_mask.any():
+        voice_events.loc[vm_mask, "has_concern"] = voice_events.loc[vm_mask, "voicemail_transcript"].str.contains(
             vm_concern_words, regex=True, na=False).astype(int)
-        voicemails["phone"] = voicemails["external_number"].apply(P)
 
     # Call review concern marking
     concern_re = re.compile(
@@ -288,44 +289,48 @@ def build_features(lessons, notes, reviews, people, sms, calls, emails,
         trend_x_teacher = trend * (1 - top_instructor_pct)
         newbie_x_trend = newbie * trend
 
-        # --- Communications for this student (windowed by student-specific ref_date) ---
+        # --- Communications for this student (via voice_events) ---
         nm = S(name)
         em, ph = nmap.get(nm, ("", ""))
 
-        # Calls in this student's window
-        student_calls = calls[
-            (calls["date_started"] >= window_start) & (calls["date_started"] <= window_end)
-        ].copy()
-        student_calls["phone"] = student_calls["external_number"].apply(P)
+        # Voice events in this student's window
+        student_ve = voice_events[
+            (voice_events["event_at"] >= window_start) & (voice_events["event_at"] <= window_end)
+        ]
 
         if ph:
-            phone_calls = student_calls[student_calls["phone"] == ph]
+            # Calls (event_type='call' or 'missed_call')
+            phone_calls = student_ve[
+                (student_ve["phone_normalized"].apply(P) == ph) &
+                (student_ve["event_type"].isin(["call", "missed_call"]))
+            ]
             n_calls = len(phone_calls)
             n_inbound = int((phone_calls["direction"] == "inbound").sum())
             n_outbound = int((phone_calls["direction"] == "outbound").sum())
-            n_unanswered = int((phone_calls.loc[phone_calls["direction"] == "outbound", "talk_duration"] < 20).sum())
-            n_long_inbound = int((phone_calls.loc[phone_calls["direction"] == "inbound", "talk_duration"] > 300).sum())
 
-            call_dates = sorted(phone_calls["date_started"].tolist())
+            # Call storm: ≥3 events from this phone in 7 days
+            call_dates = sorted(phone_calls["event_at"].tolist())
             storm = 0
             for i in range(len(call_dates)):
                 wc = sum(1 for d in call_dates[max(0,i-3):i+1] if (call_dates[i] - d).days <= 7)
                 if wc >= 3:
                     storm = 1
                     break
-        else:
-            n_calls = n_inbound = n_outbound = n_unanswered = n_long_inbound = storm = 0
 
-        # Voicemails
-        student_vms = voicemails[
-            (voicemails["date"] >= window_start) & (voicemails["date"] <= window_end)
-        ]
-        if ph:
-            phone_vms = student_vms[student_vms["phone"] == ph]
+            # Voicemails (event_type='voicemail')
+            phone_vms = student_ve[
+                (student_ve["phone_normalized"].apply(P) == ph) &
+                (student_ve["event_type"] == "voicemail")
+            ]
             n_vm = len(phone_vms)
             n_vm_concern = int(phone_vms["has_concern"].sum()) if "has_concern" in phone_vms.columns else 0
         else:
+            n_calls = n_inbound = n_outbound = storm = 0
             n_vm = n_vm_concern = 0
+
+        # voice_events lacks talk_duration — these features are zero until duration data is backfilled
+        n_unanswered = 0
+        n_long_inbound = 0
 
         inbound_ratio = n_inbound / (n_inbound + n_outbound) if (n_inbound + n_outbound) > 0 else -1.0
         unanswered_rate = n_unanswered / n_outbound if n_outbound > 0 else 0.0
@@ -710,15 +715,15 @@ def main():
     print(f"Today: {today}\n")
 
     print("[1] Load data...")
-    lessons, notes, reviews, people, sms, calls, emails, \
-        voicemails, call_matches, visits = load()
+    lessons, notes, reviews, people, sms, voice_events, emails, \
+        call_matches, visits = load()
     print(f"    {len(lessons):,} student-records, {len(notes):,} notes, "
-          f"{len(reviews):,} call reviews, {len(voicemails):,} voicemails")
+          f"{len(reviews):,} call reviews, {len(voice_events):,} voice events")
 
     print("[2] Build training labels...")
     train_ref = date.today() - timedelta(days=90)
-    train_features = build_features(lessons, notes, reviews, people, sms, calls,
-                                    emails, voicemails, call_matches, visits,
+    train_features = build_features(lessons, notes, reviews, people, sms,
+                                    voice_events, emails, call_matches, visits,
                                     today, ref_date=train_ref)
     train_labeled = build_training_labels(train_features, lessons, today)
     n_churned = (train_labeled["label"] == 1).sum()
@@ -729,8 +734,8 @@ def main():
     model, scaler, cols, imps = train_model(train_labeled)
 
     print("[4] Build current features & predict...")
-    current_features = build_features(lessons, notes, reviews, people, sms, calls,
-                                      emails, voicemails, call_matches, visits,
+    current_features = build_features(lessons, notes, reviews, people, sms,
+                                      voice_events, emails, call_matches, visits,
                                       today)
     risks = predict_and_rank(model, scaler, cols, current_features, today, imps)
 
