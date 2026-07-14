@@ -67,8 +67,9 @@ def load_data():
 
 # ── Feature engineering ───────────────────────────────────────
 
-def compute_features(lessons_df, notes_df, ref_date, window_days=60):
-    """Compute features for a single student from a lesson DataFrame."""
+def compute_features(lessons_df, notes_df, ref_date, baselines, window_days=60):
+    """Compute features for a single student from a lesson DataFrame.
+    baselines: dict of (school_id, month) → avg_lessons_per_week"""
     ref_ts = pd.Timestamp(ref_date)
     ws = ref_ts - timedelta(days=window_days)
     we = ref_ts
@@ -80,13 +81,19 @@ def compute_features(lessons_df, notes_df, ref_date, window_days=60):
     if n_win == 0:
         return None
 
-    # Attendance ratio: recent 14d / prior 45d
+    # Attendance ratio: recent 14d / prior 45d (trend — seasonal invariant)
     recent = win[win["lesson_date"] >= (we - timedelta(days=14))]
     prior = win[win["lesson_date"] < (we - timedelta(days=14))]
     n_recent = len(recent)
     n_prior = len(prior)
     attendance_ratio = n_recent / max(n_prior, 1) if n_prior > 0 else (n_recent if n_recent > 0 else 0.01)
-    lessons_per_week = n_recent / 2.0
+    lessons_per_week_raw = n_recent / 2.0
+
+    # Seasonal baseline
+    school = int(lessons_df["school_id"].mode().iloc[0]) if not lessons_df["school_id"].empty else 0
+    ref_month = ref_ts.month
+    baseline = baselines.get((school, ref_month), lessons_per_week_raw)
+    lessons_vs_baseline = lessons_per_week_raw / max(baseline, 0.1)  # guard division
 
     # Teacher consistency
     win_inst = win["instructor_id"].dropna()
@@ -104,23 +111,28 @@ def compute_features(lessons_df, notes_df, ref_date, window_days=60):
     avg_note_score = ns.mean() if len(ns) > 0 else 0.0
     note_completion_rate = nc.mean() if len(nc) > 0 else 0.0
 
-    school = int(lessons_df["school_id"].mode().iloc[0]) if not lessons_df["school_id"].empty else 0
+    # Makeup ratio: % of lessons in window that are makeup sessions
+    # Students burn accumulated credits before quitting — high ratio = churn signal
+    is_makeup = win["lesson_type"].str.contains("MAKE.?UP", case=False, na=False)
+    n_makeup = is_makeup.sum()
+    makeup_ratio = n_makeup / n_win if n_win > 0 else 0.0
 
     return dict(
         school_id=school,
         attendance_ratio=attendance_ratio,
-        lessons_per_week_14d=lessons_per_week,
+        lessons_vs_baseline=lessons_vs_baseline,
         teacher_consistency=teacher_consistency,
         n_instructors=n_instructors,
         avg_note_score=avg_note_score,
         note_completion_rate=note_completion_rate,
+        makeup_ratio=makeup_ratio,
         n_lessons_window=n_win,
     )
 
 
 # ── Build training dataset ────────────────────────────────────
 
-def build_training_dataset(lessons_all, notes_all, today):
+def build_training_dataset(lessons_all, notes_all, today, baselines):
     """Build labeled dataset: churned (label=1) + active (label=0)."""
     today_ts = pd.Timestamp(today)
     X, y, meta = [], [], []
@@ -141,7 +153,7 @@ def build_training_dataset(lessons_all, notes_all, today):
             # CHURNED — use ref_date = last_lesson - GAP_DAYS
             n_churned_total += 1
             ref_date = last - timedelta(days=GAP_DAYS)
-            feat = compute_features(g, notes_all, ref_date)
+            feat = compute_features(g, notes_all, ref_date, baselines)
             if feat is None:
                 continue
             n_churned_in_window += 1
@@ -152,7 +164,7 @@ def build_training_dataset(lessons_all, notes_all, today):
         elif days_since_last <= 60:
             # ACTIVE — use ref_date = today
             n_active += 1
-            feat = compute_features(g, notes_all, today_ts)
+            feat = compute_features(g, notes_all, today_ts, baselines)
             if feat is None:
                 continue
             feat["student_name"] = name
@@ -167,13 +179,14 @@ def build_training_dataset(lessons_all, notes_all, today):
 # ── Train ──────────────────────────────────────────────────────
 
 FEATURES = [
-    "attendance_ratio", "lessons_per_week_14d", "teacher_consistency",
+    "attendance_ratio", "lessons_vs_baseline", "teacher_consistency",
     "avg_note_score", "note_completion_rate",
+    "makeup_ratio",            # % of lessons that are makeup sessions (credit burn)
     # ── Communication sentiment features ──
-    "has_communication",     # sentinel: any comms on file
-    "total_cancel_hits",     # cancel/quit phrases across all channels
-    "total_concern_hits",    # cancel + dissat + schedule + financial
-    "positive_hits",         # positive engagement phrases
+    "has_communication",       # sentinel: any comms on file
+    "total_cancel_hits",       # cancel/quit phrases across all channels
+    "total_concern_hits",      # cancel + dissat + schedule + financial
+    "positive_hits",           # positive engagement phrases
 ]
 
 
@@ -190,6 +203,16 @@ def train_model(X_train, y_train):
     model.fit(Xs, y_train)
 
     return model, scaler, cv_scores
+
+
+def load_baselines():
+    """Load seasonal baselines from pickle."""
+    path = f"{MDIR}/seasonal_baselines.pkl"
+    if not os.path.exists(path):
+        print("    (No baselines — run seasonal_baselines.py first)")
+        return {}
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
 
 def load_sentiment():
@@ -228,7 +251,7 @@ def merge_sentiment(df, sent_lookup):
                 df.at[i, col] = s[col]
 
 
-def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, today):
+def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, baselines, today):
     """Score all active students with today as ref_date."""
     today_ts = pd.Timestamp(today)
     results = []
@@ -240,7 +263,7 @@ def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, today):
         days_idle = (today_ts - last).days
         if days_idle > 60:
             continue
-        feat = compute_features(g, notes_all, today_ts)
+        feat = compute_features(g, notes_all, today_ts, baselines)
         if feat is None:
             continue
 
@@ -278,13 +301,15 @@ def main():
     print(f"  This forces model to find 'fading' signals, not exit artifacts.\n")
 
     # ── 1. Load ──
-    print("[1] Load data...")
+    print("[1] Load data and baselines...")
     lessons, notes = load_data()
+    baselines = load_baselines()
     print(f"    {lessons['student_name'].nunique():,} unique students, {len(notes):,} notes")
+    print(f"    {len(baselines)} seasonal baselines loaded (school × month)")
 
     # ── 2. Build training set ──
     print("\n[2] Build training set...")
-    X_df, y = build_training_dataset(lessons, notes, today)
+    X_df, y = build_training_dataset(lessons, notes, today, baselines)
     print(f"    Total labeled: {len(y)} ({sum(y)} churned, {sum(1-y)} active, "
           f"{sum(y)/len(y)*100:.1f}% churn rate)")
 
@@ -331,10 +356,11 @@ def main():
     print("\n[6] Coefficient sanity check:")
     expected_signs = {
         "attendance_ratio": -1,       # declining = risky → negative expected
-        "lessons_per_week_14d": -1,   # fewer lessons = risky
+        "lessons_vs_baseline": -1,    # below seasonal average = risky
         "teacher_consistency": -1,    # less consistent = risky
         "avg_note_score": -1,         # lower notes = risky
         "note_completion_rate": -1,   # fewer completed = risky
+        "makeup_ratio": +1,            # more makeup sessions = burning credits before quit
         "has_communication": 0,       # no expected sign (sentinel)
         "total_cancel_hits": +1,      # more cancel phrases = higher risk
         "total_concern_hits": +1,     # more concern phrases = higher risk
@@ -356,7 +382,7 @@ def main():
 
     # ── 7. Predict current students ──
     print("\n[7] Predict on current students...")
-    scores = predict_current(lessons, notes, model, scaler, sent_lookup, today)
+    scores = predict_current(lessons, notes, model, scaler, sent_lookup, baselines, today)
     flagged = (scores["risk"] > 0.30).sum()
     print(f"    Active scored: {len(scores)}")
     print(f"    Flagged (>30%): {flagged} ({flagged/len(scores)*100:.0f}%)")
