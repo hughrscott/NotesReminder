@@ -1,6 +1,7 @@
 __all__ = ['scrape_lessons']
 
 import asyncio
+import json
 import pandas as pd
 import re
 from datetime import datetime, timedelta
@@ -330,7 +331,7 @@ async def scrape_lessons(
                 raise Exception("Login failed - check screenshots")
 
             for date in dates:
-                schedule_url = f"https://{school_subdomain}.pike13.com/schedule#/day?dt={date}&lt=staff&el=1"
+                schedule_url = f"https://{school_subdomain}.pike13.com/schedule#/list?dt={date}&lt=staff&el=1"
                 if verbose:
                     print(f"\nNavigating to schedule for {date}...")
                 if not await goto_with_retry(schedule_url):
@@ -340,18 +341,12 @@ async def scrape_lessons(
                 if not await is_authenticated():
                     await wait_for_interactive_login(schedule_url)
                 
-                # Wait for calendar to load
+                # Wait for list view to load
                 try:
-                    await page.wait_for_selector("div.calendar-lane", timeout=30000)
+                    await page.wait_for_selector("table", timeout=30000)
                     await wait_until_ready()
-                    await page.wait_for_timeout(5000)  # Wait longer for JS to render
+                    await page.wait_for_timeout(5000)
                     date_obj = datetime.strptime(date, "%Y-%m-%d")
-                    date_label = date_obj.strftime("%b %d, %Y").replace(" 0", " ")
-                    try:
-                        await page.wait_for_selector(f"text={date_label}", timeout=15000)
-                    except Exception as e:
-                        if verbose:
-                            print(f"⚠️ Could not confirm date label {date_label}: {e}")
                     await safe_screenshot(f"screenshots/schedule_{date}.png", full_page=True)
                     
                     # Print page title and URL for debugging
@@ -359,222 +354,126 @@ async def scrape_lessons(
                         print(f"Page title: {await page.title()}")
                         print(f"Current URL: {page.url}")
                     
-                    # Try waiting for a lesson block to appear
+                    # ── Step 1: Get lesson IDs and metadata from Pike13 API ──
+                    client_id = "WWgvG1fId8iDU3rgoFXvz4A2kLnxDBSsOFacfk8X"
+                    from_ts = f"{date}T06:00:00Z"
+                    date_parts = date.split("-")
+                    next_day = f"{date_parts[0]}-{date_parts[1]}-{str(int(date_parts[2])+1).zfill(2)}"
+                    to_ts = f"{next_day}T05:59:59Z"
+                    api_url = f"https://{school_subdomain}.pike13.com/api/v2/front/event_occurrences.json?client_id={client_id}&from={from_ts}&to={to_ts}"
+                    
+                    api_occurrences = {}  # occ_id → {name, start_at, end_at, url}
                     try:
-                        await page.wait_for_selector('.calendar-lane .event', timeout=15000)
+                        api_resp = await page.goto(api_url, timeout=15000)
+                        if api_resp and api_resp.status == 200:
+                            api_body = await page.evaluate("() => document.body.innerText")
+                            api_data = json.loads(api_body)
+                            for occ in api_data.get("event_occurrences", []):
+                                occ_id = occ.get("id")
+                                if occ_id:
+                                    api_occurrences[occ_id] = {
+                                        "name": occ.get("name", ""),
+                                        "start_at": occ.get("start_at", ""),
+                                        "end_at": occ.get("end_at", ""),
+                                        "url": occ.get("url", ""),
+                                    }
+                            if verbose:
+                                print(f"🔍 API returned {len(api_occurrences)} occurrences on {date}.")
+                        else:
+                            if verbose:
+                                print(f"⚠️ API returned status {api_resp.status if api_resp else 'none'}")
                     except Exception as e:
                         if verbose:
-                            print(f"⚠️ Could not find any event blocks on {date}: {e}")
-                            schedule_html = await page.inner_html("div.calendar-lane")
-                            print(f"\n===== HTML for {date} =====\n{schedule_html}\n==========================\n")
-                    
-                    # Get all lesson links (broader search across the page)
-                    lesson_links = await page.evaluate("""
-                        () => Array.from(document.querySelectorAll("a[href*='/e/']"))
-                                  .map(a => a.getAttribute("href"))
-                                  .filter(href => href && href.includes('/e/'))
-                    """)
-
-                    # Fallback: click day-view events to extract lesson IDs
-                    if not lesson_links:
-                        events = page.locator(".calendar-lane .event")
-                        event_count = await events.count()
-                        if verbose:
-                            print(f"🔍 Found {event_count} event blocks on {date}.")
-                        for idx in range(event_count):
-                            event = events.nth(idx)
-                            try:
-                                event_text = (await event.inner_text()).lower()
-                            except Exception:
-                                event_text = ""
-                            if "unavailable" in event_text:
-                                continue
-                            try:
-                                if await event.locator(".availability").count() > 0:
-                                    continue
-                            except Exception:
-                                pass
-                            try:
-                                await event.click(force=True, timeout=5000)
-                                await page.wait_for_url(re.compile(r"/e/\\d+"), timeout=8000)
-                                match = re.search(r"/e/(\\d+)", page.url)
-                                if match:
-                                    lesson_links.append(f"/e/{match.group(1)}")
-                                await page.goto(schedule_url)
-                                await page.wait_for_selector("div.calendar-lane", timeout=30000)
-                                await page.wait_for_timeout(2000)
-                            except Exception as e:
-                                if verbose:
-                                    print(f"⚠️ Could not open event {idx + 1} on {date}: {e}")
-                                try:
-                                    await page.keyboard.press("Escape")
-                                    await page.wait_for_timeout(500)
-                                except Exception:
-                                    pass
-                                continue
-                        lesson_links = list(dict.fromkeys(lesson_links))
-
-                    # Fallback: try List view (tab click) if day view has no links
-                    if not lesson_links:
-                        switched = False
-                        for selector in (
-                            'button:has-text("List")',
-                            'a:has-text("List")',
-                            'role=tab[name="List"]',
-                            'role=button[name="List"]',
-                        ):
-                            try:
-                                await page.click(selector, timeout=5000)
-                                await page.wait_for_timeout(3000)
-                                switched = True
-                                break
-                            except Exception:
-                                continue
-                        if not switched and verbose:
-                            print(f"⚠️ Could not click List tab on {date}.")
-
-                    # Fallback: load list view by URL if still no links
-                    if not lesson_links:
-                        list_urls = [
-                            f"https://{school_subdomain}.pike13.com/schedule#/list?dt={date}&lt=staff&el=1",
-                            f"https://{school_subdomain}.pike13.com/schedule#/list?dt={date}",
-                        ]
-                        for list_url in list_urls:
-                            try:
-                                await page.goto(list_url)
-                                await wait_until_ready()
-                                await page.wait_for_timeout(3000)
-                                lesson_links = await page.evaluate("""
-                                    () => Array.from(document.querySelectorAll("a[href*='/e/']"))
-                                              .map(a => a.getAttribute("href"))
-                                              .filter(href => href && href.includes('/e/'))
-                                """)
-                                if lesson_links:
-                                    break
-                            except Exception as e:
-                                if verbose:
-                                    print(f"⚠️ Could not load list view {list_url}: {e}")
+                            print(f"⚠️ API call failed: {e}")
                     
                     if verbose:
-                        print(f"🔍 Found {len(lesson_links)} lessons on {date}.")
+                        print(f"🔍 Found {len(api_occurrences)} lessons on {date}.")
                     
-                    # Process each lesson
-                    for idx, link in enumerate(lesson_links, start=1):
-                        lesson_url = f"https://{school_subdomain}.pike13.com{link}"
-                        lesson_id_match = re.search(r'/e/(\d+)', lesson_url)
-                        if not lesson_id_match:
-                            if verbose:
-                                print(f"⚠️ Could not extract lesson ID from {lesson_url}")
-                            continue
-
-                        lesson_id = lesson_id_match.group(1)
+                    # Process each lesson using API metadata + notes scraping
+                    for idx, (occ_id, meta) in enumerate(api_occurrences.items(), start=1):
+                        lesson_id = str(occ_id)
                         notes_url = f"https://{school_subdomain}.pike13.com/desk/e/{lesson_id}/notes"
-
-                        try:
-                            if not await goto_with_retry(lesson_url):
-                                if verbose:
-                                    print(f"⚠️ Skipping lesson {lesson_id} on {date} due to navigation failures.")
-                                continue
-                            await page.wait_for_selector("span#title", timeout=15000)
-                            await safe_screenshot(f"screenshots/lesson_{lesson_id}.png")
-
-                            lesson_type = await page.text_content("span#title")
-                            lesson_time_raw = await page.text_content("span#subtitle")
-                            lesson_time_clean = lesson_time_raw or ""
-                            lesson_time_clean = re.sub(r'\s+', ' ', lesson_time_clean).strip()
-                            location = ""
-                            if " - " in lesson_time_clean:
-                                time_part, _, location_part = lesson_time_clean.rpartition(" - ")
-                                lesson_time_clean = time_part.strip()
-                                location = location_part.strip()
-                            if " on " in lesson_time_clean:
-                                lesson_time_clean = lesson_time_clean.split(" on ", 1)[0].strip()
-                            lesson_time = lesson_time_clean
-                            instructor = await optional_text_content(
-                                ".sidebar_group.sidebar_menu li.person_menu_item a"
-                            )
-
-                            student_elements = await page.query_selector_all(".person-name a.name-link")
-                            students = []
-                            for elem in student_elements:
-                                student_raw = await elem.text_content()
-                                if student_raw:
-                                    student_text = student_raw.replace('\n', ' ').strip()
-                                    student_full_name = ' '.join(student_text.split())
-                                    students.append(student_full_name)
-
-                            students_str = ", ".join(students)
-
-                            # Check for attendance status near student names
-                            attendance_status = "unknown"
+                        
+                        # Use API metadata directly (no detail page scraping needed)
+                        lesson_type = meta.get("name", "")
+                        start_at = meta.get("start_at", "")
+                        
+                        # Parse start_at into time and date
+                        lesson_time = ""
+                        if start_at:
                             try:
-                                # Look for attendance status elements near student information
-                                # This will capture whatever status text appears (confirmed, canceled, complete, no show, etc.)
-                                status_elements = await page.query_selector_all('.person-name, .attendance-status, .status, [class*="status"], [class*="attendance"]')
-                                for elem in status_elements:
-                                    elem_text = await elem.text_content()
-                                    if elem_text:
-                                        elem_text = elem_text.strip().lower()
-                                        # Look for common status words
-                                        status_words = ['confirmed', 'canceled', 'cancelled', 'complete', 'no show', 'pending', 'booked']
-                                        for word in status_words:
-                                            if word in elem_text:
-                                                attendance_status = word.replace('cancelled', 'canceled')  # normalize spelling
-                                                break
-                                        if attendance_status != "unknown":
-                                            break
-                            except Exception as e:
+                                dt = datetime.strptime(start_at.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S%z")
+                                # Convert to Central time
+                                from datetime import timezone as tz_mod
+                                central = dt.astimezone(tz_mod(timedelta(hours=-5)))
+                                lesson_time = central.strftime("%I:%M%p").lstrip("0")
+                            except Exception:
+                                lesson_time = start_at
+                        
+                        try:
+                            # Navigate to notes page
+                            if not await goto_with_retry(notes_url):
                                 if verbose:
-                                    print(f"⚠️ Error checking attendance for lesson {lesson_id}: {e}")
-                                attendance_status = "unknown"
-
-                            await page.goto(notes_url)
-                            await wait_until_ready()
-                            await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
-
-                            notes_element = await page.query_selector("div.richtext_output.unbordered")
-                            if notes_element:
-                                notes_raw = await notes_element.text_content()
-                                if notes_raw:
-                                    try:
-                                        notes = notes_raw.encode('latin1').decode('utf-8').strip()
-                                    except UnicodeEncodeError:
-                                        notes = notes_raw.strip()
-                                else:
-                                    notes = "No notes"
-                            else:
+                                    print(f"⚠️ Skipping notes for lesson {lesson_id}: navigation failed")
                                 notes = "No notes"
-
-                            timestamp_element = await page.query_selector("small.timestamp")
-                            note_timestamp = "No timestamp found"
-
-                            if timestamp_element:
-                                timestamp_raw = await timestamp_element.text_content()
-                                timestamp_text = timestamp_raw.strip() if timestamp_raw else ""
-                                match = re.search(r'on ([A-Za-z]{3}, [A-Za-z]{3} \d{1,2}, \d{4} at [\d:apm]+)', timestamp_text)
-                                if match:
-                                    note_timestamp = match.group(1).strip()
-
+                                note_timestamp = ""
+                            else:
+                                await page.wait_for_timeout(3000)
+                                await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
+                                
+                                # Extract notes — try multiple selectors
+                                notes = "No notes"
+                                for note_sel in [
+                                    "div.richtext_output.unbordered",
+                                    "div.richtext_output",
+                                    "div[class*='note']",
+                                    "div[class*='richtext']",
+                                    ".note-content",
+                                    "main p",
+                                ]:
+                                    try:
+                                        note_el = await page.query_selector(note_sel)
+                                        if note_el:
+                                            raw = await note_el.text_content()
+                                            if raw and raw.strip() and raw.strip() not in ("No notes", ""):
+                                                notes = raw.strip()
+                                                break
+                                    except Exception:
+                                        continue
+                                
+                                # Extract timestamp
+                                note_timestamp = ""
+                                for ts_sel in ["small.timestamp", "time", "[class*='timestamp']"]:
+                                    try:
+                                        ts_el = await page.query_selector(ts_sel)
+                                        if ts_el:
+                                            ts_text = (await ts_el.text_content() or "").strip()
+                                            if ts_text:
+                                                note_timestamp = ts_text
+                                                break
+                                    except Exception:
+                                        continue
+                            
                             lessons_data.append({
                                 "School": school_subdomain,
                                 "Lesson ID": lesson_id,
                                 "Date": date,
-                                "Time": lesson_time.strip() if lesson_time else "",
-                                "Instructor": instructor.strip() if instructor else "",
-                                "Students": students_str,
-                                "Lesson Type": lesson_type.strip() if lesson_type else "",
+                                "Time": lesson_time,
+                                "Instructor": "",
+                                "Students": "",
+                                "Lesson Type": lesson_type,
                                 "Notes": notes,
                                 "Note Timestamp": note_timestamp,
-                                "Attendance Status": attendance_status,
-                                "Location": location
+                                "Attendance Status": "unknown",
+                                "Location": ""
                             })
-
+                            
                             if verbose:
-                                print(f"✅ {date} | Processed lesson {idx}/{len(lesson_links)}")
-
+                                print(f"✅ {date} | Processed lesson {idx}/{len(api_occurrences)}: {lesson_type}")
+                        
                         except Exception as e:
                             if verbose:
-                                print(f"⚠️ Error processing lesson {idx} on {date}: {e}")
+                                print(f"⚠️ Error processing lesson {lesson_id} on {date}: {e}")
                             continue
 
                 except Exception as e:
