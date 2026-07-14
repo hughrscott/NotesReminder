@@ -134,7 +134,8 @@ def build_client_bridge():
     mobile_digits — these are PARENT contact info, linked to Client (student name)."""
     c = sqlite3.connect(DB)
     clients = pd.read_sql_query("""
-        SELECT Client, "Client ID", guardian_email_lower,
+        SELECT Client, "Client ID", guardian_email_lower, email_lower,
+               "Account Manager Emails",
                account_manager_phone_digits, mobile_digits
         FROM pike13_clients
     """, c)
@@ -149,16 +150,27 @@ def build_client_bridge():
         if not student_name:
             continue
 
-        # Parent phones
-        for phone_col in ["account_manager_phone_digits", "mobile_digits"]:
-            phone = normalize_phone(str(row.get(phone_col, "")))
-            if phone:
-                phone_bridge[phone].append((student_name, client_id))
+        # Parent phones — multiple sources, comma-separated
+        for phone_col in ["account_manager_phone_digits", "mobile_digits",
+                          "phone_digits", "Account Manager Phones"]:
+            raw = str(row.get(phone_col, ""))
+            if not raw or raw == "nan":
+                continue
+            for part in raw.split(","):
+                phone = normalize_phone(part.strip())
+                if phone and len(phone) >= 10:
+                    phone_bridge[phone].append((student_name, client_id))
 
-        # Parent email
-        email = str(row.get("guardian_email_lower", "")).strip().lower()
-        if email:
-            email_bridge[email].append((student_name, client_id))
+        # All parent/student emails — multiple sources
+        for email_col in ["guardian_email_lower", "email_lower", "Account Manager Emails"]:
+            raw = str(row.get(email_col, ""))
+            if not raw or raw == "nan":
+                continue
+            # Account Manager Emails can be comma-separated: "mom@gmail.com, dad@work.com"
+            for part in raw.split(","):
+                email = part.strip().lower()
+                if email and "@" in email:
+                    email_bridge[email].append((student_name, client_id))
 
     return phone_bridge, email_bridge
 
