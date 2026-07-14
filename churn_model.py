@@ -117,6 +117,17 @@ def compute_features(lessons_df, notes_df, ref_date, baselines, window_days=60):
     n_makeup = is_makeup.sum()
     makeup_ratio = n_makeup / n_win if n_win > 0 else 0.0
 
+    # Missed expected lessons in window: accumulating unused credits (early signal)
+    # Compare expected lessons (based on student's rhythm) to actual attendance
+    all_dt = lessons_df["lesson_date"].sort_values()
+    if len(all_dt) >= 3:
+        spacings = all_dt.diff().dropna().dt.days
+        avg_spacing = max(spacings.median(), 3.0)
+    else:
+        avg_spacing = 7.0
+    expected_in_window = 60.0 / avg_spacing  # how many lessons expected in 60 days
+    missed_in_window = max(0, expected_in_window - n_win)
+
     return dict(
         school_id=school,
         attendance_ratio=attendance_ratio,
@@ -126,6 +137,8 @@ def compute_features(lessons_df, notes_df, ref_date, baselines, window_days=60):
         avg_note_score=avg_note_score,
         note_completion_rate=note_completion_rate,
         makeup_ratio=makeup_ratio,
+        missed_in_window=missed_in_window,
+        makeup_x_missed=makeup_ratio * missed_in_window,
         n_lessons_window=n_win,
     )
 
@@ -182,6 +195,8 @@ FEATURES = [
     "attendance_ratio", "lessons_vs_baseline", "teacher_consistency",
     "avg_note_score", "note_completion_rate",
     "makeup_ratio",            # % of lessons that are makeup sessions (credit burn)
+    "missed_in_window",        # expected lessons missed in 60d window (credit accumulation)
+    "makeup_x_missed",         # interaction: makeup × missed (high both = summer break, not churn)
     # ── Communication sentiment features ──
     "has_communication",       # sentinel: any comms on file
     "total_cancel_hits",       # cancel/quit phrases across all channels
@@ -361,6 +376,8 @@ def main():
         "avg_note_score": -1,         # lower notes = risky
         "note_completion_rate": -1,   # fewer completed = risky
         "makeup_ratio": +1,            # more makeup sessions = burning credits before quit
+        "missed_in_window": +1,        # more missed expected lessons = accumulating credits
+        "makeup_x_missed": -1,         # interaction: high both = summer break (NOT churn)
         "has_communication": 0,       # no expected sign (sentinel)
         "total_cancel_hits": +1,      # more cancel phrases = higher risk
         "total_concern_hits": +1,     # more concern phrases = higher risk
