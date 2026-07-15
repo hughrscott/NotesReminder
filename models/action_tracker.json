@@ -1,4 +1,655 @@
 {
-  "reports": [],
-  "students": {}
+  "reports": [
+    {
+      "date": "2026-07-15",
+      "students_flagged": 29
+    }
+  ],
+  "students": {
+    "michael branstetter": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.88852590938678,
+      "archetype": "Comm Red Flags",
+      "instructor_consistency": 0.4782608695652174,
+      "days_idle": 46,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-05-30 (scored 7). The instructor wrote: \"Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did som"
+        },
+        {
+          "type": "red_flag",
+          "text": "\u26a0\ufe0f Parent has used cancel/discontinue language in communications. This is the most urgent signal \u2014 direct outreach needed."
+        },
+        {
+          "type": "positive",
+          "text": "Parent has been very communicative (27 messages/calls). They're engaged \u2014 use that relationship."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 7 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "DIRECT OUTREACH. Parent has signaled intent to leave. GM should call personally. Reference their progress, acknowledge any concerns, offer a solution."
+        }
+      ]
+    },
+    "ed reybitz": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8877143818625041,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.5454545454545454,
+      "days_idle": 107,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-18 (scored 5). The instructor wrote: \"Added and reviewed exercises into the method app.  Reviewed and worked on open chords  C majorD majorE major F major - barre"
+        },
+        {
+          "type": "concern",
+          "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "No contact for 107 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    },
+    "addison woods": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8746664614800301,
+      "archetype": "Disengagement",
+      "instructor_consistency": 1.0,
+      "days_idle": 109,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-02-28. The instructor wrote: \"Awesome job today, Addison! Today we played Radioactive, Zombie, and Evil Ways. We learned the musical alphabet with sharps and flats a"
+        },
+        {
+          "type": "context",
+          "text": "Only 7 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "No contact for 109 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    },
+    "alejandro meyer": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8427710806449593,
+      "archetype": "Schedule Conflict",
+      "instructor_consistency": 0.44680851063829785,
+      "days_idle": 2,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-06-18 (scored 5). The instructor wrote: \"Great job today guys! Our concert will be tomorrow at 12:00! Please come dressed like a rock star so we can put on a show fo"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "renner campbell": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8319494518058559,
+      "archetype": "Schedule Conflict",
+      "instructor_consistency": 0.45454545454545453,
+      "days_idle": 2,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2025-08-08. The instructor wrote: \"Hello parents! I just wanted to send out a reminder that today's show will take place at 12:00. See you all then!\""
+        },
+        {
+          "type": "concern",
+          "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "masha khurana vu": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8258233544206747,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.5769230769230769,
+      "days_idle": 67,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-21 (scored 7). The instructor wrote: \"Hello Little wings!In this lesson we started practicing the musical note rhythms: Whole, half, quarter, eighth and 16th note"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 6 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "eric neal": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8024141318977738,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.41304347826086957,
+      "days_idle": 117,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-20 (scored 2). The instructor wrote: \"Hi Guys,We are currently running a promo on our summer camps! For the next two days we are taking 15% off of any camp with c"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 6 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "sebastian harrison": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7815882860764406,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.5,
+      "days_idle": 57,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-04-14 (scored 6). The instructor wrote: \"Awesome job today guys! Today we played our cherry beet rhythm game. We reviewed our rhythm notation. We played Hey, Good Lo"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 5 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "jasmin benitez": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7772424984354653,
+      "archetype": "Instructor Relationship",
+      "instructor_consistency": 0.5,
+      "days_idle": 27,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-06-15 (scored 8). The instructor wrote: \"Great work this week at rehearsal! We worked on some songs we know well, and started mapping out new ones like \u201cMy Sharona\u201d "
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "27 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "nivy arya": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7727709272767179,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.8461538461538461,
+      "days_idle": 105,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-18 (scored 6). The instructor wrote: \"In this lesson we studied page 3: warm up exercises and double stroke variations, page 41: half time shuffle, keep practicin"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "mabel anderson-holland": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7467911059156005,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.44,
+      "days_idle": 46,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-05-30 (scored 8). The instructor wrote: \"Today we tried out our new Rock 101 class structure by beginning class in the Break-out rooms (separating the class based on"
+        },
+        {
+          "type": "positive",
+          "text": "Scores were improving before they stopped (avg: 6.7). They were on an upward trajectory \u2014 remind them of this."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 4 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "No contact for 46 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    },
+    "jake krieger": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.718547591610982,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.37777777777777777,
+      "days_idle": 46,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-05-30 (scored 8). The instructor wrote: \"Awesome job today! We warmed up with our beet/ cherry rhythm game and then we played freeze dance. We reviewed our rhythm no"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 5 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "john david cunningham nauls": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7165945719843274,
+      "archetype": "Instructor Relationship",
+      "instructor_consistency": 0.3181818181818182,
+      "days_idle": 4,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-06-06 (scored 7). The instructor wrote: \"Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and"
+        },
+        {
+          "type": "concern",
+          "text": "They've had 7 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "mateo bapat": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7093461126807893,
+      "archetype": "Instructor Relationship",
+      "instructor_consistency": 0.6296296296296297,
+      "days_idle": 18,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-06-06 (scored 7). The instructor wrote: \"Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "18 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "miranda sevcik": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7353940197041001,
+      "archetype": "On Hold",
+      "instructor_consistency": 0.8571428571428571,
+      "days_idle": 20,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-05-12 (scored 8). The instructor wrote: \"Great job today!Practice the 1-2-3-4 exercise with the focus being the amount of pressure you apply to the strings. Remember"
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "hold_action",
+          "text": "HOLD: Return date in 14d (Jul 29, 2026). Confirm lesson time with parent, remind them to come back. Check for response by next report."
+        },
+        {
+          "type": "action",
+          "text": "20 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "xabi briscoe": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.9051116733288236,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.7142857142857143,
+      "days_idle": 106,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-02-27. The instructor wrote: \"Today Xabi and I worked on some basic chords as well as a song he wanted to learnWe started out going through some basic chord changes,"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 7 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
+        }
+      ]
+    },
+    "emmanuel gonzalez": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8953717978139112,
+      "archetype": "Review Needed",
+      "instructor_consistency": 0.75,
+      "days_idle": 6,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 8 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "ani moore": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8856681006786871,
+      "archetype": "Review Needed",
+      "instructor_consistency": 1.0,
+      "days_idle": 5,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "alexandra yzquierdo": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8771066748506267,
+      "archetype": "New Student Risk",
+      "instructor_consistency": 1.0,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "natalia morales": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8771066748506267,
+      "archetype": "New Student Risk",
+      "instructor_consistency": 1.0,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "olivia telleen": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8771066748506267,
+      "archetype": "New Student Risk",
+      "instructor_consistency": 1.0,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "charlie pallister": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8741326617242646,
+      "archetype": "Disengagement",
+      "instructor_consistency": 1.0,
+      "days_idle": 33,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "33 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "gabby garofalo": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8660303162311365,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.36363636363636365,
+      "days_idle": 56,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-05-11 (scored 9). The instructor wrote: \"Great jamming with you today Gabby.Today we went over the A minor pentatonic scale and used the varies modes to improvise to"
+        },
+        {
+          "type": "concern",
+          "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "No contact for 56 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    },
+    "lily chabarria": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.863219070008115,
+      "archetype": "Instructor Relationship",
+      "instructor_consistency": 0.4246575342465753,
+      "days_idle": 2,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "aliya gulamhussein": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8378031163164416,
+      "archetype": "New Student Risk",
+      "instructor_consistency": 1.0,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "antonella massolini": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8363787416765139,
+      "archetype": "New Student Risk",
+      "instructor_consistency": 1.0,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "douglas kemp": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8264375183986041,
+      "archetype": "Instructor Relationship",
+      "instructor_consistency": 0.5476190476190477,
+      "days_idle": 7,
+      "suggestions": [
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+        }
+      ]
+    },
+    "dylan kemp": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.8252015293192472,
+      "archetype": "Disengagement",
+      "instructor_consistency": 1.0,
+      "days_idle": 33,
+      "suggestions": [
+        {
+          "type": "context",
+          "text": "Parent has mentioned scheduling challenges. Their issue may be logistics, not interest \u2014 try offering a different time or format."
+        },
+        {
+          "type": "context",
+          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "33 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "dora e gonzalez": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7776179362875155,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.8181818181818182,
+      "days_idle": 119,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-18 (scored 2). The instructor wrote: \"Missed you today, see you next time!\""
+        },
+        {
+          "type": "concern",
+          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "No contact for 119 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    }
+  }
 }

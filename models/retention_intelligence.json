@@ -9261,8 +9261,8 @@
     "avg_score": 5.75,
     "score_trend": "declining",
     "keyword_hits": {
-      "financial": 2,
-      "cancellation": 2
+      "cancellation": 2,
+      "financial": 2
     },
     "is_on_hold": false
   },
