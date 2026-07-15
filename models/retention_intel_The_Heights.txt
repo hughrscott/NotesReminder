@@ -2,175 +2,139 @@ Subject: 🎸 The Heights Retention Intelligence — July 15, 2026
 
 Hi Hugh,
 
-Retention intelligence report for The Heights. Each flagged student below
-has been classified into a churn archetype with a specific action plan.
+Every recommendation below is drawn from actual lesson notes, parent communications,
+and attendance data — not a template. Each student's advice is unique to their situation.
 
 📋 SUMMARY
 
-   ⏸️  On Hold (no action):            7
-   🔴 Critical (≥70% risk):            145
-   🟠 High (50-69%):                    19
-   🟡 Watch (30-49%):                   16
-
-   Archetype breakdown:
-     Disengagement: 150
-     Instructor Relationship: 37
-     New Student Risk: 36
-     Schedule Conflict: 27
-     Comm Red Flags: 9
-     On Hold: 7
-     Financial Stress: 6
+   ⏸️  On Hold:  7  |  🔴 Actionable:  30  |  🟠 High:  19  |  🟡 Watch:  16
+   📦 Historical (120+d idle): 115
 
 ────────────────────────────────────────────────────────────────────────
-⏸️  ON HOLD — 7 students (no outreach needed)
+⏸️  ON HOLD — 7 students
 ────────────────────────────────────────────────────────────────────────
 
-  • Patricia Collins — hold ends Aug 29, 2026
-    Plan: Rookies
-  • Mason Hopper — hold ends Jul 30, 2026
-    Plan: Rock 101 - 45 Minute Lessons
-  • Miranda Sevcik — hold ends Jul 29, 2026
-    Plan: 30-Minute Lessons Only
-  • Lucas klemm — hold ends Jul 31, 2026
-    Plan: Rookies
-  • Charlie Forbes — hold ends Jul 31, 2026
-    Plan: Little Wing
-  • Isabella Martinez — hold ends Jul 30, 2026
-    Plan: Performance Program - 45 Minute Lessons
-  • Jeff Brabham — hold ends Jul 31, 2026
-    Plan: Prep Lessons - 30 Minute Lessons
+  • Patricia Collins — hold ends Aug 29, 2026  |  Rookies
+  • Mason Hopper — hold ends Jul 30, 2026  |  Rock 101 - 45 Minute Lessons
+  • Miranda Sevcik — hold ends Jul 29, 2026  |  30-Minute Lessons Only
+  • Lucas klemm — hold ends Jul 31, 2026  |  Rookies
+  • Charlie Forbes — hold ends Jul 31, 2026  |  Little Wing
+  • Isabella Martinez — hold ends Jul 30, 2026  |  Performance Program - 45 Minute Lessons
+  • Jeff Brabham — hold ends Jul 31, 2026  |  Prep Lessons - 30 Minute Lessons
 
 ────────────────────────────────────────────────────────────────────────
-🔴 CRITICAL — 30 actionable students (contact this week)
+🔴 ACTIONABLE — 30 students (contact this week)
 ────────────────────────────────────────────────────────────────────────
 
-  Xabi Briscoe — 91% risk | ⚠️ 106d idle
+  1. Xabi Briscoe — 91% risk | ⚠️ 106d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: Schedule Conflict
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
-     💬 2026-02-27: "Today Xabi and I worked on some basic chords as well as a song he wanted to learnWe started out going through some basic…"
-     💬 2026-02-17: "today we went over polly by nirvana as well as started on the chords for hablemos! i know you’re left handed but still t…"
+     💬 Their last strong session was 2026-02-27. The instructor wrote: "Today Xabi and I worked on some basic chords as well as a song he wanted to learnWe started out going through some basic chord changes, once warmed up"
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 7 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
+     → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  Alexandra Yzquierdo — 88% risk | 📝 5 lessons
+  2. Emmanuel Gonzalez — 90% risk | 📝 8 lessons
+  🏷️  Review Needed (n/a) — low confidence
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 8 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+
+  3. Ani Moore — 89% risk | 📝 5 lessons
+  🏷️  Review Needed (n/a) — low confidence
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+
+  4. Alexandra Yzquierdo — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Camila Casiano — 88% risk | 📝 5 lessons
+  5. Camila Casiano — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Eva Perez Gligic — 88% risk | 📝 5 lessons
+  6. Eva Perez Gligic — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Natalia Morales — 88% risk | 📝 5 lessons
+  7. Natalia Morales — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Olivia Telleen — 88% risk | 📝 5 lessons
+  8. Olivia Telleen — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Charlie Pallister — 87% risk | ⚠️ 33d idle
+  9. Charlie Pallister — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  James Pallister — 87% risk | ⚠️ 33d idle
+  10. James Pallister — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Lincoln Falchetti — 87% risk | ⚠️ 33d idle
+  11. Lincoln Falchetti — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Maya Landa — 87% risk | ⚠️ 33d idle
+  12. Maya Landa — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Remy Paal — 87% risk | ⚠️ 33d idle
+  13. Remy Paal — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Valentin Gokhman — 87% risk | ⚠️ 33d idle
+  14. Valentin Gokhman — 87% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
      Also: New Student Risk
-     → Reach out directly to parent — this student has stopped attending.
-     → Reference their best recent progress (see note hooks below).
-     → Ask about schedule, life changes, or loss of interest.
-     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Gabby Garofalo — 87% risk | ⚠️ 56d idle
-  🏷️  Instructor Relationship (threshold) — high confidence
-     Also: Disengagement
-     → Multiple instructor changes or low consistency — student may not have found their fit.
-     → Review which instructor they did best with (highest scores, most notes).
-     → Ask parent: 'Has [student] connected with any particular teacher?'
-     → Try matching them back to their best-fit instructor.
-     💬 2026-05-11 (score 9): "Great jamming with you today Gabby.Today we went over the A minor pentatonic scale and used the varies modes to improvis…"
-     💬 2026-05-04 (score 8): "today we went over the different shapes of the pentatonic scale as well as what the first two modes of the major scale m…"
-
-  Aliya Gulamhussein — 84% risk | 📝 5 lessons
-  🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
-
-  Antonella Massolini — 84% risk | 📝 5 lessons
-  🏷️  New Student Risk (early) — medium confidence
-     → New student with limited lesson history — standard onboarding check.
-     → Confirm they understand the program structure and expectations.
-     → Schedule their first performance or group activity to build excitement.
-     → Make sure parent has all contact info and knows how to reach the studio.
+  15. Gabby Garofalo — 87% risk | ⚠️ 56d idle
+  🏷️  Disengagement (gradual) — high confidence
+     Also: Instructor Relationship
+     💬 Their last strong session was 2026-05-11 (scored 9). The instructor wrote: "Great jamming with you today Gabby.Today we went over the A minor pentatonic scale and used the varies modes to improvise to an A minor chord progress"
+     📋 Recent parent messages: "[redacted Dialpad SMS web list snippet]"
+     ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
+     → No contact for 56 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
 
 ────────────────────────────────────────────────────────────────────────
-📦 HISTORICAL CHURN — 115 students idle 120+ days (review quarterly)
+📦 HISTORICAL CHURN — 115 students idle 120+ days
 ────────────────────────────────────────────────────────────────────────
 
-  Comm Red Flags: 5 students
-  Disengagement: 110 students
-  → Consider removing from active monitoring. Prioritize <120d idle.
+  Disengagement: 110
+  Comm Red Flags: 5
+  → Review quarterly. Focus on <120d idle actionable students.
 
 ────────────────────────────────────────────────────────────────────────
-🟠 HIGH — 19 students (instructor check-in)
+🟠 HIGH — 19 students
 ────────────────────────────────────────────────────────────────────────
 
   • Matthew Padilla — 70% | Disengagement (gradual)
@@ -178,6 +142,6 @@ has been classified into a churn archetype with a specific action plan.
   • Finley Reilly — 70% | Disengagement (gradual)
   • Manolo Villareal-Garza — 69% | Disengagement (gradual)
   • Niki Claus — 69% | Disengagement (gradual)
-  • Alyssa Shoemaker — 68% | Financial Stress (threshold)
+  • Alyssa Shoemaker — 68% | Disengagement (rapid)
   • Jay Boya — 68% | Disengagement (rapid)
   • Nicolas Salazar — 67% | Disengagement (gradual)
