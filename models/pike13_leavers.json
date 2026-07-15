@@ -1,0 +1,502 @@
+{
+  "troy hawkes": {
+    "school": "The Heights",
+    "end_date": "Jul 31, 2026",
+    "name": "Troy Hawkes"
+  },
+  "max miranda": {
+    "school": "The Heights",
+    "end_date": "Jul 31, 2026",
+    "name": "Max Miranda"
+  },
+  "camilo sosa": {
+    "school": "The Heights",
+    "end_date": "Jul 31, 2026",
+    "name": "Camilo Sosa"
+  },
+  "lex rigamonti": {
+    "school": "The Heights",
+    "end_date": "Jul 13, 2026",
+    "name": "Lex Rigamonti"
+  },
+  "robert jones": {
+    "school": "The Heights",
+    "end_date": "Jul 10, 2026",
+    "name": "Robert Jones"
+  },
+  "lucy brasher": {
+    "school": "The Heights",
+    "end_date": "Jul 1, 2026",
+    "name": "Lucy Brasher"
+  },
+  "norah potnuru": {
+    "school": "The Heights",
+    "end_date": "Jun 30, 2026",
+    "name": "Norah Potnuru"
+  },
+  "phoenix hollingsworth salinas": {
+    "school": "The Heights",
+    "end_date": "Jun 30, 2026",
+    "name": "Phoenix Hollingsworth Salinas"
+  },
+  "jacob moore": {
+    "school": "The Heights",
+    "end_date": "Jun 30, 2026",
+    "name": "Jacob Moore"
+  },
+  "jennifer quesada": {
+    "school": "The Heights",
+    "end_date": "Jun 30, 2026",
+    "name": "Jennifer Quesada"
+  },
+  "astrid torres": {
+    "school": "The Heights",
+    "end_date": "Jun 22, 2026",
+    "name": "Astrid Torres"
+  },
+  "jack noble": {
+    "school": "The Heights",
+    "end_date": "Jun 19, 2026",
+    "name": "Jack Noble"
+  },
+  "nelly reed": {
+    "school": "The Heights",
+    "end_date": "Jun 16, 2026",
+    "name": "Nelly Reed"
+  },
+  "jay boya": {
+    "school": "The Heights",
+    "end_date": "Jun 14, 2026",
+    "name": "Jay Boya"
+  },
+  "miles maxian": {
+    "school": "The Heights",
+    "end_date": "Jun 8, 2026",
+    "name": "Miles Maxian"
+  },
+  "pj bruegger": {
+    "school": "The Heights",
+    "end_date": "Jun 7, 2026",
+    "name": "PJ Bruegger"
+  },
+  "nicolas benson": {
+    "school": "The Heights",
+    "end_date": "Jun 6, 2026",
+    "name": "Nicolas Benson"
+  },
+  "elena benson": {
+    "school": "The Heights",
+    "end_date": "Jun 6, 2026",
+    "name": "Elena Benson"
+  },
+  "tierra bami": {
+    "school": "The Heights",
+    "end_date": "May 31, 2026",
+    "name": "Tierra bami"
+  },
+  "pedro sousa": {
+    "school": "The Heights",
+    "end_date": "May 31, 2026",
+    "name": "Pedro Sousa"
+  },
+  "rook abasolo": {
+    "school": "The Heights",
+    "end_date": "May 31, 2026",
+    "name": "Rook Abasolo"
+  },
+  "gabby garofalo": {
+    "school": "The Heights",
+    "end_date": "May 31, 2026",
+    "name": "Gabby Garofalo"
+  },
+  "oliver del aguila": {
+    "school": "The Heights",
+    "end_date": "May 31, 2026",
+    "name": "Oliver Del Aguila"
+  },
+  "zach meyers": {
+    "school": "The Heights",
+    "end_date": "May 15, 2026",
+    "name": "Zach Meyers"
+  },
+  "barrett gonsalves": {
+    "school": "The Heights",
+    "end_date": "May 14, 2026",
+    "name": "Barrett Gonsalves"
+  },
+  "parker schroder": {
+    "school": "The Heights",
+    "end_date": "May 14, 2026",
+    "name": "Parker Schroder"
+  },
+  "cavett myerson": {
+    "school": "The Heights",
+    "end_date": "May 14, 2026",
+    "name": "Cavett Myerson"
+  },
+  "margo synhorst": {
+    "school": "The Heights",
+    "end_date": "May 14, 2026",
+    "name": "Margo Synhorst"
+  },
+  "lennon lennon": {
+    "school": "The Heights",
+    "end_date": "Apr 30, 2026",
+    "name": "Lennon Lennon"
+  },
+  "jasencio cardenas-torres": {
+    "school": "The Heights",
+    "end_date": "Apr 30, 2026",
+    "name": "Jasencio Cardenas-Torres"
+  },
+  "quinn gallo": {
+    "school": "The Heights",
+    "end_date": "Apr 23, 2026",
+    "name": "Quinn Gallo"
+  },
+  "alexandra abbott": {
+    "school": "The Heights",
+    "end_date": "Apr 20, 2026",
+    "name": "Alexandra Abbott"
+  },
+  "xabi briscoe": {
+    "school": "The Heights",
+    "end_date": "Apr 19, 2026",
+    "name": "Xabi Briscoe"
+  },
+  "joseph caillier": {
+    "school": "The Heights",
+    "end_date": "Apr 16, 2026",
+    "name": "Joseph caillier"
+  },
+  "maggie caillier": {
+    "school": "The Heights",
+    "end_date": "Apr 16, 2026",
+    "name": "Maggie Caillier"
+  },
+  "niki claus": {
+    "school": "The Heights",
+    "end_date": "Apr 4, 2026",
+    "name": "Niki Claus"
+  },
+  "canon prasad": {
+    "school": "The Heights",
+    "end_date": "Mar 31, 2026",
+    "name": "Canon Prasad"
+  },
+  "patrick roche": {
+    "school": "The Heights",
+    "end_date": "Mar 19, 2026",
+    "name": "Patrick Roche"
+  },
+  "finley reilly": {
+    "school": "The Heights",
+    "end_date": "Mar 17, 2026",
+    "name": "Finley Reilly"
+  },
+  "alyssa liceralde": {
+    "school": "The Heights",
+    "end_date": "Mar 17, 2026",
+    "name": "Alyssa Liceralde"
+  },
+  "mary jo fox": {
+    "school": "The Heights",
+    "end_date": "Mar 16, 2026",
+    "name": "Mary Jo Fox"
+  },
+  "kemper fox": {
+    "school": "The Heights",
+    "end_date": "Mar 16, 2026",
+    "name": "Kemper Fox"
+  },
+  "morris fox": {
+    "school": "The Heights",
+    "end_date": "Mar 16, 2026",
+    "name": "Morris Fox"
+  },
+  "felix schroder": {
+    "school": "The Heights",
+    "end_date": "Mar 4, 2026",
+    "name": "Felix Schroder"
+  },
+  "matthew padilla": {
+    "school": "The Heights",
+    "end_date": "Feb 28, 2026",
+    "name": "Matthew Padilla"
+  },
+  "aaron bludorn": {
+    "school": "The Heights",
+    "end_date": "Feb 28, 2026",
+    "name": "Aaron Bludorn"
+  },
+  "giovanni calvillo": {
+    "school": "The Heights",
+    "end_date": "Feb 28, 2026",
+    "name": "Giovanni Calvillo"
+  },
+  "manolo villareal-garza": {
+    "school": "The Heights",
+    "end_date": "Feb 20, 2026",
+    "name": "Manolo Villareal-Garza"
+  },
+  "lola jones": {
+    "school": "The Heights",
+    "end_date": "Feb 20, 2026",
+    "name": "Lola Jones"
+  },
+  "nicolas salazar": {
+    "school": "The Heights",
+    "end_date": "Feb 18, 2026",
+    "name": "Nicolas Salazar"
+  },
+  "annabelle ruan": {
+    "school": "West U",
+    "end_date": "Aug 8, 2026",
+    "name": "Annabelle Ruan"
+  },
+  "will bisson": {
+    "school": "West U",
+    "end_date": "Aug 6, 2026",
+    "name": "Will Bisson"
+  },
+  "maxwell wilson": {
+    "school": "West U",
+    "end_date": "Aug 5, 2026",
+    "name": "Maxwell Wilson"
+  },
+  "nina loperena": {
+    "school": "West U",
+    "end_date": "Jul 31, 2026",
+    "name": "Nina Loperena"
+  },
+  "mei tang": {
+    "school": "West U",
+    "end_date": "Jul 8, 2026",
+    "name": "Mei Tang"
+  },
+  "peighton pesl": {
+    "school": "West U",
+    "end_date": "Jul 1, 2026",
+    "name": "Peighton Pesl"
+  },
+  "parker pinnell": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Parker Pinnell"
+  },
+  "mateo bapat": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Mateo Bapat"
+  },
+  "elliot mack": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Elliot Mack"
+  },
+  "penn piegari": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Penn Piegari"
+  },
+  "imani horne": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Imani Horne"
+  },
+  "jose afonso": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Jose Afonso"
+  },
+  "xavier lizarraga": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Xavier Lizarraga"
+  },
+  "nora jamea": {
+    "school": "West U",
+    "end_date": "Jun 30, 2026",
+    "name": "Nora Jamea"
+  },
+  "michael branstetter": {
+    "school": "West U",
+    "end_date": "Jun 22, 2026",
+    "name": "Michael Branstetter"
+  },
+  "jasmin benitez": {
+    "school": "West U",
+    "end_date": "Jun 19, 2026",
+    "name": "Jasmin Benitez"
+  },
+  "owen neiter": {
+    "school": "West U",
+    "end_date": "Jun 13, 2026",
+    "name": "Owen Neiter"
+  },
+  "camila love calderon": {
+    "school": "West U",
+    "end_date": "Jun 13, 2026",
+    "name": "Camila Love Calderon"
+  },
+  "theo ropper": {
+    "school": "West U",
+    "end_date": "Jun 9, 2026",
+    "name": "Theo Ropper"
+  },
+  "valentina betancourt": {
+    "school": "West U",
+    "end_date": "Jun 3, 2026",
+    "name": "Valentina Betancourt"
+  },
+  "monica enamorado": {
+    "school": "West U",
+    "end_date": "Jun 2, 2026",
+    "name": "MONICA ENAMORADO"
+  },
+  "lucas gates": {
+    "school": "West U",
+    "end_date": "Jun 1, 2026",
+    "name": "Lucas Gates"
+  },
+  "edwin guel": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Edwin Guel"
+  },
+  "zachary bang": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Zachary Bang"
+  },
+  "caitlyn yip": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Caitlyn Yip"
+  },
+  "jolene o'brien": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Jolene O'Brien"
+  },
+  "antonio schurmann": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Antonio Schurmann"
+  },
+  "veronica behera": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Veronica Behera"
+  },
+  "caio maricevich": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Caio Maricevich"
+  },
+  "carmine cascio": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Carmine Cascio"
+  },
+  "maria maricevich": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Maria Maricevich"
+  },
+  "jake krieger": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Jake Krieger"
+  },
+  "connor klein": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Connor Klein"
+  },
+  "hattie emmett": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Hattie Emmett"
+  },
+  "noah promecene": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Noah Promecene"
+  },
+  "mia bolivar": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Mia Bolivar"
+  },
+  "isabelle tombar": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Isabelle Tombar"
+  },
+  "eitan yalon": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Eitan Yalon"
+  },
+  "quinn pausche": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Quinn Pausche"
+  },
+  "sebastian harrison": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Sebastian Harrison"
+  },
+  "javier ortiz": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Javier Ortiz"
+  },
+  "sydney ahles": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Sydney Ahles"
+  },
+  "hayes brown": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Hayes Brown"
+  },
+  "ed reybitz": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Ed Reybitz"
+  },
+  "cat collings": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Cat Collings"
+  },
+  "kyee young": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Kyee Young"
+  },
+  "rachel wang": {
+    "school": "West U",
+    "end_date": "May 31, 2026",
+    "name": "Rachel Wang"
+  },
+  "mabel anderson-holland": {
+    "school": "West U",
+    "end_date": "May 30, 2026",
+    "name": "Mabel Anderson-Holland"
+  },
+  "daniella yalon": {
+    "school": "West U",
+    "end_date": "May 27, 2026",
+    "name": "Daniella Yalon"
+  },
+  "claire moncrief": {
+    "school": "West U",
+    "end_date": "May 23, 2026",
+    "name": "Claire Moncrief"
+  }
+}

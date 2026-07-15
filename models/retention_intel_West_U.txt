@@ -8,9 +8,8 @@ and attendance data — not a template. Each student's advice is unique to their
 📋 SUMMARY
 
    ⏰ Ending soon: 0  |  ⚠️ Expired: 0  |  ⏸️  Future: 13
-   🔴 Actionable:  9  |  🟠 High:  15  |  🟡 Watch:  13
-   📦 Trial/Non-Converted (>60d idle): 5
-   📦 Historical (120+d idle): 133
+   🔴 Actionable:  3  |  🟠 High:  15  |  🟡 Watch:  13
+   ✅ Confirmed Left: 7  |  📦 Trial: 4  |  📦 Historical: 133
 
 ────────────────────────────────────────────────────────────────────────
 ⏸️  ON HOLD (future) — 13 students
@@ -28,17 +27,8 @@ and attendance data — not a template. Each student's advice is unique to their
   • Meera Craig — hold ends Jul 31, 2026  |  Rock 101 - 45 Minute Lessons
 
 ────────────────────────────────────────────────────────────────────────
-🔴 ACTIONABLE — 9 students (contact this week)
+🔴 ACTIONABLE — 3 students (contact this week)
 ────────────────────────────────────────────────────────────────────────
-
-  Michael Branstetter — 89% risk | ⚠️ 46d idle
-  🏷️  Comm Red Flags (urgent) — high confidence
-     Also: Disengagement
-     💬 Their last strong session was 2026-05-30 (scored 7). The instructor wrote: "Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did some clapping games to learn "
-     🚩 ⚠️ Parent has used cancel/discontinue language in communications. This is the most urgent signal — direct outreach needed.
-     ✅ Parent has been very communicative (27 messages/calls). They're engaged — use that relationship.
-     ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → DIRECT OUTREACH. Parent has signaled intent to leave. GM should call personally. Reference their progress, acknowledge any concerns, offer a solution.
 
   Alejandro Meyer — 84% risk | 📝 47 lessons
   🏷️  Schedule Conflict (ongoing) — medium confidence
@@ -55,54 +45,29 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
 
-  Sebastian Harrison — 78% risk | ⚠️ 57d idle
-  🏷️  Disengagement (rapid) — high confidence
-     Also: Instructor Relationship
-     💬 Their last strong session was 2026-04-14 (scored 6). The instructor wrote: "Awesome job today guys! Today we played our cherry beet rhythm game. We reviewed our rhythm notation. We played Hey, Good Looking and everyone rotated"
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 5 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
-
-  Jasmin Benitez — 78% risk | 📝 12 lessons
-  🏷️  Instructor Relationship (threshold) — medium confidence
-     💬 Their last strong session was 2026-06-15 (scored 8). The instructor wrote: "Great work this week at rehearsal! We worked on some songs we know well, and started mapping out new ones like “My Sharona” - The Knack, “I Believe in"
-     ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → 27 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-
-  Mabel Anderson-Holland — 75% risk | ⚠️ 46d idle
-  🏷️  Disengagement (rapid) — high confidence
-     Also: Instructor Relationship
-     💬 Their last strong session was 2026-05-30 (scored 8). The instructor wrote: "Today we tried out our new Rock 101 class structure by beginning class in the Break-out rooms (separating the class based on instrument played and the"
-     ✅ Scores were improving before they stopped (avg: 6.7). They were on an upward trajectory — remind them of this.
-     ⚠️ They've had 4 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → No contact for 46 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
-
-  Jake Krieger — 72% risk | ⚠️ 46d idle
-  🏷️  Disengagement (rapid) — high confidence
-     Also: Schedule Conflict
-     💬 Their last strong session was 2026-05-30 (scored 8). The instructor wrote: "Awesome job today! We warmed up with our beet/ cherry rhythm game and then we played freeze dance. We reviewed our rhythm notation and clapped differe"
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 5 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
-
   John David Cunningham Nauls — 72% risk | 📝 22 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
      💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
      ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
 
-  Mateo Bapat — 71% risk | 📝 54 lessons
-  🏷️  Instructor Relationship (threshold) — high confidence
-     💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → 18 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-
 ────────────────────────────────────────────────────────────────────────
-📦 TRIAL / NON-CONVERTED — 5 students (never enrolled, idle 60+d)
+✅ CONFIRMED LEFT — 7 students with Pike13 end dates
 ────────────────────────────────────────────────────────────────────────
 
-  • Ed Reybitz — Adult Program - 45 Minute Lessons w/ Rehearsal | 11 lessons | 107d idle
+  • Michael Branstetter — membership ended Jun 22, 2026  |  23 lessons | 46d idle
+  • Ed Reybitz — membership ended May 31, 2026  |  11 lessons | 107d idle
+  • Sebastian Harrison — membership ended May 31, 2026  |  26 lessons | 57d idle
+  • Jasmin Benitez — membership ended Jun 19, 2026  |  12 lessons | 27d idle
+  • Mabel Anderson-Holland — membership ended May 30, 2026  |  25 lessons | 46d idle
+  • Jake Krieger — membership ended May 31, 2026  |  45 lessons | 46d idle
+  • Mateo Bapat — membership ended Jun 30, 2026  |  54 lessons | 18d idle
+     → Students with confirmed Pike13 membership end dates. No outreach needed.
+
+────────────────────────────────────────────────────────────────────────
+📦 TRIAL / NON-CONVERTED — 4 students (never enrolled, idle 60+d)
+────────────────────────────────────────────────────────────────────────
+
   • Addison Woods — Free Trial Lesson | 7 lessons | 109d idle
   • Masha Khurana Vu — Little Wing Trial | 26 lessons | 67d idle
   • Eric Neal — Free Trial Lesson | 46 lessons | 117d idle

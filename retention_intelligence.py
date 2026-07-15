@@ -27,6 +27,7 @@ MATCHES_PATH = MODELS_DIR / "comms_name_matches.json"
 HOLDS_PATH_WU = MODELS_DIR / "pike13_holds_westu-sor.json"
 HOLDS_PATH_TH = MODELS_DIR / "pike13_holds_theheights-sor.json"
 TRACKER_PATH = MODELS_DIR / "action_tracker.json"
+LEAVERS_PATH = MODELS_DIR / "pike13_leavers.json"
 TODAY = date.today()
 SCHOOL_NAMES = {1: "West U", 2: "The Heights"}
 
@@ -246,7 +247,12 @@ def load_all_data():
         if name not in pike13_states:
             pike13_states[name] = str(r.get("membership_state", "") or "")
     
-    return {"lessons": lessons, "phone_student": phone_student, "call_student": call_student, "vms_by_phone": vms_by_phone, "sms_thread_phone": thread_phone, "sms_by_thread": sms_by_thread, "reviews_by_call": reviews_by_call, "holds": holds, "pike13_states": pike13_states}
+    # Load Pike13 leaver data (last_membership_end dates)
+    leavers = {}
+    if LEAVERS_PATH.exists():
+        leavers = json.load(open(LEAVERS_PATH))
+    
+    return {"lessons": lessons, "phone_student": phone_student, "call_student": call_student, "vms_by_phone": vms_by_phone, "sms_thread_phone": thread_phone, "sms_by_thread": sms_by_thread, "reviews_by_call": reviews_by_call, "holds": holds, "pike13_states": pike13_states, "leavers": leavers}
 
 def build_student_profile(student_name, data):
     lessons = data["lessons"]
@@ -304,7 +310,11 @@ def build_student_profile(student_name, data):
     hold_info = data["holds"].get(student_name.lower(), {})
     school_id = int(sl["school_id"].mode().iloc[0]) if len(sl) > 0 else 0
     
-    # ── Determine enrollment status from Pike13 membership_state ──
+    # ── Check Pike13 membership data: enrolled? left? ──
+    leavers = data.get("leavers", {})
+    has_left = student_name.lower() in leavers
+    left_date = leavers.get(student_name.lower(), {}).get("end_date", "") if has_left else ""
+    
     membership_state = data.get("pike13_states", {}).get(student_name.lower(), "")
     state_lower = membership_state.lower()
     is_trial = any(t in state_lower for t in ["trial", "free trial", "camp", "workshop", "parent orientation", "immersion pass", "none", ""])
@@ -343,6 +353,7 @@ def build_student_profile(student_name, data):
         "has_positive": keyword_hits.get("positive", 0) > 0,
         "is_on_hold": hold_info.get("on_hold", False), "hold_info": hold_info,
         "membership_state": membership_state, "is_trial": is_trial, "is_enrolled": is_enrolled,
+        "has_left": has_left, "left_date": left_date,
     }
 
 # ═══════════════════════════════════════════════════════════
@@ -488,9 +499,10 @@ def generate_reports(profiles, risk_scores, data):
         active_critical = [p for p in critical if p["days_idle"] < 120]
         historical = [p for p in critical if p["days_idle"] >= 120]
         
-        # ── Separate trial/non-enrolled from true actionable ──
-        trial_inactive = [p for p in active_critical if p.get("is_trial", False) and p["days_idle"] > 60]
-        active_critical = [p for p in active_critical if not (p.get("is_trial", False) and p["days_idle"] > 60)]
+        # ── Separate known leavers, trial, and true actionable ──
+        confirmed_left = [p for p in active_critical if p.get("has_left", False)]
+        trial_inactive = [p for p in active_critical if p.get("is_trial", False) and p["days_idle"] > 60 and not p.get("has_left")]
+        active_critical = [p for p in active_critical if not p.get("has_left") and not (p.get("is_trial", False) and p["days_idle"] > 60)]
         
         # ── Classify holds BEFORE summary ──
         holds_ending_soon = []
@@ -540,8 +552,7 @@ def generate_reports(profiles, risk_scores, data):
         lines.append("")
         lines.append(f"   ⏰ Ending soon: {len(holds_ending_soon)}  |  ⚠️ Expired: {len(holds_expired)}  |  ⏸️  Future: {len(holds_future)}")
         lines.append(f"   🔴 Actionable:  {len(active_critical)}  |  🟠 High:  {len(high)}  |  🟡 Watch:  {len(watch)}")
-        lines.append(f"   📦 Trial/Non-Converted (>60d idle): {len(trial_inactive)}")
-        lines.append(f"   📦 Historical (120+d idle): {len(historical)}")
+        lines.append(f"   ✅ Confirmed Left: {len(confirmed_left)}  |  📦 Trial: {len(trial_inactive)}  |  📦 Historical: {len(historical)}")
         lines.append("")
         
         # ── HOLD ENDING SOON (highest priority — above actionable) ──
@@ -679,6 +690,19 @@ def generate_reports(profiles, risk_scores, data):
                     update_tracker(p["student"], p, primary["playbook"], tracker)
                 
                 lines.append("")
+        
+        # ── CONFIRMED LEFT (Pike13 last_membership_end) ──
+        if confirmed_left:
+            lines.append("─" * 72)
+            lines.append(f"✅ CONFIRMED LEFT — {len(confirmed_left)} students with Pike13 end dates")
+            lines.append("─" * 72)
+            lines.append("")
+            for p in confirmed_left[:10]:
+                lines.append(f"  • {p['student']} — membership ended {p.get('left_date', '?')}  |  {p['total_lessons']} lessons | {p['days_idle']}d idle")
+            if len(confirmed_left) > 10:
+                lines.append(f"     +{len(confirmed_left)-10} more")
+            lines.append(f"     → Students with confirmed Pike13 membership end dates. No outreach needed.")
+            lines.append("")
         
         # ── TRIAL / NON-CONVERTED ──
         if trial_inactive:
