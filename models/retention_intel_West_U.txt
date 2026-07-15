@@ -1,0 +1,195 @@
+Subject: 🎸 West U Retention Intelligence — July 15, 2026
+
+Hi Hugh,
+
+Retention intelligence report for West U. Each flagged student below
+has been classified into a churn archetype with a specific action plan.
+
+📋 SUMMARY
+
+   ⏸️  On Hold (no action):            13
+   🔴 Critical (≥70% risk):            147
+   🟠 High (50-69%):                    15
+   🟡 Watch (30-49%):                   13
+
+   Archetype breakdown:
+     Disengagement: 157
+     Schedule Conflict: 38
+     New Student Risk: 19
+     Instructor Relationship: 15
+     On Hold: 13
+     Comm Red Flags: 11
+     Financial Stress: 2
+     Quality Fade: 1
+
+────────────────────────────────────────────────────────────────────────
+⏸️  ON HOLD — 13 students (no outreach needed)
+────────────────────────────────────────────────────────────────────────
+
+  • Denis Tanisman — hold ends Jul 31, 2026
+    Plan: Rock 101 - 45 Minute Lessons
+  • Clare Tran — hold ends Jul 31, 2026
+    Plan: Performance Program - 45 Minute Lessons
+  • Isa Wood — hold ends Jul 31, 2026
+    Plan: Performance Program - 45 Minute Lessons
+  • Conley Veit — hold ends Aug 31, 2026
+    Plan: Additional Lessons - 45 Minutes Weekly
+  • Sydney May — hold ends Jul 31, 2026
+    Plan: Lessons Only - 45 Minute Lessons
+  • Hannah Appiah — hold ends Jul 31, 2026
+    Plan: Performance Program - 45 Minute Lessons
+  • Marley Wexler — hold ends Aug 31, 2026
+    Plan: Rock 101 - 30-Minute Lessons
+  • Reynold Nebel — hold ends Aug 31, 2026
+    Plan: Lessons Only - 45 Minute Lessons
+  • Jack Hawkins — hold ends Jul 31, 2026
+    Plan: Performance Program - 45 Minute Lessons
+  • Meera Craig — hold ends Jul 31, 2026
+    Plan: Rock 101 - 45 Minute Lessons
+
+────────────────────────────────────────────────────────────────────────
+🔴 CRITICAL — 14 actionable students (contact this week)
+────────────────────────────────────────────────────────────────────────
+
+  Michael Branstetter — 89% risk | ⚠️ 46d idle
+  🏷️  Comm Red Flags (urgent) — high confidence
+     Also: Disengagement
+     → THIS IS PRIORITY 1 — parent is frustrated or talking about leaving.
+     → Direct GM call, not instructor delegation.
+     → Acknowledge the issue, apologize if appropriate, offer a solution.
+     → Document the resolution and follow up in 2 weeks.
+     💬 2026-05-30 (score 7): "Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did…"
+     💬 2026-04-25 (score 4): "Hey Little Wing Parents,Beginning next Saturday (May 2nd) our Little Wing class will move away from being an hour long a…"
+
+  Addison Woods — 87% risk | ⚠️ 109d idle
+  🏷️  Disengagement (gradual) — high confidence
+     Also: New Student Risk
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-03-07: "See you next time.…"
+     💬 2026-02-28: "Awesome job today, Addison! Today we played Radioactive, Zombie, and Evil Ways. We learned the musical alphabet with sha…"
+
+  Alejandro Meyer — 84% risk | 📝 47 lessons
+  🏷️  Schedule Conflict (ongoing) — medium confidence
+     → Ask parent about schedule challenges — this isn't about interest, it's logistics.
+     → Offer alternative time slots, online option, or biweekly schedule.
+     → Check if a different instructor at a better time is available.
+     → Goal: keep them enrolled even if format changes.
+     💬 2026-06-18 (score 5): "Great job today guys! Our concert will be tomorrow at 12:00! Please come dressed like a rock star so we can put on a sho…"
+     💬 2026-06-17 (score 5): "Hi parents,Our band (which is named "Rock n' Roll") is really coming together. We have begun playing both "TNT" and "Wil…"
+
+  Renner Campbell — 83% risk | 📝 11 lessons
+  🏷️  Schedule Conflict (ongoing) — medium confidence
+     → Ask parent about schedule challenges — this isn't about interest, it's logistics.
+     → Offer alternative time slots, online option, or biweekly schedule.
+     → Check if a different instructor at a better time is available.
+     → Goal: keep them enrolled even if format changes.
+     💬 2025-08-08: "Hello parents! I just wanted to send out a reminder that today's show will take place at 12:00. See you all then!…"
+     💬 2025-08-05: "Hello families,  This is a reminder that our campers will have Rock Star day tomorrow. We will be taking pictures for ea…"
+
+  Nivy Arya — 77% risk | ⚠️ 105d idle
+  🏷️  Disengagement (gradual) — high confidence
+     Also: Schedule Conflict
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-03-18 (score 6): "In this lesson we studied page 3: warm up exercises and double stroke variations, page 41: half time shuffle, keep pract…"
+     💬 2026-03-04: "Hi NivyIn this lesson we studied your drum book, page 10 and 11: the shuffle beat and two handed triplet beat, keep prac…"
+
+  Jake Krieger — 72% risk | ⚠️ 46d idle
+  🏷️  Instructor Relationship (threshold) — high confidence
+     Also: Disengagement
+     → Multiple instructor changes or low consistency — student may not have found their fit.
+     → Review which instructor they did best with (highest scores, most notes).
+     → Ask parent: 'Has [student] connected with any particular teacher?'
+     → Try matching them back to their best-fit instructor.
+     💬 2026-05-30 (score 8): "Awesome job today! We warmed up with our beet/ cherry rhythm game and then we played freeze dance. We reviewed our rhyth…"
+     💬 2026-05-09 (score 8): "Awesome job today, guys! Today we played our Beet Cherry Rhythm Game and Freeze Dance. We learned the different parts of…"
+
+  John David Cunningham Nauls — 72% risk | 📝 22 lessons
+  🏷️  Instructor Relationship (threshold) — high confidence
+     → Multiple instructor changes or low consistency — student may not have found their fit.
+     → Review which instructor they did best with (highest scores, most notes).
+     → Ask parent: 'Has [student] connected with any particular teacher?'
+     → Try matching them back to their best-fit instructor.
+     💬 2026-06-06 (score 7): "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low…"
+     💬 2026-05-30 (score 7): "Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did…"
+
+  Ed Reybitz — 89% risk | ⚠️ 107d idle
+  🏷️  Disengagement (gradual) — high confidence
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-03-30: "It was great teaching you about the pentatonic scale today Ed. Just remember that the pentatonic does not have a 4th or …"
+     💬 2026-03-18 (score 5): "Added and reviewed exercises into the method app.  Reviewed and worked on open chords  C majorD majorE major F major - b…"
+
+  Masha Khurana Vu — 83% risk | ⚠️ 67d idle
+  🏷️  Disengagement (gradual) — high confidence
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-04-25 (score 4): "Hey Little Wing Parents,Beginning next Saturday (May 2nd) our Little Wing class will move away from being an hour long a…"
+     💬 2026-03-28: "Hello,We have officially opened up a new class time for our Little Wing program. We are now offering a Thursday class at…"
+
+  Eric Neal — 80% risk | ⚠️ 117d idle
+  🏷️  Disengagement (gradual) — high confidence
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-03-20 (score 2): "Hi Guys,We are currently running a promo on our summer camps! For the next two days we are taking 15% off of any camp wi…"
+     💬 2026-03-16 (score 1): "Sorry we missed you today, Eric!…"
+
+  Sebastian Harrison — 78% risk | ⚠️ 57d idle
+  🏷️  Disengagement (rapid) — medium confidence
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-04-14 (score 6): "Awesome job today guys! Today we played our cherry beet rhythm game. We reviewed our rhythm notation. We played Hey, Goo…"
+     💬 2026-03-17 (score 6): "Hello RookiesToday in this lessons we started practicing counting and playing with boomwhackers the musical note rhythms…"
+
+  Jasmin Benitez — 78% risk | 📝 12 lessons
+  🏷️  Unknown (n/a) — low confidence
+     💬 2026-06-15 (score 8): "Great work this week at rehearsal! We worked on some songs we know well, and started mapping out new ones like “My Sharo…"
+     💬 2026-06-08 (score 8): "Good work at rehearsal this week! We talked a little about our past show, things we did well, things we can improve on &…"
+
+  Mabel Anderson-Holland — 75% risk | ⚠️ 46d idle
+  🏷️  Disengagement (rapid) — medium confidence
+     → Reach out directly to parent — this student has stopped attending.
+     → Reference their best recent progress (see note hooks below).
+     → Ask about schedule, life changes, or loss of interest.
+     → Offer flexibility: different time, biweekly, or temporary pause with return date.
+     💬 2026-05-30 (score 8): "Today we tried out our new Rock 101 class structure by beginning class in the Break-out rooms (separating the class base…"
+     💬 2026-05-02 (score 8): "We went over each of the rock 101 songs and then I went over the outro beat for evil ways with you as well as some rudim…"
+
+  Mateo Bapat — 71% risk | 📝 54 lessons
+  🏷️  Unknown (n/a) — low confidence
+     💬 2026-06-06 (score 7): "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low…"
+     💬 2026-05-30 (score 7): "Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did…"
+
+────────────────────────────────────────────────────────────────────────
+📦 HISTORICAL CHURN — 133 students idle 120+ days (review quarterly)
+────────────────────────────────────────────────────────────────────────
+
+  Comm Red Flags: 8 students
+  Disengagement: 125 students
+  → Consider removing from active monitoring. Prioritize <120d idle.
+
+────────────────────────────────────────────────────────────────────────
+🟠 HIGH — 15 students (instructor check-in)
+────────────────────────────────────────────────────────────────────────
+
+  • Hudson Dudley — 70% | Disengagement (gradual)
+  • George Fellows — 69% | Disengagement (gradual)
+  • Janak Patni — 69% | Disengagement (gradual)
+  • Cristal Villalba — 69% | Disengagement (gradual)
+  • Anna Cadiz — 68% | Disengagement (gradual)
+  • Charlie Clarke — 68% | ? (?)
+  • Janvi Kalidindi — 63% | ? (?)
+  • Asher Fu — 63% | ? (?)
