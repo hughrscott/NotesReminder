@@ -456,6 +456,94 @@ def generate_recommendations(profile, risk_score):
 # EMAIL BUILDER
 # ═══════════════════════════════════════════════════════════════════
 
+def _find_returning_students(school_name, school_id):
+    """Find on-hold students whose hold ends within 30 days, with re-engagement hooks."""
+    from datetime import datetime
+    today = pd.Timestamp(TODAY)
+    cutoff = today + timedelta(days=30)
+    
+    returning = []
+    school_slug = "westu-sor" if school_id == 1 else "theheights-sor"
+    
+    for name, info in PIKE13_HOLDS.items():
+        if not info.get("hold_end"):
+            continue
+        
+        # Parse hold end date
+        try:
+            end_date = pd.Timestamp(info["hold_end"])
+        except:
+            try:
+                end_date = datetime.strptime(info["hold_end"], "%b %d, %Y")
+            except:
+                continue
+        
+        # Must be between today and 30 days from now
+        if end_date < today or end_date > cutoff:
+            continue
+        
+        student_name = info["client"]
+        profile = get_student_profile(student_name)
+        
+        # Skip if this student doesn't belong to this school
+        # Check by looking at their lessons
+        mask = NOTES_DB["students_raw"].str.contains(re.escape(student_name), na=False, case=False)
+        if mask.sum() == 0:
+            continue
+        student_school = int(NOTES_DB[mask]["school_id"].mode().iloc[0]) if mask.sum() > 0 else 0
+        if student_school != school_id:
+            continue
+        
+        # Build re-engagement hooks
+        hooks = []
+        
+        # Notes hook
+        scored = profile.get("scored_notes", [])
+        good = [n for n in scored if n.get("score") is not None and n["score"] >= 5]
+        if good:
+            best = good[0]
+            hooks.append(f"💬 HOOK: Last strong session {best['date']} (score {best['score']:.0f}): \"{best['text'][:100]}…\"")
+            hooks.append(f"   → In outreach, reference this progress and ask if they're ready to pick up where they left off")
+        
+        # Communication hook
+        comms = profile.get("comm_count", 0)
+        if comms > 0:
+            channels = []
+            if profile.get("voicemail_count", 0) > 0:
+                channels.append(f"{profile['voicemail_count']} voicemails")
+            if profile.get("sms_count", 0) > 0:
+                channels.append(f"{profile['sms_count']} SMS")
+            if channels:
+                hooks.append(f"📞 Parent has {' + '.join(channels)} of communication history — they're reachable")
+        
+        # SMS content check
+        for sms in profile.get("recent_sms_texts", [])[:2]:
+            if any(w in sms.lower() for w in ["come back", "return", "start again", "resume", "hold"]):
+                hooks.append(f"💬 Recent SMS mentions returning: \"{sms[:120]}…\"")
+                break
+        
+        # Plan info
+        plan = info.get("plan", "")
+        if plan:
+            hooks.append(f"📋 Plan: {plan[:60]}")
+        
+        # No hooks fallback
+        if not hooks:
+            hooks.append("→ Send welcome-back email: confirm schedule, ask about goals after the break")
+        
+        returning.append({
+            "student": student_name,
+            "hold_end": info["hold_end"],
+            "end_dt": end_date,
+            "profile": profile,
+            "hooks": hooks,
+        })
+    
+    # Sort by closest return date, cap at top 15
+    returning.sort(key=lambda x: x["end_dt"])
+    return returning[:15]
+
+
 def build_email(school_id):
     name = SCHOOL_NAMES[school_id]
     sdf = active[active["school_id"] == school_id].sort_values("risk", ascending=False)
@@ -534,6 +622,38 @@ def build_email(school_id):
             lines.append(f"  {i}. {name_str} — {r['risk']:.0%} risk | {badge}")
             for rec in recs:
                 lines.append(f"     {rec}")
+            lines.append("")
+    
+    # ── Returning from Hold (students with hold ending in next 30 days) ──
+    returning = _find_returning_students(name, school_id)
+    if returning:
+        lines.append("─" * 72)
+        lines.append(f"🔄 RETURNING FROM HOLD — {len(returning)} students coming back soon")
+        lines.append("─" * 72)
+        lines.append("")
+        lines.append("   These students have holds ending in the next 30 days. Proactive re-engagement")
+        lines.append("   outreach now can make the difference between \"welcome back\" and \"never came back.\"")
+        lines.append("")
+        
+        for i, ret in enumerate(returning, 1):
+            student = ret["student"]
+            hold_end = ret["hold_end"]
+            profile = ret["profile"]
+            hooks = ret["hooks"]
+            
+            lines.append(f"  {i}. {student} — hold ends {hold_end}")
+            if hooks:
+                for hook in hooks:
+                    lines.append(f"     {hook}")
+            # Parent contact
+            hi = profile.get("hold_info", {})
+            emails = hi.get("account_emails", "")
+            phones = hi.get("account_phones", "")
+            if emails or phones:
+                contact = []
+                if emails: contact.append(f"✉️ {emails}")
+                if phones: contact.append(f"📞 {phones}")
+                lines.append(f"     Contact: {' | '.join(contact)}")
             lines.append("")
     
     # High — abbreviated but still per-student
