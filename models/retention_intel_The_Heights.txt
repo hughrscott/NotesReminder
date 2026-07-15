@@ -7,16 +7,26 @@ and attendance data — not a template. Each student's advice is unique to their
 
 📋 SUMMARY
 
-   ⏸️  On Hold:  7  |  🔴 Actionable:  30  |  🟠 High:  19  |  🟡 Watch:  16
+   ⏰ Ending soon: 1  |  ⚠️ Expired: 0  |  ⏸️  Future: 6
+   🔴 Actionable:  30  |  🟠 High:  19  |  🟡 Watch:  16
    📦 Historical (120+d idle): 115
 
 ────────────────────────────────────────────────────────────────────────
-⏸️  ON HOLD — 7 students
+⏰ HOLD ENDING SOON — 1 students (reach out now)
+────────────────────────────────────────────────────────────────────────
+
+  • Miranda Sevcik — ends in 14d  |  30-Minute Lessons Only
+    → GM/contact: reach out NOW. Confirm return date, schedule first lesson back.
+    → HOLD ACTION: Check for parent response by next report.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
+     ⚠️ NO HOLD OUTREACH: 7d since reminder. Student returns in 14d — reach out NOW.
+
+────────────────────────────────────────────────────────────────────────
+⏸️  ON HOLD (future) — 6 students
 ────────────────────────────────────────────────────────────────────────
 
   • Patricia Collins — hold ends Aug 29, 2026  |  Rookies
   • Mason Hopper — hold ends Jul 30, 2026  |  Rock 101 - 45 Minute Lessons
-  • Miranda Sevcik — hold ends Jul 29, 2026  |  30-Minute Lessons Only
   • Lucas klemm — hold ends Jul 31, 2026  |  Rookies
   • Charlie Forbes — hold ends Jul 31, 2026  |  Little Wing
   • Isabella Martinez — hold ends Jul 30, 2026  |  Performance Program - 45 Minute Lessons
@@ -34,21 +44,21 @@ and attendance data — not a template. Each student's advice is unique to their
      📋 Only 7 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Emmanuel Gonzalez — 90% risk | 📝 8 lessons
   🏷️  Review Needed (n/a) — low confidence
      ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
      📋 Only 8 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Ani Moore — 89% risk | 📝 5 lessons
   🏷️  Review Needed (n/a) — low confidence
      ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   📦 3 STUDENTS — 88% risk each | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
@@ -61,13 +71,13 @@ and attendance data — not a template. Each student's advice is unique to their
   🏷️  New Student Risk (early) — medium confidence
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Olivia Telleen — 88% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   📦 6 STUDENTS — 87% risk each | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
@@ -82,14 +92,14 @@ and attendance data — not a template. Each student's advice is unique to their
      💬 Their last strong session was 2026-05-11 (scored 9). The instructor wrote: "Great jamming with you today Gabby.Today we went over the A minor pentatonic scale and used the varies modes to improvise to an A minor chord progress"
      ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → No contact for 56 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Lily Chabarria — 86% risk | 📝 73 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
      ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
      ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Lily chabarria — 86% risk | 📝 73 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
@@ -101,20 +111,20 @@ and attendance data — not a template. Each student's advice is unique to their
   🏷️  New Student Risk (early) — medium confidence
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Antonella Massolini — 84% risk | 📝 5 lessons
   🏷️  New Student Risk (early) — medium confidence
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Douglas Kemp — 83% risk | 📝 42 lessons
   🏷️  Instructor Relationship (threshold) — medium confidence
      ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
      ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Dylan Kemp — 83% risk | ⚠️ 33d idle
   🏷️  Disengagement (gradual) — medium confidence
@@ -122,7 +132,7 @@ and attendance data — not a template. Each student's advice is unique to their
      📋 Parent has mentioned scheduling challenges. Their issue may be logistics, not interest — try offering a different time or format.
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
   Dora E Gonzalez — 78% risk | ⚠️ 119d idle
   🏷️  Disengagement (gradual) — high confidence
@@ -130,7 +140,7 @@ and attendance data — not a template. Each student's advice is unique to their
      💬 Their last strong session was 2026-03-18 (scored 2). The instructor wrote: "Missed you today, see you next time!"
      ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → No contact for 119 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
-     ⚠️ NO ACTION DETECTED — 7 days since suggested outreach. Escalating urgency.
+     ⚠️ NO ACTION DETECTED — 7d since suggested outreach. Escalating urgency.
 
 ────────────────────────────────────────────────────────────────────────
 📦 HISTORICAL CHURN — 115 students idle 120+ days
@@ -138,7 +148,6 @@ and attendance data — not a template. Each student's advice is unique to their
 
   Disengagement: 110
   Comm Red Flags: 5
-  → Review quarterly. Focus on <120d idle actionable students.
 
 ────────────────────────────────────────────────────────────────────────
 🟠 HIGH — 19 students

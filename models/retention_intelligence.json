@@ -2470,8 +2470,8 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "positive": 2,
-      "cancellation": 2
+      "cancellation": 2,
+      "positive": 2
     },
     "is_on_hold": false
   },
@@ -4716,8 +4716,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-06-27 (scored 7). The instructor wrote: \"Today we welcomed a new trail lesson student. He was a bit shy at first but eventually opened up some.Immediately all the students jumped on thier fav\""
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "18 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -5219,8 +5231,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-14 (scored 5). The instructor wrote: \"Today we reviewed to your performance songs and talked about your next songs and exercises you\u2019ll be learning in the next few lessons. Nice work!\""
+          },
+          {
+            "type": "positive",
+            "text": "Scores were improving before they stopped (avg: 5.1). They were on an upward trajectory \u2014 remind them of this."
+          },
+          {
+            "type": "red_flag",
+            "text": "\u26a0\ufe0f Parent has expressed frustration in voicemails or messages. Acknowledge the issue directly \u2014 don't deflect."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 6 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "20 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -5391,8 +5419,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-21 (scored 6). The instructor wrote: \"Thank you to those of you who could make this week\u2019s Gear Maintenance workshop! We covered subjects like 1) gear storage 2) gear maintenance for drums\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.4). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Aug 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "40 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -6005,8 +6049,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-06-22 (scored 7). The instructor wrote: \"Awesome job guys! Today we played Radioactive, Zombie, I Love Rock n Roll and Seven Nation Army. For the drummers be mindful of keeping a steady tempo\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 5.6). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 4 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "23 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -8606,8 +8666,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-14 (scored 5). The instructor wrote: \"Today we reviewed your Rolling Stones songs. You sound pretty good on them but be sure to avoid rushing. Nice work!\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 5.9). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 4 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
@@ -9185,8 +9261,8 @@
     "avg_score": 5.75,
     "score_trend": "declining",
     "keyword_hits": {
-      "cancellation": 2,
-      "financial": 2
+      "financial": 2,
+      "cancellation": 2
     },
     "is_on_hold": false
   },
@@ -9201,8 +9277,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-21 (scored 6). The instructor wrote: \"Thank you to those of you who could make this week\u2019s Gear Maintenance workshop! We covered subjects like 1) gear storage 2) gear maintenance for drums\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.7). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "red_flag",
+            "text": "\u26a0\ufe0f Parent has used cancel/discontinue language in communications. This is the most urgent signal \u2014 direct outreach needed."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 4 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "40 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -9555,8 +9647,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-19 (scored 5). The instructor wrote: \"It was so nice to see our kids in their last rehearsal of the season! We reviewed the entirety of the set which is as follows: Sweet DreamsTainted Lov\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 7.3). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 4 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 30, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
           }
         ]
       }
@@ -9717,8 +9825,28 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-11 (scored 8). The instructor wrote: \"Great job, Jack! We played through all of his Rolling Stones songs and made sure to go over any structure changes that needed practice. Before your sh\""
+          },
+          {
+            "type": "positive",
+            "text": "Scores were improving before they stopped (avg: 5.5). They were on an upward trajectory \u2014 remind them of this."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 5 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
+            "type": "concern",
+            "text": "2 no-shows in recent history. Ask about schedule conflicts or communication breakdowns."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
@@ -10820,8 +10948,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-21 (scored 8). The instructor wrote: \"Awesome job!We continued working on Fire today.We worked on the fills happening before the chorus.Remember:Pre-chorus 1 has the fill on the 8th barPre\""
+          },
+          {
+            "type": "positive",
+            "text": "Parent has been very communicative (42 messages/calls). They're engaged \u2014 use that relationship."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "34 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -11777,8 +11917,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-06-24 (scored 5). The instructor wrote: \"Awesome job, guys! Today we played Radioactive, Seven Nation Army, I Love Rock n Roll, Zombie, and Tutti Fruitti. Keep working on these songs, both vo\""
+          },
+          {
+            "type": "positive",
+            "text": "Scores were improving before they stopped (avg: 6.0). They were on an upward trajectory \u2014 remind them of this."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 5 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "18 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -12535,8 +12691,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-21 (scored 6). The instructor wrote: \"We looked at the beat for \u201cCreep\u201d - Radiohead Rock 101 version and \u201cDani California\u201d - RHCP in Method App. Listen to these and take a look at these rh\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.8). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
@@ -13607,8 +13779,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-18 (scored 6). The instructor wrote: \"Awesome job today guys! Today we did an instrument swap day for half of the class  to celebrate our show this last weekend! We played Radioactive, Let\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.6). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
@@ -13746,8 +13934,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-18 (scored 5). The instructor wrote: \"It was so nice to see all our Rookies in our class! Our song of the day was Three Little Birds by Bob Marley and our new Project Song is Roar by Katy \""
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "32 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -14619,8 +14819,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-06-24 (scored 5). The instructor wrote: \"Awesome job, guys! Today we played Radioactive, Seven Nation Army, I Love Rock n Roll, Zombie, and Tutti Fruitti. Keep working on these songs, both vo\""
+          },
+          {
+            "type": "positive",
+            "text": "Scores were improving before they stopped (avg: 6.4). They were on an upward trajectory \u2014 remind them of this."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 5 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Aug 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "21 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -14758,8 +14974,16 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-12 (scored 8). The instructor wrote: \"today we went over the group songs as well as power chords! we worked on power chords applied specifically to zombie and rockin in the free world (the\""
+          },
+          {
+            "type": "concern",
+            "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 30, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "No contact for 52 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
           }
         ]
       }
@@ -15148,8 +15372,24 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-20 (scored 6). The instructor wrote: \"Awesome job today guys! Today we played Seven Nation Army, Evil Ways, I Love Rock n Roll, Zombie and Radioactive. Seven Nation Army overall everyone n\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.6). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 6 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
@@ -15464,8 +15704,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-12 (scored 8). The instructor wrote: \"Great job today!Practice the 1-2-3-4 exercise with the focus being the amount of pressure you apply to the strings. Remember the way to test this out \""
+          },
+          {
+            "type": "concern",
+            "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
+            "type": "hold_action",
+            "text": "HOLD: Return date in 14d (Jul 29, 2026). Confirm lesson time with parent, remind them to come back. Check for response by next report."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 29, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "20 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -17168,8 +17420,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
+            "type": "context",
+            "text": "Only 9 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+          },
+          {
+            "type": "concern",
+            "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Aug 29, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "18 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -18174,8 +18438,20 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-05-21 (scored 6). The instructor wrote: \"Reynold and I had a lot of fun in his lesson today. We talked about C position and power chords, and I introduced him to the song \"Zombie.\"It is impor\""
+          },
+          {
+            "type": "concern",
+            "text": "Scores have been declining (current avg: 6.2). They may be hitting a plateau or losing motivation."
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Aug 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "35 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
           }
         ]
       }
@@ -19947,10 +20223,10 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
+      "scheduling_stress": 2,
       "cancellation": 2,
       "frustration": 2,
-      "positive": 2,
-      "scheduling_stress": 2
+      "positive": 2
     },
     "is_on_hold": false
   },
@@ -20083,8 +20359,16 @@
         "confidence": "high",
         "playbook": [
           {
+            "type": "hook",
+            "text": "Their last strong session was 2026-04-04 (scored 7). The instructor wrote: \"We talked about songs\u2019 keys and how artists come up with chord progressions and melodies using the chords associated with the given key of a song. We\u2019\""
+          },
+          {
+            "type": "gap",
+            "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          },
+          {
             "type": "action",
-            "text": "\u23f8\ufe0f Plan on hold until Jul 31, 2026. No outreach needed. Flag for re-activation check when hold expires."
+            "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
           }
         ]
       }
