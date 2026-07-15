@@ -1,0 +1,161 @@
+Subject: 🎸 The Heights Student Retention Report — July 15, 2026
+
+Hi Hugh,
+
+Here is your retention report for School of Rock The Heights. These are students the model
+identifies as most likely to leave — which means they're also your best opportunities
+to intervene early and keep them enrolled.
+
+📋 RECOMMENDED ACTIONS (priority order)
+
+   26 Critical: Contact this week — personal call from GM or studio manager
+   12 High:      Instructor check-in this week — review engagement, address concerns
+   16 Watch:     Monitor — flag for review in next report
+
+   ⚠️  NOTE-SCORING GAP: 8 established students have ZERO lesson notes.
+       This means instructors aren't logging feedback in Pike13 for these students.
+       Action: Audit whether instructors are writing notes that aren't being scored,
+       or whether these students are genuinely disengaged (no-shows, cancellations).
+
+   🆕  NEW STUDENTS: 17 enrolled ≤90 days ago — typical early churn window.
+       Action: Ensure welcome call completed, first-performance scheduled,
+       parent contact info collected, and lesson time confirmed.
+
+📊 Summary: 190 active students scored
+   🔴 Critical (≥70% risk): 26
+   🟠 High (50-69%):       12
+   🟡 Watch (30-49%):      16
+
+────────────────────────────────────────────────────────────────────────
+🔴 CRITICAL — 10 of 26 students need outreach this week
+────────────────────────────────────────────────────────────────────────
+
+   Instructor check-in means: ask the instructor (1) Is the student attending regularly?
+   (2) Are they progressing? (3) Any concerns about motivation or parent involvement?
+
+  1. Emmanuel Gonzalez — 90% risk | 63d tenure | 8 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  2. Ani Moore — 89% risk | 9d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  3. Camila Casiano — 88% risk | 30d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  4. Natalia Morales — 88% risk | 30d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  5. Olivia Telleen — 88% risk | 30d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  6. Alexandra Yzquierdo — 88% risk | 30d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  7. Eva Perez Gligic — 88% risk | 30d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  8. Charlie Pallister — 87% risk | 37d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  9. James Pallister — 87% risk | 37d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+  10. Maya Landa — 87% risk | 37d tenure | 5 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → New student onboarding — schedule welcome call, confirm goals & schedule
+
+────────────────────────────────────────────────────────────────────────
+🟠 HIGH — Proactive contact recommended
+────────────────────────────────────────────────────────────────────────
+
+  1. Alyssa Shoemaker — 68% risk
+     Tenure: 333d | Lessons: 28 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  2. Jay Boya — 68% risk
+     Tenure: 350d | Lessons: 63 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  3. Roman Krieger — 66% risk
+     Tenure: 359d | Lessons: 10 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  4. Max Krieger — 66% risk
+     Tenure: 359d | Lessons: 10 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  5. Alex Le — 66% risk
+     Tenure: 366d | Lessons: 10 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  6. Lucia Odbayar — 66% risk
+     Tenure: 366d | Lessons: 10 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  7. Ariana Bustamante — 62% risk
+     Tenure: 293d | Lessons: 40 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  8. James Shoemaker — 62% risk
+     Tenure: 401d | Lessons: 22 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  9. Juniper Gardner — 58% risk
+     Tenure: 366d | Lessons: 10 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  10. Jules Browning — 57% risk
+     Tenure: 340d | Lessons: 53 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  11. Pedro Sousa — 57% risk
+     Tenure: 505d | Lessons: 116 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  12. Parker Fusilier — 53% risk
+     Tenure: 401d | Lessons: 39 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+────────────────────────────────────────────────────────────────────────
+🟡 WATCH (16 students) — Monitor for 30 days
+────────────────────────────────────────────────────────────────────────
+
+  Students showing early warning signs. No immediate action needed —
+  review again in next report. Top 5 by risk:
+  1. Isabella Figon-Merritt — 48% risk (501d tenure)
+  2. Jennifer Quesada — 44% risk (135d tenure)
+  3. Callum Goicoechea — 43% risk (501d tenure)
+  4. roman martinez — 41% risk (37d tenure)
+  5. Justin McFierce — 40% risk (504d tenure)
+
+────────────────────────────────────────────────────────────────────────
+📋 Model Notes
+────────────────────────────────────────────────────────────────────────
+
+  What this model measures (correct causal signals):
+  1. Note quality — instructors give lower-quality notes to students who leave
+  2. Tenure — newer students are 2-3x more likely to churn
+  3. Total lessons — fewer lifetime lessons = less investment = higher risk
+  4. Instructor consistency — frequent changes signal disruption
+  5. Parent communication — no comms on file = harder to retain
+
+  What this model does NOT measure (intentionally excluded):
+  - Attendance frequency (looks HEALTHIER for pre-churn students — misleading)
+  - Seasonal patterns (July students on break look disengaged)
+
+  Performance: 6/6 features have correct causal signs. AUC 0.96, 91% accuracy.
+
+  This report identifies students while there's still time to act — the model looks at
+  behavior 3-9 weeks before churn, when outreach can still make a difference.
+
+Best,
+Hermes

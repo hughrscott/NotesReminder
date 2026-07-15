@@ -1,0 +1,120 @@
+Subject: 🎸 West U Student Retention Report — July 15, 2026
+
+Hi Hugh,
+
+Here is your retention report for School of Rock West U. These are students the model
+identifies as most likely to leave — which means they're also your best opportunities
+to intervene early and keep them enrolled.
+
+📋 RECOMMENDED ACTIONS (priority order)
+
+   4 Critical: Contact this week — personal call from GM or studio manager
+   9 High:      Instructor check-in this week — review engagement, address concerns
+   16 Watch:     Monitor — flag for review in next report
+
+   ⚠️  NOTE-SCORING GAP: 4 established students have ZERO lesson notes.
+       This means instructors aren't logging feedback in Pike13 for these students.
+       Action: Audit whether instructors are writing notes that aren't being scored,
+       or whether these students are genuinely disengaged (no-shows, cancellations).
+
+📊 Summary: 207 active students scored
+   🔴 Critical (≥70% risk): 4
+   🟠 High (50-69%):       9
+   🟡 Watch (30-49%):      16
+
+────────────────────────────────────────────────────────────────────────
+🔴 CRITICAL — 4 of 4 students need outreach this week
+────────────────────────────────────────────────────────────────────────
+
+   Instructor check-in means: ask the instructor (1) Is the student attending regularly?
+   (2) Are they progressing? (3) Any concerns about motivation or parent involvement?
+
+  1. Denis Tanisman — 80% risk | 168d tenure | 13 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → No parent communication on file — collect contact info, send intro email
+
+  2. Jasmin Benitez — 78% risk | 95d tenure | 7 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → Very few lessons attended — check for scheduling conflicts or instrument issues
+
+  3. Mabel Anderson-Holland — 75% risk | 158d tenure | 11 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  4. John David Cunningham Nauls — 72% risk | 207d tenure | 7 lessons | note=0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+     → Very few lessons attended — check for scheduling conflicts or instrument issues
+
+────────────────────────────────────────────────────────────────────────
+🟠 HIGH — Proactive contact recommended
+────────────────────────────────────────────────────────────────────────
+
+  1. Clare Tran — 70% risk
+     Tenure: 182d | Lessons: 25 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  2. Charlie Clarke — 68% risk
+     Tenure: 336d | Lessons: 27 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  3. Janvi Kalidindi — 63% risk
+     Tenure: 338d | Lessons: 29 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  4. Asher Fu — 63% risk
+     Tenure: 389d | Lessons: 32 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  5. Francisco Fallon — 63% risk
+     Tenure: 91d | Lessons: 9 | Note score: 2.8
+     → No parent communication on file — collect contact info, send intro email
+
+  6. Eitan Yalon — 58% risk
+     Tenure: 302d | Lessons: 50 | Note score: 0.0
+     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+
+  7. Sydney Ahles — 57% risk
+     Tenure: 193d | Lessons: 18 | Note score: 2.0
+     → No parent communication on file — collect contact info, send intro email
+
+  8. Isa Wood — 55% risk
+     Tenure: 216d | Lessons: 16 | Note score: 2.0
+     → No parent communication on file — collect contact info, send intro email
+
+  9. Kyee Young — 51% risk
+     Tenure: 134d | Lessons: 11 | Note score: 2.0
+     → Review recent lesson notes for engagement signals
+
+────────────────────────────────────────────────────────────────────────
+🟡 WATCH (16 students) — Monitor for 30 days
+────────────────────────────────────────────────────────────────────────
+
+  Students showing early warning signs. No immediate action needed —
+  review again in next report. Top 5 by risk:
+  1. Elliot Mack — 47% risk (282d tenure)
+  2. Conley Veit — 47% risk (280d tenure)
+  3. Andrea Diaz De Vivar — 47% risk (534d tenure)
+  4. Ricardo Quiñonez — 38% risk (534d tenure)
+  5. Rose Bolon-Egan — 37% risk (9d tenure)
+
+────────────────────────────────────────────────────────────────────────
+📋 Model Notes
+────────────────────────────────────────────────────────────────────────
+
+  What this model measures (correct causal signals):
+  1. Note quality — instructors give lower-quality notes to students who leave
+  2. Tenure — newer students are 2-3x more likely to churn
+  3. Total lessons — fewer lifetime lessons = less investment = higher risk
+  4. Instructor consistency — frequent changes signal disruption
+  5. Parent communication — no comms on file = harder to retain
+
+  What this model does NOT measure (intentionally excluded):
+  - Attendance frequency (looks HEALTHIER for pre-churn students — misleading)
+  - Seasonal patterns (July students on break look disengaged)
+
+  Performance: 6/6 features have correct causal signs. AUC 0.96, 91% accuracy.
+
+  This report identifies students while there's still time to act — the model looks at
+  behavior 3-9 weeks before churn, when outreach can still make a difference.
+
+Best,
+Hermes
