@@ -235,7 +235,18 @@ def load_all_data():
     
     con.close()
     print(f"  Lessons: {len(lessons)} | Phone→student: {len(phone_student)} | Holds: {len(holds)}")
-    return {"lessons": lessons, "phone_student": phone_student, "call_student": call_student, "vms_by_phone": vms_by_phone, "sms_thread_phone": thread_phone, "sms_by_thread": sms_by_thread, "reviews_by_call": reviews_by_call, "holds": holds}
+    
+    # Load Pike13 membership states for trial/enrolled detection
+    con = sqlite3.connect(str(DB_PATH))
+    ppl_states = pd.read_sql_query("SELECT full_name, membership_state FROM pike13_people WHERE full_name IS NOT NULL", con)
+    con.close()
+    pike13_states = {}
+    for _, r in ppl_states.iterrows():
+        name = str(r["full_name"]).strip().lower()
+        if name not in pike13_states:
+            pike13_states[name] = str(r.get("membership_state", "") or "")
+    
+    return {"lessons": lessons, "phone_student": phone_student, "call_student": call_student, "vms_by_phone": vms_by_phone, "sms_thread_phone": thread_phone, "sms_by_thread": sms_by_thread, "reviews_by_call": reviews_by_call, "holds": holds, "pike13_states": pike13_states}
 
 def build_student_profile(student_name, data):
     lessons = data["lessons"]
@@ -293,6 +304,12 @@ def build_student_profile(student_name, data):
     hold_info = data["holds"].get(student_name.lower(), {})
     school_id = int(sl["school_id"].mode().iloc[0]) if len(sl) > 0 else 0
     
+    # ── Determine enrollment status from Pike13 membership_state ──
+    membership_state = data.get("pike13_states", {}).get(student_name.lower(), "")
+    state_lower = membership_state.lower()
+    is_trial = any(t in state_lower for t in ["trial", "free trial", "camp", "workshop", "parent orientation", "immersion pass", "none", ""])
+    is_enrolled = not is_trial and state_lower and membership_state.strip()
+    
     best_note = None
     for ns in note_samples:
         if ns["text"] and len(ns["text"]) > 30 and "no show" not in ns["text"].lower() and "see you next time" not in ns["text"].lower():
@@ -325,6 +342,7 @@ def build_student_profile(student_name, data):
         "has_scheduling": keyword_hits.get("scheduling_stress", 0) > 0,
         "has_positive": keyword_hits.get("positive", 0) > 0,
         "is_on_hold": hold_info.get("on_hold", False), "hold_info": hold_info,
+        "membership_state": membership_state, "is_trial": is_trial, "is_enrolled": is_enrolled,
     }
 
 # ═══════════════════════════════════════════════════════════
@@ -470,6 +488,10 @@ def generate_reports(profiles, risk_scores, data):
         active_critical = [p for p in critical if p["days_idle"] < 120]
         historical = [p for p in critical if p["days_idle"] >= 120]
         
+        # ── Separate trial/non-enrolled from true actionable ──
+        trial_inactive = [p for p in active_critical if p.get("is_trial", False) and p["days_idle"] > 60]
+        active_critical = [p for p in active_critical if not (p.get("is_trial", False) and p["days_idle"] > 60)]
+        
         # ── Classify holds BEFORE summary ──
         holds_ending_soon = []
         holds_future = []
@@ -518,6 +540,7 @@ def generate_reports(profiles, risk_scores, data):
         lines.append("")
         lines.append(f"   ⏰ Ending soon: {len(holds_ending_soon)}  |  ⚠️ Expired: {len(holds_expired)}  |  ⏸️  Future: {len(holds_future)}")
         lines.append(f"   🔴 Actionable:  {len(active_critical)}  |  🟠 High:  {len(high)}  |  🟡 Watch:  {len(watch)}")
+        lines.append(f"   📦 Trial/Non-Converted (>60d idle): {len(trial_inactive)}")
         lines.append(f"   📦 Historical (120+d idle): {len(historical)}")
         lines.append("")
         
@@ -656,6 +679,19 @@ def generate_reports(profiles, risk_scores, data):
                     update_tracker(p["student"], p, primary["playbook"], tracker)
                 
                 lines.append("")
+        
+        # ── TRIAL / NON-CONVERTED ──
+        if trial_inactive:
+            lines.append("─" * 72)
+            lines.append(f"📦 TRIAL / NON-CONVERTED — {len(trial_inactive)} students (never enrolled, idle 60+d)")
+            lines.append("─" * 72)
+            lines.append("")
+            for p in trial_inactive[:8]:
+                state = p.get("membership_state", "Unknown")
+                lines.append(f"  • {p['student']} — {state} | {p['total_lessons']} lessons | {p['days_idle']}d idle")
+            lines.append(f"     → These students were trial/camp/workshop — never paying customers.")
+            lines.append(f"     → Review quarterly. If any had good scores/notes, flag for re-engagement campaign.")
+            lines.append("")
         
         # ── HISTORICAL ──
         if historical:

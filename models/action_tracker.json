@@ -2,7 +2,7 @@
   "reports": [
     {
       "date": "2026-07-15",
-      "students_flagged": 29
+      "students_flagged": 31
     }
   ],
   "students": {
@@ -648,6 +648,56 @@
         {
           "type": "action",
           "text": "No contact for 119 days. Reach out directly \u2014 ask if there was a specific reason they stopped. Reference what they were working on."
+        }
+      ]
+    },
+    "elijah segura": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7672545231586918,
+      "archetype": "Schedule Conflict",
+      "instructor_consistency": 0.8333333333333334,
+      "days_idle": 26,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-11. The instructor wrote: \"super nice to meet yall! today we went over  the anatomy of the guitar, the musical alphabet, as well as the names of the strings! work"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "context",
+          "text": "Only 6 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+        },
+        {
+          "type": "action",
+          "text": "26 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+        }
+      ]
+    },
+    "quinn gallo": {
+      "last_suggested": "2026-07-15",
+      "risk": 0.7572865688463002,
+      "archetype": "Disengagement",
+      "instructor_consistency": 0.6746987951807228,
+      "days_idle": 52,
+      "suggestions": [
+        {
+          "type": "hook",
+          "text": "Their last strong session was 2026-03-23 (scored 8). The instructor wrote: \"It was so nice to see Quinn in our lesson today! We started with some easy five-tone vocal warmups while making an \u201cAh\u201d soun"
+        },
+        {
+          "type": "gap",
+          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+        },
+        {
+          "type": "concern",
+          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+        },
+        {
+          "type": "action",
+          "text": "Silent disengagement \u2014 no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive."
         }
       ]
     }

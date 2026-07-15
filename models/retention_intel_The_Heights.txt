@@ -8,7 +8,8 @@ and attendance data — not a template. Each student's advice is unique to their
 📋 SUMMARY
 
    ⏰ Ending soon: 1  |  ⚠️ Expired: 0  |  ⏸️  Future: 6
-   🔴 Actionable:  30  |  🟠 High:  19  |  🟡 Watch:  16
+   🔴 Actionable:  24  |  🟠 High:  19  |  🟡 Watch:  16
+   📦 Trial/Non-Converted (>60d idle): 6
    📦 Historical (120+d idle): 115
 
 ────────────────────────────────────────────────────────────────────────
@@ -31,17 +32,8 @@ and attendance data — not a template. Each student's advice is unique to their
   • Jeff Brabham — hold ends Jul 31, 2026  |  Prep Lessons - 30 Minute Lessons
 
 ────────────────────────────────────────────────────────────────────────
-🔴 ACTIONABLE — 30 students (contact this week)
+🔴 ACTIONABLE — 24 students (contact this week)
 ────────────────────────────────────────────────────────────────────────
-
-  Xabi Briscoe — 91% risk | ⚠️ 106d idle
-  🏷️  Disengagement (gradual) — high confidence
-     Also: Schedule Conflict
-     💬 Their last strong session was 2026-02-27. The instructor wrote: "Today Xabi and I worked on some basic chords as well as a song he wanted to learnWe started out going through some basic chord changes, once warmed up"
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     📋 Only 7 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
-     ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
   Emmanuel Gonzalez — 90% risk | 📝 8 lessons
   🏷️  Review Needed (n/a) — low confidence
@@ -121,12 +113,34 @@ and attendance data — not a template. Each student's advice is unique to their
      📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → 33 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  Dora E Gonzalez — 78% risk | ⚠️ 119d idle
-  🏷️  Disengagement (gradual) — high confidence
+  Elijah Segura — 77% risk | 📝 6 lessons
+  🏷️  Schedule Conflict (ongoing) — medium confidence
+     Also: New Student Risk
+     💬 Their last strong session was 2026-03-11. The instructor wrote: "super nice to meet yall! today we went over  the anatomy of the guitar, the musical alphabet, as well as the names of the strings! work on putting you"
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     📋 Only 6 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
+     → 26 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
+
+  Quinn Gallo — 76% risk | ⚠️ 52d idle
+  🏷️  Disengagement (rapid) — high confidence
      Also: Instructor Relationship
-     💬 Their last strong session was 2026-03-18 (scored 2). The instructor wrote: "Missed you today, see you next time!"
-     ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → No contact for 119 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
+     💬 Their last strong session was 2026-03-23 (scored 8). The instructor wrote: "It was so nice to see Quinn in our lesson today! We started with some easy five-tone vocal warmups while making an “Ah” sound. We then went through so"
+     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
+     ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
+     → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
+
+────────────────────────────────────────────────────────────────────────
+📦 TRIAL / NON-CONVERTED — 6 students (never enrolled, idle 60+d)
+────────────────────────────────────────────────────────────────────────
+
+  • Xabi Briscoe — Free Trial Lesson | 7 lessons | 106d idle
+  • Alexandra Abbott — Free Trial Lesson | 31 lessons | 105d idle
+  • Patrick Roche — Free Trial Lesson | 14 lessons | 119d idle
+  • Dora E Gonzalez — Free Trial Lesson | 11 lessons | 119d idle
+  • Joseph caillier — Free Trial Lesson | 38 lessons | 90d idle
+  • Maggie Caillier — Free Trial Lesson | 38 lessons | 90d idle
+     → These students were trial/camp/workshop — never paying customers.
+     → Review quarterly. If any had good scores/notes, flag for re-engagement campaign.
 
 ────────────────────────────────────────────────────────────────────────
 📦 HISTORICAL CHURN — 115 students idle 120+ days
