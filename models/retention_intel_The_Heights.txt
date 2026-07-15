@@ -36,27 +36,48 @@ and attendance data — not a template. Each student's advice is unique to their
 
   Emmanuel Gonzalez — 90% risk | 📝 8 lessons
   🏷️  Review Needed (n/a) — low confidence
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     📋 Only 8 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2026-05-13. 8 Drum Lessons lessons. Still attending.
+      Instructor breakdown (2 different teachers):
+        • Angel Garza: 6 lessons — no notes written
+        • Chase Demel: 2 lessons — no notes written
+     ⚠️ 2 instructor(s) wrote zero notes: Angel Garza, Chase Demel
+     ❓ No parent contact info on file.
+     → Still attending. Address the issues above before they escalate to churn.
 
   Ani Moore — 89% risk | 📝 5 lessons
   🏷️  Review Needed (n/a) — low confidence
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     📋 Only 5 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2026-07-06. 5 21st Century Rock Camp lessons. Still attending.
+     ❓ No parent contact info on file.
+     → Still attending. Address the issues above before they escalate to churn.
 
   Lily Chabarria — 86% risk | 📝 73 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2025-08-14. 73 Guitar Lessons lessons. Still attending.
+      Instructor breakdown (9 different teachers):
+        • Kimya Fotovat: 31 lessons — 19 notes, avg score 6.8
+        • Zach Hernandez: 21 lessons — 7 notes (no scores)
+        • Kyloh Falls: 11 lessons — 1 notes (no scores)
+        • Isaac Burch: 5 lessons — 5 notes, avg score 7.0
+        • Charlie Meave: 1 lessons — no notes written
+        • Chase Demel: 1 lessons — 1 notes (no scores)
+        • Nicholas Dees: 1 lessons — no notes written
+        • Calvin Barnhill: 1 lessons — no notes written
+        • Luis Carlos: 1 lessons — 1 notes (no scores)
+     ⚠️ 3 instructor(s) wrote zero notes: Charlie Meave, Nicholas Dees, Calvin Barnhill
+     ⚠️ 9 different instructors over 73 lessons — no consistent teacher. Student may not feel connected to anyone.
+     ❓ No parent contact info on file.
+     → Still attending. Address the issues above before they escalate to churn.
 
   Douglas Kemp — 83% risk | 📝 42 lessons
   🏷️  Instructor Relationship (threshold) — medium confidence
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2026-02-03. 42 Adult Rehearsal lessons. Still attending.
+      Instructor breakdown (3 different teachers):
+        • Zach Hernandez: 23 lessons — 9 notes, avg score 7.3
+        • Luis Carlos: 17 lessons — 2 notes, avg score 5.0
+        • Kyloh Falls: 1 lessons — 1 notes, avg score 8.0
+     ⚠️ 3 different instructors over 42 lessons — no consistent teacher. Student may not feel connected to anyone.
+     ❓ No parent contact info on file.
+     → Still attending. Address the issues above before they escalate to churn.
 
 ────────────────────────────────────────────────────────────────────────
 📦 TRIAL / NON-CONVERTED — 1 students (never enrolled, idle 60+d)

@@ -33,23 +33,50 @@ and attendance data — not a template. Each student's advice is unique to their
   Alejandro Meyer — 84% risk | 📝 47 lessons
   🏷️  Schedule Conflict (ongoing) — medium confidence
      Also: Instructor Relationship
-     💬 Their last strong session was 2026-06-18 (scored 5). The instructor wrote: "Great job today guys! Our concert will be tomorrow at 12:00! Please come dressed like a rock star so we can put on a show for the ages! We will be pla"
-     ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
-     ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2025-05-17. 47 Rookies lessons. Still attending.
+      Instructor breakdown (9 different teachers):
+        • Noel Rodriguez: 21 lessons — 8 notes (no scores)
+        • Camille McCloskey: 13 lessons — 2 notes (no scores)
+        • Calvin Barnhill: 5 lessons — 2 notes, avg score 5.0
+        • Andrew Yeargain: 2 lessons — 1 notes (no scores)
+        • Matt Mireles: 2 lessons — no notes written
+        • Mac Frazier: 1 lessons — no notes written
+        • Jack Riggs: 1 lessons — 1 notes, avg score 4.0
+        • Joy Meis: 1 lessons — 1 notes (no scores)
+        • Logan Gill: 1 lessons — no notes written
+     ⚠️ 3 instructor(s) wrote zero notes: Matt Mireles, Mac Frazier, Logan Gill
+     ⚠️ 9 different instructors over 47 lessons — no consistent teacher. Student may not feel connected to anyone.
+     ❓ No parent contact info on file.
+     → Still attending. Address the issues above before they escalate to churn.
 
   Renner Campbell — 83% risk | 📝 11 lessons
   🏷️  Schedule Conflict (ongoing) — medium confidence
      Also: Instructor Relationship
-     💬 Their last strong session was 2025-08-08. The instructor wrote: "Hello parents! I just wanted to send out a reminder that today's show will take place at 12:00. See you all then!"
-     ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2025-06-09. 11 Rookies Camp - Session 3 (2025) lessons. Still attending.
+      Instructor breakdown (4 different teachers):
+        • Gio Soto: 5 lessons — 2 notes (no scores)
+        • Camille McCloskey: 4 lessons — 2 notes (no scores)
+        • Mac Frazier: 1 lessons — no notes written
+        • Logan Gill: 1 lessons — 1 notes (no scores)
+     ⚠️ 1 instructor(s) wrote zero notes: Mac Frazier
+     ⚠️ 4 different instructors over 11 lessons — no consistent teacher. Student may not feel connected to anyone.
+     → Still attending. Address the issues above before they escalate to churn.
 
   John David Cunningham Nauls — 72% risk | 📝 22 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
-     💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
-     ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
-     → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
+      Joined 2025-12-20. 22 Little Wing lessons. Still attending.
+      Instructor breakdown (8 different teachers):
+        • Noel Rodriguez: 7 lessons — 5 notes, avg score 7.0
+        • Calvin Barnhill: 5 lessons — 1 notes, avg score 4.0
+        • Matt Mireles: 3 lessons — no notes written
+        • Jack Riggs: 3 lessons — 2 notes, avg score 7.0
+        • Maynor Mayorquin: 1 lessons — no notes written
+        • Logan Gill: 1 lessons — no notes written
+        • Rookies and Little Wing Trial: 1 lessons — no notes written
+        • Group Trial: 1 lessons — no notes written
+     ⚠️ 5 instructor(s) wrote zero notes: Matt Mireles, Maynor Mayorquin, Logan Gill, Rookies and Little Wing Trial, Group Trial
+     ⚠️ 8 different instructors over 22 lessons — no consistent teacher. Student may not feel connected to anyone.
+     → Still attending. Address the issues above before they escalate to churn.
 
 ────────────────────────────────────────────────────────────────────────
 📦 TRIAL / NON-CONVERTED — 4 students (never enrolled, idle 60+d)

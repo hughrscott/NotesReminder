@@ -85,20 +85,64 @@
       "days_idle": 2,
       "suggestions": [
         {
-          "type": "hook",
-          "text": "Their last strong session was 2026-06-18 (scored 5). The instructor wrote: \"Great job today guys! Our concert will be tomorrow at 12:00! Please come dressed like a rock star so we can put on a show fo"
+          "type": "headline",
+          "text": "Joined 2025-05-17. 47 Rookies lessons. Still attending."
         },
         {
-          "type": "gap",
-          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          "type": "breakdown",
+          "text": "Instructor breakdown (9 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Noel Rodriguez: 21 lessons \u2014 8 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Camille McCloskey: 13 lessons \u2014 2 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Calvin Barnhill: 5 lessons \u2014 2 notes, avg score 5.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Andrew Yeargain: 2 lessons \u2014 1 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Matt Mireles: 2 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Mac Frazier: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Jack Riggs: 1 lessons \u2014 1 notes, avg score 4.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Joy Meis: 1 lessons \u2014 1 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Logan Gill: 1 lessons \u2014 no notes written"
         },
         {
           "type": "concern",
-          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "3 instructor(s) wrote zero notes: Matt Mireles, Mac Frazier, Logan Gill"
+        },
+        {
+          "type": "concern",
+          "text": "9 different instructors over 47 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
+        },
+        {
+          "type": "gap",
+          "text": "No parent contact info on file."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -110,16 +154,40 @@
       "days_idle": 2,
       "suggestions": [
         {
-          "type": "hook",
-          "text": "Their last strong session was 2025-08-08. The instructor wrote: \"Hello parents! I just wanted to send out a reminder that today's show will take place at 12:00. See you all then!\""
+          "type": "headline",
+          "text": "Joined 2025-06-09. 11 Rookies Camp - Session 3 (2025) lessons. Still attending."
+        },
+        {
+          "type": "breakdown",
+          "text": "Instructor breakdown (4 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Gio Soto: 5 lessons \u2014 2 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Camille McCloskey: 4 lessons \u2014 2 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Mac Frazier: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Logan Gill: 1 lessons \u2014 1 notes (no scores)"
         },
         {
           "type": "concern",
-          "text": "They've had 3 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "1 instructor(s) wrote zero notes: Mac Frazier"
+        },
+        {
+          "type": "concern",
+          "text": "4 different instructors over 11 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -302,16 +370,56 @@
       "days_idle": 4,
       "suggestions": [
         {
-          "type": "hook",
-          "text": "Their last strong session was 2026-06-06 (scored 7). The instructor wrote: \"Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and"
+          "type": "headline",
+          "text": "Joined 2025-12-20. 22 Little Wing lessons. Still attending."
+        },
+        {
+          "type": "breakdown",
+          "text": "Instructor breakdown (8 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Noel Rodriguez: 7 lessons \u2014 5 notes, avg score 7.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Calvin Barnhill: 5 lessons \u2014 1 notes, avg score 4.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Matt Mireles: 3 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Jack Riggs: 3 lessons \u2014 2 notes, avg score 7.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Maynor Mayorquin: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Logan Gill: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Rookies and Little Wing Trial: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Group Trial: 1 lessons \u2014 no notes written"
         },
         {
           "type": "concern",
-          "text": "They've had 7 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "5 instructor(s) wrote zero notes: Matt Mireles, Maynor Mayorquin, Logan Gill, Rookies and Little Wing Trial, Group Trial"
+        },
+        {
+          "type": "concern",
+          "text": "8 different instructors over 22 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -348,20 +456,40 @@
       "days_idle": 20,
       "suggestions": [
         {
-          "type": "hook",
-          "text": "Their last strong session was 2026-05-12 (scored 8). The instructor wrote: \"Great job today!Practice the 1-2-3-4 exercise with the focus being the amount of pressure you apply to the strings. Remember"
+          "type": "headline",
+          "text": "Joined 2026-02-17. 14 Guitar Lessons lessons. Last lesson 2026-06-25 (20d ago)."
+        },
+        {
+          "type": "breakdown",
+          "text": "Instructor breakdown (3 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Zach Hernandez: 12 lessons \u2014 4 notes, avg score 8.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Kyloh Falls: 1 lessons \u2014 1 notes, avg score 8.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Kimya Fotovat: 1 lessons \u2014 no notes written"
         },
         {
           "type": "concern",
-          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "1 instructor(s) wrote zero notes: Kimya Fotovat"
         },
         {
-          "type": "hold_action",
-          "text": "HOLD: Return date in 14d (Jul 29, 2026). Confirm lesson time with parent, remind them to come back. Check for response by next report."
+          "type": "concern",
+          "text": "3 different instructors over 14 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
+        },
+        {
+          "type": "positive",
+          "text": "Parent is engaged (16 messages/calls)."
         },
         {
           "type": "action",
-          "text": "20 days since last lesson. Gentle check-in \u2014 'just wanted to make sure everything's okay, we'd love to see you back.'"
+          "text": "20d since last lesson. Gentle check-in."
         }
       ]
     },
@@ -402,16 +530,32 @@
       "days_idle": 6,
       "suggestions": [
         {
-          "type": "gap",
-          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          "type": "headline",
+          "text": "Joined 2026-05-13. 8 Drum Lessons lessons. Still attending."
         },
         {
-          "type": "context",
-          "text": "Only 8 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+          "type": "breakdown",
+          "text": "Instructor breakdown (2 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Angel Garza: 6 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Chase Demel: 2 lessons \u2014 no notes written"
+        },
+        {
+          "type": "concern",
+          "text": "2 instructor(s) wrote zero notes: Angel Garza, Chase Demel"
+        },
+        {
+          "type": "gap",
+          "text": "No parent contact info on file."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -423,16 +567,16 @@
       "days_idle": 5,
       "suggestions": [
         {
-          "type": "gap",
-          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          "type": "headline",
+          "text": "Joined 2026-07-06. 5 21st Century Rock Camp lessons. Still attending."
         },
         {
-          "type": "context",
-          "text": "Only 5 lessons on record \u2014 still in onboarding. Standard welcome outreach, confirm they understand the program."
+          "type": "gap",
+          "text": "No parent contact info on file."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -541,16 +685,64 @@
       "days_idle": 2,
       "suggestions": [
         {
-          "type": "gap",
-          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          "type": "headline",
+          "text": "Joined 2025-08-14. 73 Guitar Lessons lessons. Still attending."
+        },
+        {
+          "type": "breakdown",
+          "text": "Instructor breakdown (9 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Kimya Fotovat: 31 lessons \u2014 19 notes, avg score 6.8"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Zach Hernandez: 21 lessons \u2014 7 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Kyloh Falls: 11 lessons \u2014 1 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Isaac Burch: 5 lessons \u2014 5 notes, avg score 7.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Charlie Meave: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Chase Demel: 1 lessons \u2014 1 notes (no scores)"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Nicholas Dees: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Calvin Barnhill: 1 lessons \u2014 no notes written"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Luis Carlos: 1 lessons \u2014 1 notes (no scores)"
         },
         {
           "type": "concern",
-          "text": "They've had 8 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "3 instructor(s) wrote zero notes: Charlie Meave, Nicholas Dees, Calvin Barnhill"
+        },
+        {
+          "type": "concern",
+          "text": "9 different instructors over 73 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
+        },
+        {
+          "type": "gap",
+          "text": "No parent contact info on file."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
@@ -596,16 +788,36 @@
       "days_idle": 7,
       "suggestions": [
         {
-          "type": "gap",
-          "text": "No parent communications on file. Collect phone/email \u2014 there's no way to reach them currently."
+          "type": "headline",
+          "text": "Joined 2026-02-03. 42 Adult Rehearsal lessons. Still attending."
+        },
+        {
+          "type": "breakdown",
+          "text": "Instructor breakdown (3 different teachers):"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Zach Hernandez: 23 lessons \u2014 9 notes, avg score 7.3"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Luis Carlos: 17 lessons \u2014 2 notes, avg score 5.0"
+        },
+        {
+          "type": "breakdown_item",
+          "text": "  \u2022 Kyloh Falls: 1 lessons \u2014 1 notes, avg score 8.0"
         },
         {
           "type": "concern",
-          "text": "They've had 2 different instructors \u2014 low consistency. Ask if they've connected with any particular teacher."
+          "text": "3 different instructors over 42 lessons \u2014 no consistent teacher. Student may not feel connected to anyone."
+        },
+        {
+          "type": "gap",
+          "text": "No parent contact info on file."
         },
         {
           "type": "action",
-          "text": "Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out."
+          "text": "Still attending. Address the issues above before they escalate to churn."
         }
       ]
     },
