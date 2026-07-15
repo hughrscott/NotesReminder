@@ -2,135 +2,193 @@ Subject: 🎸 The Heights Student Retention Report — July 15, 2026
 
 Hi Hugh,
 
-Here is your retention report for School of Rock The Heights. These are students the model
-identifies as most likely to leave — which means they're also your best opportunities
-to intervene early and keep them enrolled.
+Here is your retention report for The Heights. Every recommendation below is grounded in
+real data — lesson notes, parent communications, and attendance patterns.
 
-📋 RECOMMENDED ACTIONS (priority order)
+📋 SUMMARY
 
-   26 Critical: Contact this week — personal call from GM or studio manager
-   12 High:      Instructor check-in this week — review engagement, address concerns
-   16 Watch:     Monitor — flag for review in next report
-
-   ⚠️  NOTE-SCORING GAP: 8 established students have ZERO lesson notes.
-       This means instructors aren't logging feedback in Pike13 for these students.
-       Action: Audit whether instructors are writing notes that aren't being scored,
-       or whether these students are genuinely disengaged (no-shows, cancellations).
-
-   🆕  NEW STUDENTS: 17 enrolled ≤90 days ago — typical early churn window.
-       Action: Ensure welcome call completed, first-performance scheduled,
-       parent contact info collected, and lesson time confirmed.
-
-📊 Summary: 190 active students scored
-   🔴 Critical (≥70% risk): 26
-   🟠 High (50-69%):       12
-   🟡 Watch (30-49%):      16
+   🔴 Critical — contact this week:          26
+      • Stopped attending (45+ days idle):    5
+      • Attending but no recent notes:        4
+      • New student (≤90 days):               17
+   🟠 High — instructor check-in:             12
+   🟡 Watch — monitor:                        16
 
 ────────────────────────────────────────────────────────────────────────
-🔴 CRITICAL — 10 of 26 students need outreach this week
+🔴 CRITICAL (26 students)
 ────────────────────────────────────────────────────────────────────────
 
-   Instructor check-in means: ask the instructor (1) Is the student attending regularly?
-   (2) Are they progressing? (3) Any concerns about motivation or parent involvement?
+  1. Emmanuel Gonzalez — 90% risk | 🆕 63d tenure
+     📱 No parent communication on file — collect phone/email
 
-  1. Emmanuel Gonzalez — 90% risk | 63d tenure | 8 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  2. Ani Moore — 89% risk | 🆕 9d tenure
+     📱 No parent communication on file — collect phone/email
 
-  2. Ani Moore — 89% risk | 9d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  3. Camila Casiano — 88% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  3. Camila Casiano — 88% risk | 30d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  4. Natalia Morales — 88% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  4. Natalia Morales — 88% risk | 30d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  5. Olivia Telleen — 88% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  5. Olivia Telleen — 88% risk | 30d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  6. Alexandra Yzquierdo — 88% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  6. Alexandra Yzquierdo — 88% risk | 30d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  7. Eva Perez Gligic — 88% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  7. Eva Perez Gligic — 88% risk | 30d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  8. Charlie Pallister — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  8. Charlie Pallister — 87% risk | 37d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  9. James Pallister — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  9. James Pallister — 87% risk | 37d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  10. Maya Landa — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  10. Maya Landa — 87% risk | 37d tenure | 5 lessons | note=0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
-     → New student onboarding — schedule welcome call, confirm goals & schedule
+  11. Lincoln Falchetti — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
+
+  12. Remy Paal — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
+
+  13. Valentin Gokhman — 87% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
+
+  14. Gabby Garofalo — 87% risk | ⚠️ 56d idle
+     ⚠️  STOPPED ATTENDING — 56d since last lesson (May 20)
+     → This is an attendance issue. Reach out directly to parent.
+     💬 HOOK: Strong session May 11 (score 9) — "Great jamming with you today Gabby.Today we went over the A minor pentatonic scale and used the varies modes to improvis…"
+        Reference this in outreach — they were doing well before they stopped
+     📞 Parent contact: 7 SMS
+
+  15. Lily Chabarria — 86% risk | 📝 note=nan
+     💬 HOOK: Strong session May 11 (score 6) — "We went over 'brutal' again today and also learned 'drop dead' by Olivia Rodrigo! Keep it up just work on your eighth no…"
+     📱 No parent communication on file — collect phone/email
+
+  16. Patricia Collins — 86% risk | 🆕 74d tenure
+     📱 No parent communication on file — collect phone/email
+
+  17. Mason Hopper — 84% risk | ⚠️ 52d idle
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
+     💬 HOOK: Strong session May 12 (score 8) — "today we went over the group songs as well as power chords! we worked on power chords applied specifically to zombie and…"
+        Reference this in outreach — they were doing well before they stopped
+     📱 No parent communication on file — collect phone/email
+
+  18. Aliya Gulamhussein — 84% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📞 Parent contact: 2 SMS
+
+  19. Antonella Massolini — 84% risk | 🆕 30d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📞 Parent contact: 3 SMS
+
+  20. Douglas Kemp — 83% risk | 📝 note=nan
+     💬 HOOK: Strong session May 12 (score 8) — "Great job today!Practice looping different sections of the Oasis song and improvising fills into them. Ex. Would be to p…"
+     📞 Parent contact: 8 SMS
+
+  21. Dylan Kemp — 83% risk | 🆕 37d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📞 Parent contact: 8 SMS
+
+  22. Elijah Segura — 77% risk | 📝 6 lessons
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📞 Parent contact: 9 SMS
+
+  23. Quinn Gallo — 76% risk | ⚠️ 52d idle
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
+     💬 HOOK: Strong session Mar 23 (score 8) — "It was so nice to see Quinn in our lesson today! We started with some easy five-tone vocal warmups while making an “Ah” …"
+        Reference this in outreach — they were doing well before they stopped
+     📱 No parent communication on file — collect phone/email
+
+  24. Barrett Gonsalves — 74% risk | ⚠️ 52d idle
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
+     💬 HOOK: Strong session Mar 24 (score 9) — "Today, we started with another review of our four major active listening points. This time around we got everything down…"
+        Reference this in outreach — they were doing well before they stopped
+     📞 Parent contact: 4 voicemails, 12 SMS
+
+  25. Nicolas Benson — 74% risk | ⚠️ 52d idle
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
+     💬 HOOK: Strong session Mar 23 (score 8) — "Today Nicolas and I worked on his songs for the Rock 101 Showcase.We started with our warmup song 7 Nation Army from the…"
+        Reference this in outreach — they were doing well before they stopped
+     📱 No parent communication on file — collect phone/email
+
+  26. Miranda Sevcik — 74% risk | 📝 note=nan
+     💬 HOOK: Strong session May 12 (score 8) — "Great job today!Practice the 1-2-3-4 exercise with the focus being the amount of pressure you apply to the strings. Reme…"
+     📞 Parent contact: 16 SMS
 
 ────────────────────────────────────────────────────────────────────────
-🟠 HIGH — Proactive contact recommended
+🟠 HIGH (12 students)
 ────────────────────────────────────────────────────────────────────────
 
-  1. Alyssa Shoemaker — 68% risk
-     Tenure: 333d | Lessons: 28 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  1. Alyssa Shoemaker — 68% | 28 lessons | 333d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  2. Jay Boya — 68% risk
-     Tenure: 350d | Lessons: 63 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  2. Jay Boya — 68% | ⚠️ 52d idle | 63 lessons | 350d tenure
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
 
-  3. Roman Krieger — 66% risk
-     Tenure: 359d | Lessons: 10 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  3. Roman Krieger — 66% | 10 lessons | 359d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  4. Max Krieger — 66% risk
-     Tenure: 359d | Lessons: 10 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  4. Max Krieger — 66% | 10 lessons | 359d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  5. Alex Le — 66% risk
-     Tenure: 366d | Lessons: 10 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  5. Alex Le — 66% | 10 lessons | 366d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  6. Lucia Odbayar — 66% risk
-     Tenure: 366d | Lessons: 10 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  6. Lucia Odbayar — 66% | 10 lessons | 366d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📱 No parent communication on file — collect phone/email
 
-  7. Ariana Bustamante — 62% risk
-     Tenure: 293d | Lessons: 40 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  7. Ariana Bustamante — 62% | note=nan | 40 lessons | 293d tenure
+     📞 Parent contact: 8 SMS
 
-  8. James Shoemaker — 62% risk
-     Tenure: 401d | Lessons: 22 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  8. James Shoemaker — 62% | 22 lessons | 401d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📱 No parent communication on file — collect phone/email
 
-  9. Juniper Gardner — 58% risk
-     Tenure: 366d | Lessons: 10 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  9. Juniper Gardner — 58% | 10 lessons | 366d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📞 Parent contact: 2 SMS
 
-  10. Jules Browning — 57% risk
-     Tenure: 340d | Lessons: 53 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  10. Jules Browning — 57% | 53 lessons | 340d tenure
+     🟡 NO RECENT LESSONS — 26d since Jun 19
+     📞 Parent contact: 8 SMS
 
-  11. Pedro Sousa — 57% risk
-     Tenure: 505d | Lessons: 116 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  11. Pedro Sousa — 57% | ⚠️ 52d idle | 116 lessons | 505d tenure
+     ⚠️  STOPPED ATTENDING — 52d since last lesson (May 24)
+     → This is an attendance issue. Reach out directly to parent.
 
-  12. Parker Fusilier — 53% risk
-     Tenure: 401d | Lessons: 39 | Note score: 0.0
-     → Schedule instructor check-in — no lesson notes on file (possible disengagement)
+  12. Parker Fusilier — 53% | 39 lessons | 401d tenure
+     🟡 NO RECENT LESSONS — 33d since Jun 12
+     📞 Parent contact: 4 voicemails, 2 SMS
 
 ────────────────────────────────────────────────────────────────────────
-🟡 WATCH (16 students) — Monitor for 30 days
+🟡 WATCH (16 students)
 ────────────────────────────────────────────────────────────────────────
 
-  Students showing early warning signs. No immediate action needed —
-  review again in next report. Top 5 by risk:
   1. Isabella Figon-Merritt — 48% risk (501d tenure)
   2. Jennifer Quesada — 44% risk (135d tenure)
   3. Callum Goicoechea — 43% risk (501d tenure)
@@ -138,24 +196,14 @@ to intervene early and keep them enrolled.
   5. Justin McFierce — 40% risk (504d tenure)
 
 ────────────────────────────────────────────────────────────────────────
-📋 Model Notes
+📋 About This Report
 ────────────────────────────────────────────────────────────────────────
 
-  What this model measures (correct causal signals):
-  1. Note quality — instructors give lower-quality notes to students who leave
-  2. Tenure — newer students are 2-3x more likely to churn
-  3. Total lessons — fewer lifetime lessons = less investment = higher risk
-  4. Instructor consistency — frequent changes signal disruption
-  5. Parent communication — no comms on file = harder to retain
+  Each recommendation uses actual data — lesson note text, parent SMS/voicemail
+  transcripts, attendance patterns, and instructor scores. "No notes" means no
+  scored notes in the last 60 days (the model's observation window).
 
-  What this model does NOT measure (intentionally excluded):
-  - Attendance frequency (looks HEALTHIER for pre-churn students — misleading)
-  - Seasonal patterns (July students on break look disengaged)
-
-  Performance: 6/6 features have correct causal signs. AUC 0.96, 91% accuracy.
-
-  This report identifies students while there's still time to act — the model looks at
-  behavior 3-9 weeks before churn, when outreach can still make a difference.
+  Model v11: 6 features, 6/6 correct signs. AUC 0.96, 91% accuracy.
 
 Best,
 Hermes
