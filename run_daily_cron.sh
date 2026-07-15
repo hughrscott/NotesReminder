@@ -34,15 +34,24 @@ YESTERDAY=$(date -d yesterday +%Y-%m-%d)
 echo "Daily cron run: ${YESTERDAY}"
 echo "Started: $(date)"
 
+# Recipients per school (Hugh + Vivian on both; school director added per school)
+WESTU_TO="hughrscott@mac.com vivian@schoolofrock.com cabarnhill@schoolofrock.com"
+HEIGHTS_TO="hughrscott@mac.com vivian@schoolofrock.com ndees@schoolofrock.com"
+
 for SCHOOL in westu-sor theheights-sor; do
     echo ""
     echo "Processing: ${SCHOOL}"
+    if [ "$SCHOOL" = "westu-sor" ]; then
+        SCHOOL_TO="$WESTU_TO"
+    else
+        SCHOOL_TO="$HEIGHTS_TO"
+    fi
     python3 run_daily.py \
         --school "$SCHOOL" \
         --start-date "$YESTERDAY" \
         --end-date "$YESTERDAY" \
         --verbose \
-        --to hughrscott@mac.com vivian@schoolofrock.com \
+        --to $SCHOOL_TO \
         --cc hugh.scott@gmail.com || echo "FAILED: ${SCHOOL} ${YESTERDAY}"
 done
 

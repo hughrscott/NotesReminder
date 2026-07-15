@@ -4,121 +4,121 @@
       "key": "pike13:westu-sor:2026-01-17",
       "rc": 0,
       "before": 702,
-      "after": 702,
-      "verdict": "FAIL",
-      "deepseek": "VERDICT: FAIL \u2014 window row count unchanged at 702 > 0, no new data added for the backfill window.",
+      "after": 710,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 row count for window 2026-01-17..2026-01-31 increased from 702 to 710, so the chunk successfully added new data.",
       "end": "2026-01-31",
-      "finished_at": "2026-07-11T05:33:59"
+      "finished_at": "2026-07-14T22:11:34"
     },
     "pike13:theheights-sor:2026-01-17": {
       "key": "pike13:theheights-sor:2026-01-17",
-      "rc": 0,
-      "before": 702,
-      "after": 702,
+      "rc": 1,
+      "before": 710,
+      "after": 710,
       "verdict": "FAIL",
-      "deepseek": "VERDICT: FAIL \u2014 BEFORE=702, AFTER=702 (no new rows added in window 2026-01-17..2026-01-31; chunk did no work)",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-01-31",
-      "finished_at": "2026-07-11T05:49:10"
+      "finished_at": "2026-07-14T22:12:53"
     },
     "pike13:westu-sor:2026-02-01": {
       "key": "pike13:westu-sor:2026-02-01",
-      "rc": -9,
+      "rc": 0,
       "before": 1507,
-      "after": 1507,
-      "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "after": 1512,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 Row count increased from 1507 to 1512, confirming new data was inserted for the backfill window.",
       "end": "2026-02-28",
-      "finished_at": "2026-07-11T06:14:10"
+      "finished_at": "2026-07-14T22:20:06"
     },
     "pike13:theheights-sor:2026-02-01": {
       "key": "pike13:theheights-sor:2026-02-01",
-      "rc": -9,
-      "before": 1507,
-      "after": 1507,
+      "rc": 1,
+      "before": 1512,
+      "after": 1512,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-02-28",
-      "finished_at": "2026-07-11T06:39:10"
+      "finished_at": "2026-07-14T22:21:24"
     },
     "pike13:westu-sor:2026-03-01": {
       "key": "pike13:westu-sor:2026-03-01",
-      "rc": -9,
+      "rc": 0,
       "before": 1606,
-      "after": 1606,
-      "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "after": 1610,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 Row count for the window increased from 1606 to 1610, confirming that 4 new rows were inserted during the backfill.",
       "end": "2026-03-31",
-      "finished_at": "2026-07-11T07:04:10"
+      "finished_at": "2026-07-14T22:29:29"
     },
     "pike13:theheights-sor:2026-03-01": {
       "key": "pike13:theheights-sor:2026-03-01",
-      "rc": -9,
-      "before": 1606,
-      "after": 1606,
+      "rc": 1,
+      "before": 1610,
+      "after": 1610,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-03-31",
-      "finished_at": "2026-07-11T07:29:10"
+      "finished_at": "2026-07-14T22:30:47"
     },
     "pike13:westu-sor:2026-04-01": {
       "key": "pike13:westu-sor:2026-04-01",
-      "rc": -9,
+      "rc": 0,
       "before": 1664,
       "after": 1664,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "VERDICT: FAIL \u2014 AFTER row count (1664) equals BEFORE (1664) with BEFORE > 0, indicating the chunk inserted no new rows for the backfill window.",
       "end": "2026-04-30",
-      "finished_at": "2026-07-11T07:54:10"
+      "finished_at": "2026-07-14T22:39:06"
     },
     "pike13:theheights-sor:2026-04-01": {
       "key": "pike13:theheights-sor:2026-04-01",
-      "rc": -9,
+      "rc": 1,
       "before": 1664,
       "after": 1664,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-04-30",
-      "finished_at": "2026-07-11T08:19:10"
+      "finished_at": "2026-07-14T22:40:24"
     },
     "pike13:westu-sor:2026-05-01": {
       "key": "pike13:westu-sor:2026-05-01",
-      "rc": -9,
+      "rc": 0,
       "before": 1328,
       "after": 1328,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "VERDICT: FAIL \u2014 No new rows added for the backfill window (BEFORE=1328, AFTER=1328); chunk did no work.",
       "end": "2026-05-31",
-      "finished_at": "2026-07-11T08:44:10"
+      "finished_at": "2026-07-14T22:48:08"
     },
     "pike13:theheights-sor:2026-05-01": {
       "key": "pike13:theheights-sor:2026-05-01",
-      "rc": -9,
+      "rc": 1,
       "before": 1328,
       "after": 1328,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-05-31",
-      "finished_at": "2026-07-11T09:09:11"
+      "finished_at": "2026-07-14T22:49:27"
     },
     "pike13:westu-sor:2026-06-01": {
       "key": "pike13:westu-sor:2026-06-01",
-      "rc": -9,
+      "rc": 0,
       "before": 1149,
-      "after": 1149,
-      "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "after": 1160,
+      "verdict": "PASS",
+      "deepseek": "VERDICT: PASS \u2014 AFTER row count (1160) is greater than BEFORE (1149), so 11 new rows were inserted for the backfill window.",
       "end": "2026-06-30",
-      "finished_at": "2026-07-11T09:34:11"
+      "finished_at": "2026-07-14T22:57:50"
     },
     "pike13:theheights-sor:2026-06-01": {
       "key": "pike13:theheights-sor:2026-06-01",
-      "rc": -9,
-      "before": 1149,
-      "after": 1149,
+      "rc": 1,
+      "before": 1160,
+      "after": 1160,
       "verdict": "FAIL",
-      "deepseek": "extractor rc=-9 (non-zero) -> FAIL",
+      "deepseek": "extractor rc=1 (non-zero) -> FAIL",
       "end": "2026-06-30",
-      "finished_at": "2026-07-11T09:59:11"
+      "finished_at": "2026-07-14T22:59:08"
     },
     "pike13:westu-sor:2026-07-01": {
       "key": "pike13:westu-sor:2026-07-01",
