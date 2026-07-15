@@ -2470,8 +2470,8 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "cancellation": 2,
-      "positive": 2
+      "positive": 2,
+      "cancellation": 2
     },
     "is_on_hold": false
   },
@@ -11125,8 +11125,8 @@
     "avg_score": 5.25,
     "score_trend": "stable",
     "keyword_hits": {
-      "positive": 4,
-      "financial": 4
+      "financial": 4,
+      "positive": 4
     },
     "is_on_hold": false
   },

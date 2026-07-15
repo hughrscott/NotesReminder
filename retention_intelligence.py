@@ -320,6 +320,10 @@ def build_student_profile(student_name, data):
     is_trial = any(t in state_lower for t in ["trial", "free trial", "camp", "workshop", "parent orientation", "immersion pass", "none", ""])
     is_enrolled = not is_trial and state_lower and membership_state.strip()
     
+    # ── Short program completion: ≤8 lessons, 15-50d idle = likely finished a cycle ──
+    # These are usually Rookies, Little Wing, Prep, or camp programs
+    likely_program_complete = (len(sl) <= 8 and 15 <= days_idle <= 50)
+    
     best_note = None
     for ns in note_samples:
         if ns["text"] and len(ns["text"]) > 30 and "no show" not in ns["text"].lower() and "see you next time" not in ns["text"].lower():
@@ -354,6 +358,7 @@ def build_student_profile(student_name, data):
         "is_on_hold": hold_info.get("on_hold", False), "hold_info": hold_info,
         "membership_state": membership_state, "is_trial": is_trial, "is_enrolled": is_enrolled,
         "has_left": has_left, "left_date": left_date,
+        "likely_program_complete": likely_program_complete,
     }
 
 # ═══════════════════════════════════════════════════════════
@@ -491,6 +496,16 @@ def generate_reports(profiles, risk_scores, data):
         
         school_profiles.sort(key=lambda x: x["v12_risk"], reverse=True)
         
+        # ── Dedup by case-insensitive name (fixes Lily Chabarria/chabarria) ──
+        seen_names = set()
+        deduped_profiles = []
+        for p in school_profiles:
+            key = p["student"].lower()
+            if key not in seen_names:
+                seen_names.add(key)
+                deduped_profiles.append(p)
+        school_profiles = deduped_profiles
+        
         on_hold = [p for p in school_profiles if p["is_on_hold"]]
         critical = [p for p in school_profiles if p["v12_risk"] >= 0.70 and not p["is_on_hold"]]
         high = [p for p in school_profiles if 0.50 <= p["v12_risk"] < 0.70 and not p["is_on_hold"]]
@@ -499,10 +514,11 @@ def generate_reports(profiles, risk_scores, data):
         active_critical = [p for p in critical if p["days_idle"] < 120]
         historical = [p for p in critical if p["days_idle"] >= 120]
         
-        # ── Separate known leavers, trial, and true actionable ──
+        # ── Separate known leavers, short programs, trial, and true actionable ──
         confirmed_left = [p for p in active_critical if p.get("has_left", False)]
+        program_complete = [p for p in active_critical if p.get("likely_program_complete", False) and not p.get("has_left")]
         trial_inactive = [p for p in active_critical if p.get("is_trial", False) and p["days_idle"] > 60 and not p.get("has_left")]
-        active_critical = [p for p in active_critical if not p.get("has_left") and not (p.get("is_trial", False) and p["days_idle"] > 60)]
+        active_critical = [p for p in active_critical if not p.get("has_left") and not p.get("likely_program_complete") and not (p.get("is_trial", False) and p["days_idle"] > 60)]
         
         # ── Classify holds BEFORE summary ──
         holds_ending_soon = []
@@ -552,7 +568,7 @@ def generate_reports(profiles, risk_scores, data):
         lines.append("")
         lines.append(f"   ⏰ Ending soon: {len(holds_ending_soon)}  |  ⚠️ Expired: {len(holds_expired)}  |  ⏸️  Future: {len(holds_future)}")
         lines.append(f"   🔴 Actionable:  {len(active_critical)}  |  🟠 High:  {len(high)}  |  🟡 Watch:  {len(watch)}")
-        lines.append(f"   ✅ Confirmed Left: {len(confirmed_left)}  |  📦 Trial: {len(trial_inactive)}  |  📦 Historical: {len(historical)}")
+        lines.append(f"   📦 Trial: {len(trial_inactive)}  |  📦 Historical: {len(historical)}")
         lines.append("")
         
         # ── HOLD ENDING SOON (highest priority — above actionable) ──
@@ -690,19 +706,6 @@ def generate_reports(profiles, risk_scores, data):
                     update_tracker(p["student"], p, primary["playbook"], tracker)
                 
                 lines.append("")
-        
-        # ── CONFIRMED LEFT (Pike13 last_membership_end) ──
-        if confirmed_left:
-            lines.append("─" * 72)
-            lines.append(f"✅ CONFIRMED LEFT — {len(confirmed_left)} students with Pike13 end dates")
-            lines.append("─" * 72)
-            lines.append("")
-            for p in confirmed_left[:10]:
-                lines.append(f"  • {p['student']} — membership ended {p.get('left_date', '?')}  |  {p['total_lessons']} lessons | {p['days_idle']}d idle")
-            if len(confirmed_left) > 10:
-                lines.append(f"     +{len(confirmed_left)-10} more")
-            lines.append(f"     → Students with confirmed Pike13 membership end dates. No outreach needed.")
-            lines.append("")
         
         # ── TRIAL / NON-CONVERTED ──
         if trial_inactive:

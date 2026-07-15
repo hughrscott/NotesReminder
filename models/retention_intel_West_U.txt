@@ -9,7 +9,7 @@ and attendance data — not a template. Each student's advice is unique to their
 
    ⏰ Ending soon: 0  |  ⚠️ Expired: 0  |  ⏸️  Future: 13
    🔴 Actionable:  3  |  🟠 High:  15  |  🟡 Watch:  13
-   ✅ Confirmed Left: 7  |  📦 Trial: 4  |  📦 Historical: 133
+   📦 Trial: 4  |  📦 Historical: 133
 
 ────────────────────────────────────────────────────────────────────────
 ⏸️  ON HOLD (future) — 13 students
@@ -50,19 +50,6 @@ and attendance data — not a template. Each student's advice is unique to their
      💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
      ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
-
-────────────────────────────────────────────────────────────────────────
-✅ CONFIRMED LEFT — 7 students with Pike13 end dates
-────────────────────────────────────────────────────────────────────────
-
-  • Michael Branstetter — membership ended Jun 22, 2026  |  23 lessons | 46d idle
-  • Ed Reybitz — membership ended May 31, 2026  |  11 lessons | 107d idle
-  • Sebastian Harrison — membership ended May 31, 2026  |  26 lessons | 57d idle
-  • Jasmin Benitez — membership ended Jun 19, 2026  |  12 lessons | 27d idle
-  • Mabel Anderson-Holland — membership ended May 30, 2026  |  25 lessons | 46d idle
-  • Jake Krieger — membership ended May 31, 2026  |  45 lessons | 46d idle
-  • Mateo Bapat — membership ended Jun 30, 2026  |  54 lessons | 18d idle
-     → Students with confirmed Pike13 membership end dates. No outreach needed.
 
 ────────────────────────────────────────────────────────────────────────
 📦 TRIAL / NON-CONVERTED — 4 students (never enrolled, idle 60+d)
