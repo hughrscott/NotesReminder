@@ -246,8 +246,20 @@ Output format: one line per transcript, "INDEX: name" or "INDEX: none"
         
         try:
             import openai
+            # Read API key from Hermes .env if not in os.environ
+            api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+            if not api_key:
+                env_file = Path.home() / ".hermes" / ".env"
+                if env_file.exists():
+                    for line in open(env_file):
+                        if line.startswith("DEEPSEEK_API_KEY="):
+                            api_key = line.strip().split("=", 1)[1].strip('"').strip("'")
+                            break
+            if not api_key:
+                print("  No DEEPSEEK_API_KEY found")
+                continue
             client = openai.OpenAI(
-                api_key=os.environ.get("OPENAI_API_KEY", ""),
+                api_key=api_key,
                 base_url="https://api.deepseek.com/v1"
             )
             response = client.chat.completions.create(
@@ -445,8 +457,8 @@ def main():
     all_matched = p1
     
     print("\n--- Pass 2: LLM Extraction ---")
-    print("  (skipped — no API key; will rerun when configured)")
-    p2 = {}
+    p2 = pass2_llm_extraction(all_matched)
+    all_matched = {**all_matched, **p2}
     
     print("\n--- Pass 3: Context Heuristic ---")
     p3 = pass3_context_heuristic(all_matched)
