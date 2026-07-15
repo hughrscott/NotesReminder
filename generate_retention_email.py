@@ -11,7 +11,7 @@ For EVERY flagged student, pulls from ALL data sources:
 
 No generic advice. Every recommendation is grounded in real data.
 """
-import pickle, sys, sqlite3, re
+import pickle, sys, sqlite3, re, json
 from pathlib import Path
 from datetime import date, timedelta
 from collections import defaultdict
@@ -159,7 +159,41 @@ def load_all_data():
     return notes_raw, people, phone_vms, phone_sms, reviews, emails, sent_lookup, client_on_hold, dependent_to_client
 
 
-# Pre-load at module level
+def _load_pike13_holds():
+    """Load scraped Pike13 hold data into name→hold_info lookup."""
+    holds = {}
+    for slug in ["westu-sor", "theheights-sor"]:
+        path = MODELS_DIR / f"pike13_holds_{slug}.json"
+        if path.exists():
+            data = json.load(open(path))
+            for r in data:
+                # Pike13 table uses capitalized headers: "Client", "First Name", etc.
+                client = r.get("Client", "").strip()
+                if not client:
+                    continue
+                info = {
+                    "client": client,
+                    "first_name": r.get("First Name", ""),
+                    "last_name": r.get("Last Name", ""),
+                    "plan": r.get("Plan Name", ""),
+                    "on_hold": True,
+                    "hold_start": r.get("Last Hold Start Date", ""),
+                    "hold_end": r.get("Last Hold End Date", ""),
+                    "hold_indefinite": r.get("Last Hold Indefinite?", "") == "Yes",
+                    "hold_by": r.get("Last Hold By", ""),
+                    "account_emails": r.get("Account Manager Emails", ""),
+                    "account_phones": r.get("Account Manager Phones", ""),
+                }
+                holds[client.lower()] = info
+                # Also index by first+last
+                fn = info["first_name"].lower()
+                ln = info["last_name"].lower()
+                if fn and ln:
+                    holds[f"{fn} {ln}"] = info
+    return holds
+
+PIKE13_HOLDS = _load_pike13_holds()
+print(f"  Pike13 hold records loaded: {len(PIKE13_HOLDS)}")
 (NOTES_DB, PEOPLE, PHONE_VMS, PHONE_SMS, CALL_REVIEWS, SCHOOL_EMAILS, SENT_LOOKUP,
  CLIENT_ON_HOLD, DEPENDENT_TO_CLIENT) = load_all_data()
 print(f"Loaded: {len(NOTES_DB)} lesson rows, {len(PEOPLE)} people, {sum(len(v) for v in PHONE_VMS.values())} voicemails, {sum(len(v) for v in PHONE_SMS.values())} SMS, {len(SENT_LOOKUP)} sentiment profiles")
@@ -170,18 +204,28 @@ print(f"Loaded: {len(NOTES_DB)} lesson rows, {len(PEOPLE)} people, {sum(len(v) f
 # ═══════════════════════════════════════════════════════════════════
 
 def _check_on_hold(student_name, note_history):
-    """Check if student is on hold via Pike13 client data or note mentions."""
+    """Check if student is on hold via scraped Pike13 data, or client data, or notes.
+    Returns (is_on_hold, hold_info_dict) where hold_info has dates if available."""
     name_lower = student_name.strip().lower()
+    
+    # 1. Check scraped Pike13 holds (most reliable, has dates)
+    if name_lower in PIKE13_HOLDS:
+        return True, PIKE13_HOLDS[name_lower]
+    
+    # 2. Check pike13_clients table
     if name_lower in CLIENT_ON_HOLD and CLIENT_ON_HOLD[name_lower]:
-        return True
+        return True, {"hold_start": "", "hold_end": "", "source": "pike13_clients"}
     if name_lower in DEPENDENT_TO_CLIENT:
         client = DEPENDENT_TO_CLIENT[name_lower]
         if CLIENT_ON_HOLD.get(client, False):
-            return True
+            return True, {"hold_start": "", "hold_end": "", "source": f"dependent of {client}"}
+    
+    # 3. Check recent notes for "on hold" mentions
     for n in note_history[:3]:
         if "on hold" in n.get("text", "").lower():
-            return True
-    return False
+            return True, {"hold_start": "", "hold_end": "", "source": "note mention"}
+    
+    return False, {}
 
 
 def get_student_profile(student_name):
@@ -277,6 +321,9 @@ def get_student_profile(student_name):
         avg_gap = None
         is_weekly = is_biweekly = is_irregular = False
     
+    # ── On Hold status ──
+    is_on_hold, hold_info = _check_on_hold(student_name, note_history)
+    
     return {
         "name": student_name,
         "days_idle": days_idle,
@@ -301,8 +348,8 @@ def get_student_profile(student_name):
         "is_weekly": is_weekly,
         "is_biweekly": is_biweekly,
         "is_irregular": is_irregular,
-        # ── On Hold status ──
-        "is_on_hold": _check_on_hold(student_name, note_history),
+        "is_on_hold": is_on_hold,
+        "hold_info": hold_info,
     }
 
 
@@ -317,8 +364,16 @@ def generate_recommendations(profile, risk_score):
     
     # ── PRIMARY DIAGNOSIS ──
     if p["is_on_hold"]:
-        recs.append(f"⏸️  PLAN ON HOLD — student has paused their membership. No outreach needed.")
-        recs.append(f"→ Verify hold status in Pike13. Expected return date? Flag for re-activation check.")
+        hi = p.get("hold_info", {})
+        start = hi.get("hold_start", "")
+        end = hi.get("hold_end", "")
+        if start and end:
+            recs.append(f"⏸️  PLAN ON HOLD — {start} to {end}. No outreach needed.")
+        elif start:
+            recs.append(f"⏸️  PLAN ON HOLD since {start}. No outreach needed.")
+        else:
+            recs.append(f"⏸️  PLAN ON HOLD — student has paused their membership. No outreach needed.")
+        recs.append(f"→ Verify hold status in Pike13. Expected return date: {end if end else 'check Pike13'}. Flag for re-activation check.")
         return recs  # Skip other recs — on-hold isn't churn
     
     if p["days_idle"] > 45:
@@ -413,10 +468,13 @@ def build_email(school_id):
     idle_count = 0
     new_count = 0
     note_gap_count = 0
+    on_hold_count = 0
     
     for _, r in critical.iterrows():
         p = get_student_profile(str(r["student_name"]))
-        if p["days_idle"] > 45:
+        if p["is_on_hold"]:
+            on_hold_count += 1
+        elif p["days_idle"] > 45:
             idle_count += 1
         elif r.get("membership_days", 999) < 90:
             new_count += 1
@@ -435,7 +493,7 @@ def build_email(school_id):
     # Summary
     lines.append("📋 SUMMARY")
     lines.append("")
-    lines.append(f"   🔴 Critical — contact this week:          {len(critical)}")
+    lines.append(f"      • On hold (⏸️  — no outreach needed):    {on_hold_count}")
     lines.append(f"      • Stopped attending (45+ days idle):    {idle_count}")
     lines.append(f"      • Attending but no recent notes:        {note_gap_count}")
     lines.append(f"      • New student (≤90 days):               {new_count}")
@@ -460,7 +518,11 @@ def build_email(school_id):
             recs = generate_recommendations(p, r["risk"])
             
             # Status badge
-            if p["days_idle"] > 45:
+            if p["is_on_hold"]:
+                hi = p.get("hold_info", {})
+                end = hi.get("hold_end", "")
+                badge = f"⏸️ ON HOLD" + (f" until {end}" if end else "")
+            elif p["days_idle"] > 45:
                 badge = f"⚠️ {p['days_idle']}d idle"
             elif r.get("membership_days", 999) < 90:
                 badge = f"🆕 {r['membership_days']:.0f}d tenure"
