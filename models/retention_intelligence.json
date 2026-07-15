@@ -2470,8 +2470,8 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "cancellation": 2,
-      "positive": 2
+      "positive": 2,
+      "cancellation": 2
     },
     "is_on_hold": false
   },
@@ -17152,8 +17152,8 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "scheduling_stress": 2,
-      "cancellation": 6
+      "cancellation": 6,
+      "scheduling_stress": 2
     },
     "is_on_hold": false
   },
@@ -19947,10 +19947,10 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "scheduling_stress": 2,
       "cancellation": 2,
       "frustration": 2,
-      "positive": 2
+      "positive": 2,
+      "scheduling_stress": 2
     },
     "is_on_hold": false
   },

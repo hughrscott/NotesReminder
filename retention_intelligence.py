@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""retention_intelligence.py v2 — Dynamic, per-student advice from all data sources.
+"""retention_intelligence.py v3 — Action tracking + accountability loop.
 
-Key changes:
-  - Static playbooks → dynamic advice functions that read the student's profile
-  - Every recommendation cites specific evidence (notes, comms, scores)
-  - "Unknown" archetype bug fixed — all flagged students get classification
-  - Disengagement plays varied based on: score history, comm tone, schedule pattern
+New in v3:
+  - Tracks every suggestion made to the GM
+  - On next report, checks whether actions were taken:
+    • Did the GM call? (new call reviews with student name)
+    • Constant instructor found? (future lessons show same teacher)
+    • Hold ended + student returned? (Pike13 hold date passed + recent lessons)
+    • Parent responded? (new comms since last report)
+    • No action? (flagged as stale — escalating urgency)
+  - Each suggestion now shows: [SUGGESTED] → [ACTION TAKEN?] → [STATUS]
 """
 
 import sqlite3, re, json, pickle, warnings
@@ -22,8 +26,139 @@ MODELS_DIR = Path(__file__).parent / "models"
 MATCHES_PATH = MODELS_DIR / "comms_name_matches.json"
 HOLDS_PATH_WU = MODELS_DIR / "pike13_holds_westu-sor.json"
 HOLDS_PATH_TH = MODELS_DIR / "pike13_holds_theheights-sor.json"
+TRACKER_PATH = MODELS_DIR / "action_tracker.json"
 TODAY = date.today()
 SCHOOL_NAMES = {1: "West U", 2: "The Heights"}
+
+# ═══════════════════════════════════════════════════════════
+# ACTION TRACKER — persistent suggestion history
+# ═══════════════════════════════════════════════════════════
+
+def load_action_tracker():
+    """Load previous suggestions and their status."""
+    if TRACKER_PATH.exists():
+        return json.load(open(TRACKER_PATH))
+    return {"reports": [], "students": {}}
+
+def save_action_tracker(tracker):
+    MODELS_DIR.mkdir(exist_ok=True)
+    json.dump(tracker, open(TRACKER_PATH, "w"), indent=2)
+
+def check_action_status(student_name, current_profile, tracker, data):
+    """Check whether actions suggested last time were taken.
+    
+    Returns a list of status strings to append to the report.
+    """
+    prev = tracker.get("students", {}).get(student_name.lower(), {})
+    if not prev or not prev.get("last_suggested"):
+        return []  # First time — no history to check
+    
+    last_date = prev.get("last_suggested", "")
+    suggestions = prev.get("suggestions", [])
+    statuses = []
+    
+    try:
+        last_dt = date.fromisoformat(last_date)
+        days_ago = (TODAY - last_dt).days
+    except:
+        return []
+    
+    if days_ago < 3:
+        return []  # Too recent — don't check yet
+    
+    # ── Check 1: Did someone call/reach out? ──
+    need_outreach = any(s["type"] in ("action", "red_flag") for s in suggestions)
+    if need_outreach:
+        # Check for new call reviews mentioning this student
+        con = sqlite3.connect(str(DB_PATH))
+        recent_reviews = pd.read_sql_query(f"""
+            SELECT transcript_text, event_at FROM dialpad_call_reviews
+            WHERE event_at >= '{last_date}' AND transcript_text IS NOT NULL
+        """, con)
+        con.close()
+        
+        contacted = False
+        for _, r in recent_reviews.iterrows():
+            txt = str(r.get("transcript_text", "") or "").lower()
+            if student_name.lower() in txt:
+                contacted = True
+                break
+        
+        if contacted:
+            statuses.append({"type": "status_ok", "text": "✅ ACTION TAKEN: Student discussed in staff call since last report"})
+        else:
+            # Check for new SMS/voicemails to this student's parents
+            student_comms_since = 0
+            for c in current_profile.get("recent_comms", []):
+                if c["date"] >= last_date:
+                    student_comms_since += 1
+            if student_comms_since > 0:
+                statuses.append({"type": "status_ok", "text": f"✅ ACTION LIKELY: {student_comms_since} new parent communications since last report"})
+            else:
+                statuses.append({"type": "status_stale", "text": f"⚠️ NO ACTION DETECTED — {days_ago} days since suggested outreach. Escalating urgency."})
+    
+    # ── Check 2: Instructor consistency improved? ──
+    prev_inst = prev.get("instructor_consistency", 0)
+    curr_inst = current_profile.get("instructor_consistency", 0)
+    if prev_inst < 0.5 and curr_inst >= 0.5:
+        statuses.append({"type": "status_ok", "text": "✅ INSTRUCTOR STABILIZED: Consistency improved since last report"})
+    elif prev_inst < 0.5 and curr_inst < 0.5:
+        # Check future lessons for same instructor
+        sl = data["lessons"][
+            data["lessons"]["students_raw"].str.contains(student_name, na=False, case=False)
+        ]
+        future = sl[sl["lesson_date"] > pd.Timestamp(TODAY)]
+        if len(future) >= 2:
+            inst_counts = future["instructor_id"].value_counts()
+            if len(inst_counts) > 0 and inst_counts.iloc[0] >= len(future) * 0.8:
+                statuses.append({"type": "status_ok", "text": "✅ INSTRUCTOR STABILIZING: Future lessons show consistent teacher"})
+    
+    # ── Check 3: Hold ended + student returned? ──
+    if current_profile.get("hold_info", {}).get("hold_end"):
+        hold_end_str = current_profile["hold_info"]["hold_end"]
+        try:
+            hold_end_dt = date.fromisoformat(hold_end_str)
+        except:
+            try:
+                hold_end_dt = pd.Timestamp(hold_end_str).date()
+            except:
+                hold_end_dt = None
+        
+        if hold_end_dt and hold_end_dt <= TODAY:
+            if current_profile["days_idle"] < 30:
+                statuses.append({"type": "status_ok", "text": f"✅ HOLD ENDED + RETURNED: Hold ended {hold_end_str}, student is back"})
+            else:
+                statuses.append({"type": "status_stale", "text": f"⚠️ HOLD ENDED {hold_end_str} BUT NOT RETURNED — {current_profile['days_idle']}d since last lesson"})
+    
+    # ── Check 4: Risk changed? ──
+    prev_risk = prev.get("risk", 0)
+    curr_risk = current_profile.get("v12_risk", 0)
+    if curr_risk < prev_risk - 0.1:
+        statuses.append({"type": "status_ok", "text": f"✅ IMPROVING: Risk dropped from {prev_risk:.0%} → {curr_risk:.0%}"})
+    elif curr_risk > prev_risk + 0.1:
+        statuses.append({"type": "status_stale", "text": f"⚠️ WORSENING: Risk increased from {prev_risk:.0%} → {curr_risk:.0%}"})
+    
+    return statuses
+
+
+def update_tracker(student_name, profile, suggestions, tracker):
+    """Record this report's suggestions for next time."""
+    key = student_name.lower()
+    tracker["students"][key] = {
+        "last_suggested": str(TODAY),
+        "risk": profile.get("v12_risk", 0),
+        "archetype": profile.get("archetypes", [{}])[0].get("archetype", "?"),
+        "instructor_consistency": profile.get("instructor_consistency", 0),
+        "days_idle": profile.get("days_idle", 0),
+        "suggestions": [{"type": s["type"], "text": s["text"][:200]} for s in suggestions],
+    }
+    # Track report history
+    if not tracker.get("reports"):
+        tracker["reports"] = []
+    if str(TODAY) not in [r["date"] for r in tracker.get("reports", [])]:
+        tracker["reports"].append({"date": str(TODAY), "students_flagged": 0})
+
+
 
 # ═══════════════════════════════════════════════════════════
 # SENTIMENT KEYWORDS (unchanged)
@@ -379,7 +514,9 @@ def classify_archetypes(profile):
 # REPORT GENERATION
 # ═══════════════════════════════════════════════════════════
 
-def generate_reports(profiles, risk_scores):
+def generate_reports(profiles, risk_scores, data):
+    tracker = load_action_tracker()
+    
     for school_id, school_name in SCHOOL_NAMES.items():
         school_profiles = [p for p in profiles if p["school_id"] == school_id]
         if not school_profiles: continue
@@ -498,6 +635,9 @@ def generate_reports(profiles, risk_scores):
                     for advice_item in primary.get("playbook", []):
                         prefix = {"hook": "💬", "red_flag": "🚩", "action": "→", "concern": "⚠️", "positive": "✅", "context": "📋", "gap": "❓"}.get(advice_item["type"], "•")
                         lines.append(f"     {prefix} {advice_item['text']}")
+                    # Track first student in batch for accountability
+                    if primary.get("playbook"):
+                        update_tracker(names[0], p, primary["playbook"], tracker)
                     lines.append("")
                     continue
                 
@@ -521,6 +661,16 @@ def generate_reports(profiles, risk_scores):
                 if hi.get("account_emails"): contact.append(f"✉️ {hi['account_emails']}")
                 if hi.get("account_phones"): contact.append(f"📞 {hi['account_phones']}")
                 if contact: lines.append(f"     Contact: {' | '.join(contact)}")
+                
+                # ── Action status (tracking from previous reports) ──
+                action_status = check_action_status(p["student"], p, tracker, data)
+                if action_status:
+                    for s in action_status:
+                        lines.append(f"     {s['text']}")
+                # Update tracker for next time
+                if primary.get("playbook"):
+                    update_tracker(p["student"], p, primary["playbook"], tracker)
+                
                 lines.append("")
         
         # ── Historical ──
@@ -554,6 +704,11 @@ def generate_reports(profiles, risk_scores):
         open(out_path, "w").write("\n".join(lines))
         print(f"  {school_name}: {out_path} ({len(lines)} lines)")
     
+    # Update report count and save tracker
+    if tracker.get("reports"):
+        tracker["reports"][-1]["students_flagged"] = sum(1 for s in tracker.get("students", {}).values() if s.get("last_suggested") == str(TODAY))
+    save_action_tracker(tracker)
+    
     json_out = [{"student": p["student"], "school": p["school"], "v12_risk": p.get("v12_risk", 0),
                  "archetypes": p.get("archetypes", []), "days_idle": p["days_idle"],
                  "avg_score": p["avg_score"], "score_trend": p["score_trend"],
@@ -570,7 +725,7 @@ def main():
     active = risk_scores[risk_scores["risk"] >= 0.10]
     profiles = [p for name in active["student_name"] if (p := build_student_profile(str(name), data))]
     print(f"  Profiles: {len(profiles)}")
-    generate_reports(profiles, risk_scores)
+    generate_reports(profiles, risk_scores, data)
     print("\nDone.")
 
 if __name__ == "__main__":
