@@ -68,8 +68,7 @@ def load_data():
 # ── Feature engineering ───────────────────────────────────────
 
 def compute_features(lessons_df, notes_df, ref_date, baselines, window_days=60):
-    """Compute features for a single student from a lesson DataFrame.
-    baselines: dict of (school_id, month) → avg_lessons_per_week"""
+    """v10: Self-referenced features (within-student trends, no seasonal confound)."""
     ref_ts = pd.Timestamp(ref_date)
     ws = ref_ts - timedelta(days=window_days)
     we = ref_ts
@@ -81,64 +80,85 @@ def compute_features(lessons_df, notes_df, ref_date, baselines, window_days=60):
     if n_win == 0:
         return None
 
-    # Attendance ratio: recent 14d / prior 45d (trend — seasonal invariant)
-    recent = win[win["lesson_date"] >= (we - timedelta(days=14))]
-    prior = win[win["lesson_date"] < (we - timedelta(days=14))]
-    n_recent = len(recent)
-    n_prior = len(prior)
-    attendance_ratio = n_recent / max(n_prior, 1) if n_prior > 0 else (n_recent if n_recent > 0 else 0.01)
-    lessons_per_week_raw = n_recent / 2.0
-
-    # Seasonal baseline
     school = int(lessons_df["school_id"].mode().iloc[0]) if not lessons_df["school_id"].empty else 0
-    ref_month = ref_ts.month
-    baseline = baselines.get((school, ref_month), lessons_per_week_raw)
-    lessons_vs_baseline = lessons_per_week_raw / max(baseline, 0.1)  # guard division
 
-    # Teacher consistency
-    win_inst = win["instructor_id"].dropna()
-    teacher_consistency = win_inst.value_counts().iloc[0] / n_win if len(win_inst) > 0 else 0
-    n_instructors = win_inst.nunique()
-
-    # Notes
-    note_agg = notes_df.groupby("lesson_id").agg(
-        note_score=("note_score", "max"),
-        note_completed=("note_completed", "max"),
-    ).reset_index()
-    win_notes = win.merge(note_agg, on="lesson_id", how="left")
-    ns = win_notes["note_score"].dropna()
-    nc = win_notes["note_completed"].dropna()
-    avg_note_score = ns.mean() if len(ns) > 0 else 0.0
-    note_completion_rate = nc.mean() if len(nc) > 0 else 0.0
-
-    # Makeup ratio: % of lessons in window that are makeup sessions
-    # Students burn accumulated credits before quitting — high ratio = churn signal
-    is_makeup = win["lesson_type"].str.contains("MAKE.?UP", case=False, na=False)
-    n_makeup = is_makeup.sum()
-    makeup_ratio = n_makeup / n_win if n_win > 0 else 0.0
-
-    # Missed expected lessons in window: accumulating unused credits (early signal)
-    # Compare expected lessons (based on student's rhythm) to actual attendance
+    # ── Recency (RFM core) ──
     all_dt = lessons_df["lesson_date"].sort_values()
+    # For churned students: measure idle pattern 3-9 weeks BEFORE churn.
+    # Use the gap between the student's last lesson BEFORE ref_date 
+    # and the lesson before that — not the artificial 21-day observation gap.
+    pre_ref = all_dt[all_dt < ref_ts]
+    if len(pre_ref) >= 2:
+        days_since_last = (ref_ts - pre_ref.iloc[-1]).days
+        days_since_penultimate = (pre_ref.iloc[-1] - pre_ref.iloc[-2]).days
+    elif len(pre_ref) == 1:
+        days_since_last = (ref_ts - pre_ref.iloc[-1]).days
+        days_since_penultimate = 0
+    else:
+        days_since_last = 0
+        days_since_penultimate = 0
+
+    # ── Frequency trend (self-referenced, within-student) ──
+    # freq_trend_3mo: (lessons last 30d) / (lessons prior 30d)
+    recent_30 = lessons_df[(dt >= ref_ts - timedelta(days=30)) & (dt <= ref_ts)]
+    prior_30 = lessons_df[(dt >= ref_ts - timedelta(days=60)) & (dt < ref_ts - timedelta(days=30))]
+    freq_trend_3mo = len(recent_30) / max(len(prior_30), 1)
+
+    # ── Lesson cadence ──
     if len(all_dt) >= 3:
         spacings = all_dt.diff().dropna().dt.days
         avg_spacing = max(spacings.median(), 3.0)
+        lesson_spacing_std = spacings.std() if len(spacings) >= 2 else 0.0
     else:
         avg_spacing = 7.0
-    expected_in_window = 60.0 / avg_spacing  # how many lessons expected in 60 days
+        lesson_spacing_std = 0.0
+
+    # ── Tenure & investment ──
+    membership_days = (ref_ts - all_dt.min()).days
+    total_lessons = len(lessons_df)
+
+    # ── Instructor disruption ──
+    win_inst = win["instructor_id"].dropna()
+    teacher_consistency = win_inst.value_counts().iloc[0] / n_win if len(win_inst) > 0 else 0
+    instructor_changes = win_inst.nunique()
+
+    # ── Notes ──
+    note_agg = notes_df.groupby("lesson_id").agg(
+        note_score=("note_score", "max"),
+    ).reset_index()
+    win_notes = win.merge(note_agg, on="lesson_id", how="left")
+    ns = win_notes["note_score"].dropna()
+    avg_note_score = ns.mean() if len(ns) > 0 else 0.0
+
+    # ── Credit accumulation / burn ──
+    is_makeup = win["lesson_type"].str.contains("MAKE.?UP", case=False, na=False)
+    makeup_ratio = is_makeup.sum() / n_win if n_win > 0 else 0.0
+
+    # Makeup stockpile: estimated unused credits (90d accumulation)
+    expected_90d = 90.0 / max(avg_spacing, 1.0)
+    lessons_last_90d = len(lessons_df[(dt >= ref_ts - timedelta(days=90)) & (dt <= ref_ts)])
+    makeup_stockpile = max(0, expected_90d - lessons_last_90d)
+
+    # Missed in window (keeping for interaction)
+    expected_in_window = 60.0 / max(avg_spacing, 1.0)
     missed_in_window = max(0, expected_in_window - n_win)
+    makeup_x_missed = makeup_ratio * missed_in_window
 
     return dict(
         school_id=school,
-        attendance_ratio=attendance_ratio,
-        lessons_vs_baseline=lessons_vs_baseline,
+        days_since_last_lesson=days_since_last,
+        days_since_penultimate=days_since_penultimate,
+        freq_trend_3mo=freq_trend_3mo,
+        lesson_spacing_std=lesson_spacing_std,
+        membership_days=membership_days,
+        total_lessons_lifetime=total_lessons,
         teacher_consistency=teacher_consistency,
-        n_instructors=n_instructors,
+        instructor_changes=instructor_changes,
         avg_note_score=avg_note_score,
-        note_completion_rate=note_completion_rate,
         makeup_ratio=makeup_ratio,
+        makeup_stockpile=makeup_stockpile,
         missed_in_window=missed_in_window,
-        makeup_x_missed=makeup_ratio * missed_in_window,
+        makeup_x_missed=makeup_x_missed,
         n_lessons_window=n_win,
     )
 
@@ -192,16 +212,33 @@ def build_training_dataset(lessons_all, notes_all, today, baselines):
 # ── Train ──────────────────────────────────────────────────────
 
 FEATURES = [
-    "attendance_ratio", "lessons_vs_baseline", "teacher_consistency",
-    "avg_note_score", "note_completion_rate",
-    "makeup_ratio",            # % of lessons that are makeup sessions (credit burn)
-    "missed_in_window",        # expected lessons missed in 60d window (credit accumulation)
-    "makeup_x_missed",         # interaction: makeup × missed (high both = summer break, not churn)
-    # ── Communication sentiment features ──
-    "has_communication",       # sentinel: any comms on file
-    "total_cancel_hits",       # cancel/quit phrases across all channels
-    "total_concern_hits",      # cancel + dissat + schedule + financial
-    "positive_hits",           # positive engagement phrases
+    # ── Recency (core RFM) ──
+    "days_since_last_lesson",     # idle days — #1 churn predictor
+    "days_since_penultimate",     # gap acceleration between last 2 lessons
+    # ── Frequency trend (self-referenced) ──
+    "freq_trend_3mo",             # (last 30d / prior 30d), within-student decline
+    "lesson_spacing_std",         # irregularity of lesson schedule
+    # ── Tenure & investment ──
+    "membership_days",            # days since first lesson
+    "total_lessons_lifetime",     # total lessons — investment proxy
+    # ── Instructor ──
+    "teacher_consistency",        # % with most frequent instructor
+    "instructor_changes",         # distinct instructors in window — disruption
+    # ── Notes ──
+    "avg_note_score",             # strongest signal — instructor quality drops before churn
+    # ── Credits ──
+    "makeup_ratio",               # % makeup sessions (credit burn)
+    "makeup_stockpile",           # estimated unused credits — early warning
+    "missed_in_window",           # expected - actual in 60d window
+    "makeup_x_missed",            # interaction: high both = summer break
+    # ── Communication sentiment ──
+    "has_communication",          # sentinel: any comms on file
+    "communication_count",        # total messages matched — engagement volume
+    "total_cancel_hits",          # cancel/quit phrases across all channels
+    "total_concern_hits",         # cancel + dissat + schedule + financial
+    "positive_hits",              # positive engagement phrases
+    "avg_compound",               # VADER compound sentiment (overall tone)
+    "voicemail_sentiment",        # voicemail-only VADER — most variance
 ]
 
 
@@ -221,13 +258,22 @@ def train_model(X_train, y_train):
 
 
 def load_baselines():
-    """Load seasonal baselines from pickle."""
-    path = f"{MDIR}/seasonal_baselines.pkl"
+    """Load seasonal baselines v2 (pre-2025 data, 2023-2024).
+    Returns dict of (school_id, month) → {'seasonal_index': float}"""
+    # Try v2 first (pre-training baselines, no circularity)
+    path = f"{MDIR}/seasonal_baselines_v2.pkl"
     if not os.path.exists(path):
-        print("    (No baselines — run seasonal_baselines.py first)")
+        path = f"{MDIR}/seasonal_baselines.pkl"  # fallback to v1
+    if not os.path.exists(path):
+        print("    (No baselines — run seasonal_baselines_v2.py first)")
         return {}
     with open(path, "rb") as f:
-        return pickle.load(f)
+        raw = pickle.load(f)
+    # Normalize: return seasonal_index for (school_id, month)
+    baselines = {}
+    for key, val in raw.items():
+        baselines[key] = val.get("seasonal_index", val) if isinstance(val, dict) else val
+    return baselines
 
 
 def load_sentiment():
@@ -246,24 +292,32 @@ def load_sentiment():
         name = str(r["student_name"]).strip().lower()
         lookup[name] = dict(
             has_communication=1,
+            communication_count=int(r.get("total_messages", 0)),
             total_cancel_hits=int(r.get("total_cancel_hits", 0)),
             total_concern_hits=int(r.get("total_concern_hits", 0)),
             positive_hits=int(r.get("total_positive_hits", 0)),
+            avg_compound=float(r.get("avg_compound", 0) or 0),
+            voicemail_sentiment=float(r.get("voicemail_sentiment", 0) or 0),
         )
     return lookup
 
 
 def merge_sentiment(df, sent_lookup):
     """Add sentiment columns to a feature DataFrame (in-place)."""
-    for col in ["has_communication", "total_cancel_hits", "total_concern_hits", "positive_hits"]:
+    sent_cols = [
+        "has_communication", "total_cancel_hits", "total_concern_hits",
+        "positive_hits", "communication_count", "avg_compound",
+        "voicemail_sentiment",
+    ]
+    for col in sent_cols:
         if col not in df.columns:
-            df[col] = 0
+            df[col] = 0.0 if col in ("avg_compound", "voicemail_sentiment") else 0
     for i, row in df.iterrows():
         name = str(row.get("student_name", "")).strip().lower()
         if name in sent_lookup:
             s = sent_lookup[name]
-            for col in ["has_communication", "total_cancel_hits", "total_concern_hits", "positive_hits"]:
-                df.at[i, col] = s[col]
+            for col in sent_cols:
+                df.at[i, col] = s.get(col, 0)
 
 
 def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, baselines, today):
@@ -284,7 +338,9 @@ def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, baseline
 
         # Merge sentiment features
         s = sent_lookup.get(name.strip().lower(), {})
-        for col in ["has_communication", "total_cancel_hits", "total_concern_hits", "positive_hits"]:
+        for col in ["has_communication", "total_cancel_hits", "total_concern_hits",
+                     "positive_hits", "communication_count", "avg_compound",
+                     "voicemail_sentiment"]:
             feat[col] = s.get(col, 0)
 
         X_vals = np.array([[feat[f] for f in FEATURES]])
@@ -293,13 +349,13 @@ def predict_current(lessons_all, notes_all, model, scaler, sent_lookup, baseline
         results.append(dict(
             student_name=name, school_id=feat["school_id"],
             risk=risk, days_idle=days_idle,
-            attendance_ratio=feat["attendance_ratio"],
+            days_since_last=feat.get("days_since_last_lesson", days_idle),
             avg_note_score=feat["avg_note_score"],
-            note_completion_rate=feat["note_completion_rate"],
+            freq_trend_3mo=feat.get("freq_trend_3mo", 0),
             teacher_consistency=feat["teacher_consistency"],
-            n_instructors=feat["n_instructors"],
-            has_communication=feat["has_communication"],
-            cancel_hits=feat["total_cancel_hits"],
+            instructor_changes=feat.get("instructor_changes", 0),
+            has_communication=feat.get("has_communication", 0),
+            cancel_hits=feat.get("total_cancel_hits", 0),
         ))
     return pd.DataFrame(results)
 
@@ -370,18 +426,26 @@ def main():
     # ── 6. Sanity check coefficient signs ──
     print("\n[6] Coefficient sanity check:")
     expected_signs = {
-        "attendance_ratio": -1,       # declining = risky → negative expected
-        "lessons_vs_baseline": -1,    # below seasonal average = risky
-        "teacher_consistency": -1,    # less consistent = risky
-        "avg_note_score": -1,         # lower notes = risky
-        "note_completion_rate": -1,   # fewer completed = risky
-        "makeup_ratio": +1,            # more makeup sessions = burning credits before quit
-        "missed_in_window": +1,        # more missed expected lessons = accumulating credits
-        "makeup_x_missed": -1,         # interaction: high both = summer break (NOT churn)
-        "has_communication": 0,       # no expected sign (sentinel)
-        "total_cancel_hits": +1,      # more cancel phrases = higher risk
-        "total_concern_hits": +1,     # more concern phrases = higher risk
-        "positive_hits": -1,          # more positive phrases = lower risk
+        "days_since_last_lesson": +1,     # longer idle = risky
+        "days_since_penultimate": +1,     # wider gap = risky
+        "freq_trend_3mo": -1,             # declining frequency = risky
+        "lesson_spacing_std": +1,         # irregular schedule = risky
+        "membership_days": -1,            # newer member = risky (survival)
+        "total_lessons_lifetime": -1,     # fewer lessons = risky
+        "teacher_consistency": -1,        # less consistent = risky
+        "instructor_changes": +1,         # more changes = risky
+        "avg_note_score": -1,             # lower notes = risky
+        "makeup_ratio": +1,               # more makeup = burning credits
+        "makeup_stockpile": +1,           # more unused credits = accumulating
+        "missed_in_window": +1,           # more missed = accumulating
+        "makeup_x_missed": -1,            # high both = summer break (safe)
+        "has_communication": 0,           # sentinel — no expected sign
+        "communication_count": 0,         # volume — ambiguous (more = engaged OR complaining)
+        "total_cancel_hits": +1,          # more cancel phrases = risky (ambiguous)
+        "total_concern_hits": +1,         # more concern phrases = risky
+        "positive_hits": -1,              # more positive = engaged
+        "avg_compound": -1,               # more negative sentiment = risky
+        "voicemail_sentiment": -1,        # more negative voicemails = risky
     }
     wrong = 0
     for fname, coef in zip(FEATURES, model.coef_[0]):
