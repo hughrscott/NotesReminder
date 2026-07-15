@@ -171,7 +171,15 @@ def build_student_profile(student_name, data):
                 best_note = ns; break
     
     # SMS summary
-    recent_sms = [c["text"][:120] for c in all_comms if c["source"] == "sms"][:5]
+    # Filter out Dialpad API metadata from SMS
+    def _is_real_sms(text):
+        bad = ["dialpad", "redacted", "web list snippet", "api message", "sms message", 
+               "sms web", "web snippet"]
+        lower = text.lower()
+        return not any(b in lower for b in bad) and len(text) > 5
+    
+    sms_for_student = [c for c in all_comms if c["source"] == "sms" and _is_real_sms(c["text"])]
+    recent_sms = [c["text"][:120] for c in sms_for_student[:5]]
     
     return {
         "student": student_name, "school_id": school_id, "school": SCHOOL_NAMES.get(school_id, "Unknown"),
@@ -259,10 +267,13 @@ def generate_advice(profile):
         })
     
     if p.get("recent_sms"):
-        advice.append({
-            "type": "context",
-            "text": f"Recent parent messages: \"{p['recent_sms'][0][:100]}\""
-        })
+        # Only show if it looks like real human text
+        first_sms = p["recent_sms"][0]
+        if not any(b in first_sms.lower() for b in ["dialpad", "redacted", "web list", "api"]):
+            advice.append({
+                "type": "context",
+                "text": f"Recent parent message: \"{first_sms[:100]}\""
+            })
     
     # New student (very few lessons)
     if p["total_lessons"] < 10:
@@ -426,13 +437,76 @@ def generate_reports(profiles, risk_scores):
             lines.append("─" * 72)
             lines.append("")
             
-            for i, p in enumerate(active_critical[:15], 1):
-                arch = p.get("archetypes", [])
-                primary = arch[0] if arch else {}
-                secondary = arch[1] if len(arch) > 1 else None
+            # ── Batch dedup: collapse nearly-identical new-student entries ──
+            # Detect clusters: same days_idle, same archetype, total_lessons < 10, no comms
+            deduped = []
+            skip_idx = set()
+            
+            for i, p in enumerate(active_critical):
+                if i in skip_idx:
+                    continue
+                
+                # Check if this student is part of a similarity cluster
+                cluster = [p]
+                for j, q in enumerate(active_critical):
+                    if j <= i or j in skip_idx:
+                        continue
+                    if (p["days_idle"] == q["days_idle"] and 
+                        p["total_lessons"] == q["total_lessons"] and
+                        p["v12_risk"] == q["v12_risk"] and
+                        p.get("comm_count", 0) == 0 and q.get("comm_count", 0) == 0 and
+                        not p.get("best_note") and not q.get("best_note") and
+                        p["total_lessons"] < 10):
+                        cluster.append(q)
+                        skip_idx.add(j)
+                
+                if len(cluster) >= 3:
+                    # Batch entry
+                    names = [c["student"] for c in cluster]
+                    p0 = cluster[0]
+                    arch = p0.get("archetypes", [])
+                    primary = arch[0] if arch else {}
+                    deduped.append({
+                        "batch": True,
+                        "names": names,
+                        "count": len(names),
+                        "profile": p0,
+                        "primary": primary,
+                        "secondary": arch[1] if len(arch) > 1 else None,
+                    })
+                else:
+                    deduped.append({
+                        "batch": False,
+                        "profile": p,
+                        "primary": p.get("archetypes", [{}])[0],
+                        "secondary": p.get("archetypes", [{}])[1] if len(p.get("archetypes", [])) > 1 else None,
+                    })
+            
+            for item in deduped[:15]:
+                if item["batch"]:
+                    p = item["profile"]
+                    primary = item["primary"]
+                    names = item["names"]
+                    badge = f"⚠️ {p['days_idle']}d idle" if p['days_idle'] > 30 else f"📝 {p['total_lessons']} lessons"
+                    lines.append(f"  📦 {item['count']} STUDENTS — {p['v12_risk']:.0%} risk each | {badge}")
+                    lines.append(f"  🏷️  {primary.get('archetype', '?')} ({primary.get('speed', '?')}) — {primary.get('confidence', '?')} confidence")
+                    name_str = ", ".join(names[:4])
+                    if len(names) > 4:
+                        name_str += f" +{len(names)-4} more"
+                    lines.append(f"     Students: {name_str}")
+                    # Single advice block
+                    for advice_item in primary.get("playbook", []):
+                        prefix = {"hook": "💬", "red_flag": "🚩", "action": "→", "concern": "⚠️", "positive": "✅", "context": "📋", "gap": "❓"}.get(advice_item["type"], "•")
+                        lines.append(f"     {prefix} {advice_item['text']}")
+                    lines.append("")
+                    continue
+                
+                p = item["profile"]
+                primary = item["primary"]
+                secondary = item["secondary"]
                 
                 badge = f"⚠️ {p['days_idle']}d idle" if p['days_idle'] > 30 else f"📝 {p['total_lessons']} lessons"
-                lines.append(f"  {i}. {p['student']} — {p['v12_risk']:.0%} risk | {badge}")
+                lines.append(f"  {p['student']} — {p['v12_risk']:.0%} risk | {badge}")
                 lines.append(f"  🏷️  {primary.get('archetype', '?')} ({primary.get('speed', '?')}) — {primary.get('confidence', '?')} confidence")
                 if secondary: lines.append(f"     Also: {secondary['archetype']}")
                 

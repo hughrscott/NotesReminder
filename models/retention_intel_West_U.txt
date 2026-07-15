@@ -29,33 +29,30 @@ and attendance data — not a template. Each student's advice is unique to their
 🔴 ACTIONABLE — 14 students (contact this week)
 ────────────────────────────────────────────────────────────────────────
 
-  1. Michael Branstetter — 89% risk | ⚠️ 46d idle
+  Michael Branstetter — 89% risk | ⚠️ 46d idle
   🏷️  Comm Red Flags (urgent) — high confidence
      Also: Disengagement
      💬 Their last strong session was 2026-05-30 (scored 7). The instructor wrote: "Today we talked about quarter notes and eighth notes and one of our students even knew what sixteenth notes were! we did some clapping games to learn "
      🚩 ⚠️ Parent has used cancel/discontinue language in communications. This is the most urgent signal — direct outreach needed.
      ✅ Parent has been very communicative (27 messages/calls). They're engaged — use that relationship.
-     📋 Recent parent messages: "[redacted Dialpad SMS API message]"
      ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → DIRECT OUTREACH. Parent has signaled intent to leave. GM should call personally. Reference their progress, acknowledge any concerns, offer a solution.
 
-  2. Ed Reybitz — 89% risk | ⚠️ 107d idle
+  Ed Reybitz — 89% risk | ⚠️ 107d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-03-18 (scored 5). The instructor wrote: "Added and reviewed exercises into the method app.  Reviewed and worked on open chords  C majorD majorE major F major - barre or power chordG majorA ma"
-     📋 Recent parent messages: "[redacted Dialpad SMS web list snippet]"
      ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → No contact for 107 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
 
-  3. Addison Woods — 87% risk | ⚠️ 109d idle
+  Addison Woods — 87% risk | ⚠️ 109d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: New Student Risk
      💬 Their last strong session was 2026-02-28. The instructor wrote: "Awesome job today, Addison! Today we played Radioactive, Zombie, and Evil Ways. We learned the musical alphabet with sharps and flats and we learned h"
-     📋 Recent parent messages: "[redacted Dialpad SMS API message]"
      📋 Only 7 lessons on record — still in onboarding. Standard welcome outreach, confirm they understand the program.
      → No contact for 109 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
 
-  4. Alejandro Meyer — 84% risk | 📝 47 lessons
+  Alejandro Meyer — 84% risk | 📝 47 lessons
   🏷️  Schedule Conflict (ongoing) — medium confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-06-18 (scored 5). The instructor wrote: "Great job today guys! Our concert will be tomorrow at 12:00! Please come dressed like a rock star so we can put on a show for the ages! We will be pla"
@@ -63,15 +60,14 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 8 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
 
-  5. Renner Campbell — 83% risk | 📝 11 lessons
+  Renner Campbell — 83% risk | 📝 11 lessons
   🏷️  Schedule Conflict (ongoing) — medium confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2025-08-08. The instructor wrote: "Hello parents! I just wanted to send out a reminder that today's show will take place at 12:00. See you all then!"
-     📋 Recent parent messages: "[redacted Dialpad SMS web list snippet]"
      ⚠️ They've had 3 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
 
-  6. Masha Khurana Vu — 83% risk | ⚠️ 67d idle
+  Masha Khurana Vu — 83% risk | ⚠️ 67d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-03-21 (scored 7). The instructor wrote: "Hello Little wings!In this lesson we started practicing the musical note rhythms: Whole, half, quarter, eighth and 16th note, we clapped, jumped and p"
@@ -79,7 +75,7 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 6 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  7. Eric Neal — 80% risk | ⚠️ 117d idle
+  Eric Neal — 80% risk | ⚠️ 117d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-03-20 (scored 2). The instructor wrote: "Hi Guys,We are currently running a promo on our summer camps! For the next two days we are taking 15% off of any camp with code 15LUCKY. Not sure what"
@@ -87,7 +83,7 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 6 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  8. Sebastian Harrison — 78% risk | ⚠️ 57d idle
+  Sebastian Harrison — 78% risk | ⚠️ 57d idle
   🏷️  Disengagement (rapid) — high confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-04-14 (scored 6). The instructor wrote: "Awesome job today guys! Today we played our cherry beet rhythm game. We reviewed our rhythm notation. We played Hey, Good Looking and everyone rotated"
@@ -95,14 +91,13 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 5 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  9. Jasmin Benitez — 78% risk | 📝 12 lessons
+  Jasmin Benitez — 78% risk | 📝 12 lessons
   🏷️  Instructor Relationship (threshold) — medium confidence
      💬 Their last strong session was 2026-06-15 (scored 8). The instructor wrote: "Great work this week at rehearsal! We worked on some songs we know well, and started mapping out new ones like “My Sharona” - The Knack, “I Believe in"
-     📋 Recent parent messages: "[redacted Dialpad SMS API message]"
      ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → 27 days since last lesson. Gentle check-in — 'just wanted to make sure everything's okay, we'd love to see you back.'
 
-  10. Nivy Arya — 77% risk | ⚠️ 105d idle
+  Nivy Arya — 77% risk | ⚠️ 105d idle
   🏷️  Disengagement (gradual) — high confidence
      Also: Schedule Conflict
      💬 Their last strong session was 2026-03-18 (scored 6). The instructor wrote: "In this lesson we studied page 3: warm up exercises and double stroke variations, page 41: half time shuffle, keep practicing page 40 and 41, great jo"
@@ -110,16 +105,15 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 2 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  11. Mabel Anderson-Holland — 75% risk | ⚠️ 46d idle
+  Mabel Anderson-Holland — 75% risk | ⚠️ 46d idle
   🏷️  Disengagement (rapid) — high confidence
      Also: Instructor Relationship
      💬 Their last strong session was 2026-05-30 (scored 8). The instructor wrote: "Today we tried out our new Rock 101 class structure by beginning class in the Break-out rooms (separating the class based on instrument played and the"
      ✅ Scores were improving before they stopped (avg: 6.7). They were on an upward trajectory — remind them of this.
-     📋 Recent parent messages: "[redacted Dialpad SMS web list snippet]"
      ⚠️ They've had 4 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → No contact for 46 days. Reach out directly — ask if there was a specific reason they stopped. Reference what they were working on.
 
-  12. Jake Krieger — 72% risk | ⚠️ 46d idle
+  Jake Krieger — 72% risk | ⚠️ 46d idle
   🏷️  Disengagement (rapid) — high confidence
      Also: Schedule Conflict
      💬 Their last strong session was 2026-05-30 (scored 8). The instructor wrote: "Awesome job today! We warmed up with our beet/ cherry rhythm game and then we played freeze dance. We reviewed our rhythm notation and clapped differe"
@@ -127,14 +121,13 @@ and attendance data — not a template. Each student's advice is unique to their
      ⚠️ They've had 5 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Silent disengagement — no comms, no notes indicating why they stopped. Try to reach parent, but don't push if unresponsive.
 
-  13. John David Cunningham Nauls — 72% risk | 📝 22 lessons
+  John David Cunningham Nauls — 72% risk | 📝 22 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
      💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
-     📋 Recent parent messages: "[redacted Dialpad SMS API message]"
      ⚠️ They've had 7 different instructors — low consistency. Ask if they've connected with any particular teacher.
      → Still attending but flagged as at-risk by model. Review note quality and instructor consistency before reaching out.
 
-  14. Mateo Bapat — 71% risk | 📝 54 lessons
+  Mateo Bapat — 71% risk | 📝 54 lessons
   🏷️  Instructor Relationship (threshold) — high confidence
      💬 Their last strong session was 2026-06-06 (scored 7). The instructor wrote: "Today we went over our basic rhythms and type of notes again and then we began learning about the difference between Low and High pitched notes and ho"
      ❓ No parent communications on file. Collect phone/email — there's no way to reach them currently.
