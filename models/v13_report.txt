@@ -1,0 +1,20 @@
+SOR CHURN MODEL v13 — BUILD REPORT
+Generated: 2026-07-16T00:43:11.484366
+Today (label cutoff): 2026-07-16
+
+LABEL SOURCE: Pike13 manual membership export (Hugh paste, 540 rows).
+Leaver (1) = last plan end_date in past (no renewal). Active (0) = future end / local active.
+
+LOOKBACK  |  n  |  positives  |  CV AUC (5-fold)
+   15d    |  869  |     99      |  0.926
+   30d    |  869  |     99      |  0.935
+   60d    |  869  |     99      |  0.940
+   90d    |  869  |     99      |  0.942
+
+EXTERNAL HOLDOUT: insufficient data
+
+CAVEATS:
+- Paste is name-bridged to local students; 110/540 rows resolved, 99 with clean end dates.
+- Comms features are ZERO — voicemail name-bridge matched nothing (dialpad names are parents, not students). v13 is currently a pure attendance/tenure model. SMS voicemail matching via comms_name_matches.json NOT yet wired in.
+- Negatives include local active students (last lesson <=180d); may contain unlabeled old leavers.
+- pike13_plans_passes.ends_at was unusable (UI text); we used the paste instead.
