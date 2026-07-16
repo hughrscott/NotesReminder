@@ -1,0 +1,1530 @@
+{
+  "week": "2026-07-16",
+  "generated": "2026-07-16T19:36:57.222613",
+  "recommendations": {
+    "jasmin benitez": {
+      "name": "Jasmin Benitez",
+      "churn": 0.975,
+      "actions": [
+        "\ud83d\udcde Call parent at 8324528977 \u2014 check on attendance gap",
+        "Offer make-up lesson or schedule adjustment",
+        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the rehearsal, highlighting specific songs worked on and outlining a plan for future practices. It includes acti...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "ian laird": {
+      "name": "Ian Laird",
+      "churn": 0.928,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide basic information about the end of camp performance, including set times and group names. However, they lack specificity regarding t...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "zachary bang": {
+      "name": "zachary bang",
+      "churn": 0.917,
+      "actions": [
+        "Offer make-up lesson or schedule adjustment",
+        "\ud83d\udcdd Recent note insight: \"The notes provide specific details about the lesson content, including the focus on unique voicings and rearranging chords. It acknowledges the studen...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "gabriella webster": {
+      "name": "Gabriella Webster",
+      "churn": 0.892,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The note is extremely weak and lacks any specific details about the lesson content, progress, or areas for improvement. It does not provide any action...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "denise ben": {
+      "name": "Denise Ben",
+      "churn": 0.881,
+      "actions": [
+        "\ud83d\udcf1 Send personalized SMS to 7139626766 \u2014 no communication in record, re-engage",
+        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, detailing specific activities like building a drum beat and discussing technique. There is evidence...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "cashel kemp": {
+      "name": "cashel kemp",
+      "churn": 0.874,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson activities and progress, mentioning specific songs and techniques used. However, it lacks detailed fe...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "kareem sadoun": {
+      "name": "Kareem Sadoun",
+      "churn": 0.862,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, highlighting specific techniques practiced (dexterity, single stroke rolls, rudiments) and songs wor...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "antuaneth vereau": {
+      "name": "Antuaneth Vereau",
+      "churn": 0.849,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide a general reminder about song names and artists, which is acceptable but lacks specific details about individual student progress or...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "francisco perez": {
+      "name": "Francisco Perez",
+      "churn": 0.849,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, highlighting specific songs and areas of focus for improvement. The feedback is positive and actiona...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    },
+    "quintus yan": {
+      "name": "Quintus Yan",
+      "churn": 0.843,
+      "actions": [
+        "\ud83d\udcdd Recent note insight: \"The notes provide a general overview of the lesson activities and mention a specific song, but they lack detailed feedback on individual student progr...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
+        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+      ]
+    }
+  },
+  "scores": {
+    "aaron wiles": {
+      "churn_probability": 0.366
+    },
+    "adam caplan": {
+      "churn_probability": 0.761
+    },
+    "adam cohen": {
+      "churn_probability": 0.324
+    },
+    "aelan merszei": {
+      "churn_probability": 0.38
+    },
+    "aidan pena": {
+      "churn_probability": 0.508
+    },
+    "aiden awar": {
+      "churn_probability": 0.226
+    },
+    "aiden guevera": {
+      "churn_probability": 0.407
+    },
+    "aiden he": {
+      "churn_probability": 0.089
+    },
+    "akaash wadhwa": {
+      "churn_probability": 0.405
+    },
+    "alastor williamson": {
+      "churn_probability": 0.527
+    },
+    "alec reyer": {
+      "churn_probability": 0.063
+    },
+    "alejandro meyer": {
+      "churn_probability": 0.418
+    },
+    "alex cabrales": {
+      "churn_probability": 0.151
+    },
+    "alex garcia": {
+      "churn_probability": 0.715
+    },
+    "alex le": {
+      "churn_probability": 0.097
+    },
+    "alexandra yzquierdo": {
+      "churn_probability": 0.388
+    },
+    "aleyna montemayor": {
+      "churn_probability": 0.153
+    },
+    "alezzandra reyes": {
+      "churn_probability": 0.782
+    },
+    "alina wang": {
+      "churn_probability": 0.131
+    },
+    "aliya gulamhussein": {
+      "churn_probability": 0.388
+    },
+    "alp kaya": {
+      "churn_probability": 0.047
+    },
+    "alyssa shoemaker": {
+      "churn_probability": 0.277
+    },
+    "amaranth woods": {
+      "churn_probability": 0.007
+    },
+    "amaya talreja": {
+      "churn_probability": 0.361
+    },
+    "amelia miller": {
+      "churn_probability": 0.467
+    },
+    "andrea diaz de vivar": {
+      "churn_probability": 0.009
+    },
+    "andrew garcia": {
+      "churn_probability": 0.073
+    },
+    "ani moore": {
+      "churn_probability": 0.353
+    },
+    "annabelle ruan": {
+      "churn_probability": 0.418
+    },
+    "annie esquivel": {
+      "churn_probability": 0.657
+    },
+    "antione yared": {
+      "churn_probability": 0.102
+    },
+    "antonella massolini": {
+      "churn_probability": 0.388
+    },
+    "antonio schurmann": {
+      "churn_probability": 0.054
+    },
+    "antuaneth vereau": {
+      "churn_probability": 0.849
+    },
+    "ari sotuyo": {
+      "churn_probability": 0.646
+    },
+    "ariana bustamante": {
+      "churn_probability": 0.445
+    },
+    "asher fu": {
+      "churn_probability": 0.453
+    },
+    "ashok verma": {
+      "churn_probability": 0.07
+    },
+    "ashwin verma": {
+      "churn_probability": 0.079
+    },
+    "aspen achor": {
+      "churn_probability": 0.095
+    },
+    "astrid torres": {
+      "churn_probability": 0.611
+    },
+    "austin hwang": {
+      "churn_probability": 0.45
+    },
+    "austin smith": {
+      "churn_probability": 0.074
+    },
+    "ava washko": {
+      "churn_probability": 0.709
+    },
+    "avi saxena": {
+      "churn_probability": 0.521
+    },
+    "aya nabbout": {
+      "churn_probability": 0.011
+    },
+    "ayaz ozyeser": {
+      "churn_probability": 0.228
+    },
+    "aziz siddiqui": {
+      "churn_probability": 0.021
+    },
+    "baron chen": {
+      "churn_probability": 0.133
+    },
+    "barrett gonsalves": {
+      "churn_probability": 0.124
+    },
+    "barton weaver": {
+      "churn_probability": 0.383
+    },
+    "beatrice dahl": {
+      "churn_probability": 0.267
+    },
+    "beatrix chancellor": {
+      "churn_probability": 0.338
+    },
+    "benjamin he": {
+      "churn_probability": 0.061
+    },
+    "benjamin silva": {
+      "churn_probability": 0.119
+    },
+    "benjamin yzquierdo": {
+      "churn_probability": 0.281
+    },
+    "blake altenau": {
+      "churn_probability": 0.506
+    },
+    "boulder greene": {
+      "churn_probability": 0.47
+    },
+    "bowen rodgers": {
+      "churn_probability": 0.054
+    },
+    "brandon montalvo": {
+      "churn_probability": 0.11
+    },
+    "brian dzwonek": {
+      "churn_probability": 0.411
+    },
+    "brian piana": {
+      "churn_probability": 0.014
+    },
+    "bryce goldstein": {
+      "churn_probability": 0.127
+    },
+    "caio maricevich": {
+      "churn_probability": 0.014
+    },
+    "caitlyn yip": {
+      "churn_probability": 0.007
+    },
+    "caleb shannon": {
+      "churn_probability": 0.327
+    },
+    "callum goicoechea": {
+      "churn_probability": 0.221
+    },
+    "camila casiano": {
+      "churn_probability": 0.388
+    },
+    "camila love calderon": {
+      "churn_probability": 0.494
+    },
+    "camilo sosa": {
+      "churn_probability": 0.831
+    },
+    "canon prasad": {
+      "churn_probability": 0.057
+    },
+    "carmine cascio": {
+      "churn_probability": 0.092
+    },
+    "caroline barrett": {
+      "churn_probability": 0.054
+    },
+    "caroline serrato": {
+      "churn_probability": 0.023
+    },
+    "cas friedman": {
+      "churn_probability": 0.588
+    },
+    "cash hobeika": {
+      "churn_probability": 0.227
+    },
+    "cashel kemp": {
+      "churn_probability": 0.874
+    },
+    "cat collings": {
+      "churn_probability": 0.75
+    },
+    "cavett myerson": {
+      "churn_probability": 0.084
+    },
+    "charlie clarke": {
+      "churn_probability": 0.544
+    },
+    "charlie forbes": {
+      "churn_probability": 0.438
+    },
+    "charlie james": {
+      "churn_probability": 0.103
+    },
+    "charlie pallister": {
+      "churn_probability": 0.297
+    },
+    "chloe ochoa": {
+      "churn_probability": 0.695
+    },
+    "chris spaur": {
+      "churn_probability": 0.131
+    },
+    "claire cohen": {
+      "churn_probability": 0.37
+    },
+    "claire harris": {
+      "churn_probability": 0.484
+    },
+    "claire moncrief": {
+      "churn_probability": 0.244
+    },
+    "claire nodskov": {
+      "churn_probability": 0.439
+    },
+    "claire weaver": {
+      "churn_probability": 0.383
+    },
+    "clare tran": {
+      "churn_probability": 0.133
+    },
+    "clark jones": {
+      "churn_probability": 0.032
+    },
+    "conley veit": {
+      "churn_probability": 0.111
+    },
+    "connor klein": {
+      "churn_probability": 0.028
+    },
+    "connor wang": {
+      "churn_probability": 0.269
+    },
+    "cora gilmore": {
+      "churn_probability": 0.402
+    },
+    "cora pilie": {
+      "churn_probability": 0.383
+    },
+    "coral egan": {
+      "churn_probability": 0.387
+    },
+    "counce chancellor": {
+      "churn_probability": 0.546
+    },
+    "daniel romero": {
+      "churn_probability": 0.499
+    },
+    "daniella yalon": {
+      "churn_probability": 0.11
+    },
+    "danny gordon": {
+      "churn_probability": 0.578
+    },
+    "daphne scrutchin": {
+      "churn_probability": 0.076
+    },
+    "dasha kuzmin": {
+      "churn_probability": 0.018
+    },
+    "dave hinderaker": {
+      "churn_probability": 0.096
+    },
+    "david godwin": {
+      "churn_probability": 0.715
+    },
+    "david holmes": {
+      "churn_probability": 0.093
+    },
+    "david holmes jr.": {
+      "churn_probability": 0.663
+    },
+    "deacon graham": {
+      "churn_probability": 0.244
+    },
+    "denis tanisman": {
+      "churn_probability": 0.237
+    },
+    "denise ben": {
+      "churn_probability": 0.881
+    },
+    "deven mathuria": {
+      "churn_probability": 0.114
+    },
+    "dexter layne": {
+      "churn_probability": 0.791
+    },
+    "diego de almeida": {
+      "churn_probability": 0.079
+    },
+    "diego joachim": {
+      "churn_probability": 0.408
+    },
+    "dominique yared": {
+      "churn_probability": 0.237
+    },
+    "douglas kemp": {
+      "churn_probability": 0.497
+    },
+    "dylan charles": {
+      "churn_probability": 0.12
+    },
+    "dylan kemp": {
+      "churn_probability": 0.297
+    },
+    "dylan mcmillan": {
+      "churn_probability": 0.113
+    },
+    "edwin guel": {
+      "churn_probability": 0.011
+    },
+    "eissa raushan": {
+      "churn_probability": 0.211
+    },
+    "eitan yalon": {
+      "churn_probability": 0.205
+    },
+    "elena benson": {
+      "churn_probability": 0.171
+    },
+    "elijah segura": {
+      "churn_probability": 0.43
+    },
+    "elizabeth \"liz\" akkam": {
+      "churn_probability": 0.496
+    },
+    "ella de dios": {
+      "churn_probability": 0.058
+    },
+    "ellie egan": {
+      "churn_probability": 0.505
+    },
+    "ellie melugin": {
+      "churn_probability": 0.087
+    },
+    "elliot mack": {
+      "churn_probability": 0.09
+    },
+    "elliot titus": {
+      "churn_probability": 0.128
+    },
+    "eloise lewis": {
+      "churn_probability": 0.394
+    },
+    "emelia hinojosa": {
+      "churn_probability": 0.477
+    },
+    "emerson campbell": {
+      "churn_probability": 0.561
+    },
+    "emilia puzio": {
+      "churn_probability": 0.043
+    },
+    "emmanuel gonzalez": {
+      "churn_probability": 0.449
+    },
+    "enzo murphy mahmoud": {
+      "churn_probability": 0.43
+    },
+    "eric villarreal": {
+      "churn_probability": 0.524
+    },
+    "eva perez gligic": {
+      "churn_probability": 0.388
+    },
+    "eve burfitt": {
+      "churn_probability": 0.116
+    },
+    "evelyn livezey": {
+      "churn_probability": 0.423
+    },
+    "everleigh major": {
+      "churn_probability": 0.261
+    },
+    "ezra chiang": {
+      "churn_probability": 0.599
+    },
+    "finn mcdermand": {
+      "churn_probability": 0.168
+    },
+    "finn tran": {
+      "churn_probability": 0.501
+    },
+    "foley cage iii": {
+      "churn_probability": 0.513
+    },
+    "francisco fallon": {
+      "churn_probability": 0.574
+    },
+    "francisco perez": {
+      "churn_probability": 0.849
+    },
+    "gabby garofalo": {
+      "churn_probability": 0.149
+    },
+    "gabriel chand": {
+      "churn_probability": 0.15
+    },
+    "gabriel valenti": {
+      "churn_probability": 0.654
+    },
+    "gabriella webster": {
+      "churn_probability": 0.892
+    },
+    "gavin maxwell": {
+      "churn_probability": 0.436
+    },
+    "geoffrey hawker": {
+      "churn_probability": 0.208
+    },
+    "gianna wiseman": {
+      "churn_probability": 0.725
+    },
+    "grady miles": {
+      "churn_probability": 0.016
+    },
+    "gray gough": {
+      "churn_probability": 0.094
+    },
+    "g\u2019 angelo pulido": {
+      "churn_probability": 0.503
+    },
+    "hannah appiah": {
+      "churn_probability": 0.042
+    },
+    "harper wittman": {
+      "churn_probability": 0.607
+    },
+    "hattie emmett": {
+      "churn_probability": 0.029
+    },
+    "hayes brown": {
+      "churn_probability": 0.108
+    },
+    "hazel hittner": {
+      "churn_probability": 0.333
+    },
+    "hazel szalkowski": {
+      "churn_probability": 0.104
+    },
+    "hendrik kivett": {
+      "churn_probability": 0.066
+    },
+    "henry thorp": {
+      "churn_probability": 0.42
+    },
+    "hudson chapman": {
+      "churn_probability": 0.553
+    },
+    "hughston levit": {
+      "churn_probability": 0.2
+    },
+    "ian byrne": {
+      "churn_probability": 0.051
+    },
+    "ian laird": {
+      "churn_probability": 0.928
+    },
+    "ian neumann": {
+      "churn_probability": 0.384
+    },
+    "imani horne": {
+      "churn_probability": 0.061
+    },
+    "indie rexilius": {
+      "churn_probability": 0.168
+    },
+    "isa vargas": {
+      "churn_probability": 0.065
+    },
+    "isa wood": {
+      "churn_probability": 0.07
+    },
+    "isaac avila": {
+      "churn_probability": 0.772
+    },
+    "isaac coldren": {
+      "churn_probability": 0.545
+    },
+    "isaac mayer": {
+      "churn_probability": 0.101
+    },
+    "isabella figon-merritt": {
+      "churn_probability": 0.615
+    },
+    "isabella martinez": {
+      "churn_probability": 0.222
+    },
+    "isabella wiseman": {
+      "churn_probability": 0.486
+    },
+    "isabella zhao": {
+      "churn_probability": 0.545
+    },
+    "isabelle tombar": {
+      "churn_probability": 0.016
+    },
+    "ishan kalidindi": {
+      "churn_probability": 0.221
+    },
+    "ishant tipps": {
+      "churn_probability": 0.439
+    },
+    "isla laird": {
+      "churn_probability": 0.489
+    },
+    "izobel feiden": {
+      "churn_probability": 0.326
+    },
+    "jace wang": {
+      "churn_probability": 0.38
+    },
+    "jack hawkins": {
+      "churn_probability": 0.014
+    },
+    "jack james": {
+      "churn_probability": 0.063
+    },
+    "jack noble": {
+      "churn_probability": 0.373
+    },
+    "jackson frigo": {
+      "churn_probability": 0.359
+    },
+    "jackson layne": {
+      "churn_probability": 0.787
+    },
+    "jackson woods": {
+      "churn_probability": 0.086
+    },
+    "jacob moore": {
+      "churn_probability": 0.495
+    },
+    "jake krieger": {
+      "churn_probability": 0.106
+    },
+    "james pallister": {
+      "churn_probability": 0.297
+    },
+    "james shoemaker": {
+      "churn_probability": 0.088
+    },
+    "james xiang": {
+      "churn_probability": 0.09
+    },
+    "janvi kalidindi": {
+      "churn_probability": 0.383
+    },
+    "jasencio cardenas-torres": {
+      "churn_probability": 0.148
+    },
+    "jasmin benitez": {
+      "churn_probability": 0.975
+    },
+    "jason seabrook": {
+      "churn_probability": 0.457
+    },
+    "javier hernandez": {
+      "churn_probability": 0.067
+    },
+    "javier ortiz": {
+      "churn_probability": 0.034
+    },
+    "jay boya": {
+      "churn_probability": 0.032
+    },
+    "jayce reed": {
+      "churn_probability": 0.465
+    },
+    "jeff brabham": {
+      "churn_probability": 0.077
+    },
+    "jennifer quesada": {
+      "churn_probability": 0.242
+    },
+    "jenny latham": {
+      "churn_probability": 0.585
+    },
+    "jesse yip": {
+      "churn_probability": 0.068
+    },
+    "jessica gonzalez": {
+      "churn_probability": 0.402
+    },
+    "jessica shepard": {
+      "churn_probability": 0.512
+    },
+    "jesus franco": {
+      "churn_probability": 0.457
+    },
+    "jocelyn nix": {
+      "churn_probability": 0.503
+    },
+    "joe (jose) blanco": {
+      "churn_probability": 0.387
+    },
+    "joel goldberg": {
+      "churn_probability": 0.126
+    },
+    "john david cunningham nauls": {
+      "churn_probability": 0.487
+    },
+    "john gonzales": {
+      "churn_probability": 0.581
+    },
+    "jolene o'brien": {
+      "churn_probability": 0.076
+    },
+    "jonah danziger": {
+      "churn_probability": 0.634
+    },
+    "jose afonso": {
+      "churn_probability": 0.325
+    },
+    "josephine borges": {
+      "churn_probability": 0.175
+    },
+    "josh benitez": {
+      "churn_probability": 0.674
+    },
+    "jude aleman": {
+      "churn_probability": 0.612
+    },
+    "jude burkland": {
+      "churn_probability": 0.556
+    },
+    "jules browning": {
+      "churn_probability": 0.165
+    },
+    "julia cooper": {
+      "churn_probability": 0.763
+    },
+    "julia gilmore": {
+      "churn_probability": 0.226
+    },
+    "juniper gardner": {
+      "churn_probability": 0.097
+    },
+    "justin mcfierce": {
+      "churn_probability": 0.11
+    },
+    "kai ayyala": {
+      "churn_probability": 0.363
+    },
+    "kai deoras": {
+      "churn_probability": 0.03
+    },
+    "kaiya agrawal": {
+      "churn_probability": 0.085
+    },
+    "kallum (kal) paranjpe": {
+      "churn_probability": 0.365
+    },
+    "kamilla moreno": {
+      "churn_probability": 0.248
+    },
+    "kareem sadoun": {
+      "churn_probability": 0.862
+    },
+    "karly scott": {
+      "churn_probability": 0.015
+    },
+    "kasra kashani": {
+      "churn_probability": 0.47
+    },
+    "katie sommers": {
+      "churn_probability": 0.497
+    },
+    "kayla agrawal": {
+      "churn_probability": 0.083
+    },
+    "kc messa": {
+      "churn_probability": 0.076
+    },
+    "khaleesi fulin": {
+      "churn_probability": 0.011
+    },
+    "khushi athuru": {
+      "churn_probability": 0.473
+    },
+    "kirby bova": {
+      "churn_probability": 0.072
+    },
+    "knox barnett": {
+      "churn_probability": 0.49
+    },
+    "krystal torres": {
+      "churn_probability": 0.603
+    },
+    "kuzey ozyeser": {
+      "churn_probability": 0.161
+    },
+    "kyee young": {
+      "churn_probability": 0.085
+    },
+    "kyle barker": {
+      "churn_probability": 0.298
+    },
+    "lark trude": {
+      "churn_probability": 0.213
+    },
+    "larry swonke": {
+      "churn_probability": 0.525
+    },
+    "lauren hilliard": {
+      "churn_probability": 0.048
+    },
+    "leaf mcguigan": {
+      "churn_probability": 0.691
+    },
+    "lennon lennon": {
+      "churn_probability": 0.153
+    },
+    "leo hun": {
+      "churn_probability": 0.244
+    },
+    "leo odell": {
+      "churn_probability": 0.493
+    },
+    "leonor seiter": {
+      "churn_probability": 0.075
+    },
+    "levi richard": {
+      "churn_probability": 0.544
+    },
+    "levi shannon": {
+      "churn_probability": 0.379
+    },
+    "lex rigamonti": {
+      "churn_probability": 0.101
+    },
+    "liam chow": {
+      "churn_probability": 0.151
+    },
+    "liam douglas": {
+      "churn_probability": 0.102
+    },
+    "liam godoy": {
+      "churn_probability": 0.487
+    },
+    "lily chabarria": {
+      "churn_probability": 0.186
+    },
+    "lincoln falchetti": {
+      "churn_probability": 0.297
+    },
+    "lincoln greer": {
+      "churn_probability": 0.405
+    },
+    "linnie jeter": {
+      "churn_probability": 0.166
+    },
+    "logan shin": {
+      "churn_probability": 0.422
+    },
+    "louis hinderaker": {
+      "churn_probability": 0.354
+    },
+    "louis tyson": {
+      "churn_probability": 0.621
+    },
+    "louiza alice": {
+      "churn_probability": 0.153
+    },
+    "lucas de almeida": {
+      "churn_probability": 0.042
+    },
+    "lucas gates": {
+      "churn_probability": 0.033
+    },
+    "lucas ibarra": {
+      "churn_probability": 0.259
+    },
+    "lucas klemm": {
+      "churn_probability": 0.256
+    },
+    "lucas mills": {
+      "churn_probability": 0.113
+    },
+    "lucas wang": {
+      "churn_probability": 0.489
+    },
+    "lucas wilson": {
+      "churn_probability": 0.165
+    },
+    "lucia odbayar": {
+      "churn_probability": 0.097
+    },
+    "lucy brasher": {
+      "churn_probability": 0.49
+    },
+    "luisa montealegre": {
+      "churn_probability": 0.797
+    },
+    "luke scott": {
+      "churn_probability": 0.111
+    },
+    "luke woods": {
+      "churn_probability": 0.197
+    },
+    "mabel anderson-holland": {
+      "churn_probability": 0.125
+    },
+    "mackenzie castellanos-hayes": {
+      "churn_probability": 0.428
+    },
+    "maddie dahlstrand": {
+      "churn_probability": 0.383
+    },
+    "maddox brignac": {
+      "churn_probability": 0.025
+    },
+    "mairin rodgers": {
+      "churn_probability": 0.296
+    },
+    "marco anderson": {
+      "churn_probability": 0.059
+    },
+    "maren hall": {
+      "churn_probability": 0.433
+    },
+    "margo synhorst": {
+      "churn_probability": 0.129
+    },
+    "margot fisher": {
+      "churn_probability": 0.42
+    },
+    "maria maricevich": {
+      "churn_probability": 0.02
+    },
+    "mark holden": {
+      "churn_probability": 0.552
+    },
+    "marley wexler": {
+      "churn_probability": 0.174
+    },
+    "marston brill": {
+      "churn_probability": 0.497
+    },
+    "marylou garza": {
+      "churn_probability": 0.304
+    },
+    "masha khurana vu": {
+      "churn_probability": 0.133
+    },
+    "mason hopper": {
+      "churn_probability": 0.186
+    },
+    "mateo bapat": {
+      "churn_probability": 0.412
+    },
+    "mateo papo": {
+      "churn_probability": 0.052
+    },
+    "matthew cave": {
+      "churn_probability": 0.33
+    },
+    "matthew gates": {
+      "churn_probability": 0.011
+    },
+    "matthew grahmann": {
+      "churn_probability": 0.022
+    },
+    "matthias renteria": {
+      "churn_probability": 0.116
+    },
+    "max krieger": {
+      "churn_probability": 0.066
+    },
+    "max miranda": {
+      "churn_probability": 0.485
+    },
+    "max sharma": {
+      "churn_probability": 0.341
+    },
+    "maxwell giltner": {
+      "churn_probability": 0.387
+    },
+    "maxwell wilson": {
+      "churn_probability": 0.275
+    },
+    "maya landa": {
+      "churn_probability": 0.297
+    },
+    "meera craig": {
+      "churn_probability": 0.018
+    },
+    "megan miller": {
+      "churn_probability": 0.6
+    },
+    "mei tang": {
+      "churn_probability": 0.145
+    },
+    "mia bolivar": {
+      "churn_probability": 0.033
+    },
+    "michael branstetter": {
+      "churn_probability": 0.229
+    },
+    "michal chaloupka": {
+      "churn_probability": 0.42
+    },
+    "mila johnson": {
+      "churn_probability": 0.323
+    },
+    "milaya kilroy": {
+      "churn_probability": 0.468
+    },
+    "miles maxian": {
+      "churn_probability": 0.742
+    },
+    "mina rudolf": {
+      "churn_probability": 0.104
+    },
+    "miranda sevcik": {
+      "churn_probability": 0.431
+    },
+    "miriam halim": {
+      "churn_probability": 0.564
+    },
+    "natalia morales": {
+      "churn_probability": 0.388
+    },
+    "nelly reed": {
+      "churn_probability": 0.331
+    },
+    "niall mcculloch": {
+      "churn_probability": 0.175
+    },
+    "nicholas morales": {
+      "churn_probability": 0.705
+    },
+    "nico davis": {
+      "churn_probability": 0.332
+    },
+    "nicolas benson": {
+      "churn_probability": 0.12
+    },
+    "nina loperena": {
+      "churn_probability": 0.123
+    },
+    "nina tripathy": {
+      "churn_probability": 0.052
+    },
+    "noa deoras": {
+      "churn_probability": 0.021
+    },
+    "noa niemczak": {
+      "churn_probability": 0.082
+    },
+    "noah friedman": {
+      "churn_probability": 0.257
+    },
+    "noah promecene": {
+      "churn_probability": 0.025
+    },
+    "noelle garcia": {
+      "churn_probability": 0.499
+    },
+    "nora jamea": {
+      "churn_probability": 0.434
+    },
+    "norah potnuru": {
+      "churn_probability": 0.075
+    },
+    "oliver del aguila": {
+      "churn_probability": 0.471
+    },
+    "oliver werner": {
+      "churn_probability": 0.677
+    },
+    "olivia telleen": {
+      "churn_probability": 0.388
+    },
+    "olivia titus": {
+      "churn_probability": 0.002
+    },
+    "orion good": {
+      "churn_probability": 0.017
+    },
+    "orla mcculloch": {
+      "churn_probability": 0.375
+    },
+    "oscar jasnault": {
+      "churn_probability": 0.533
+    },
+    "owen neiter": {
+      "churn_probability": 0.207
+    },
+    "parker fusilier": {
+      "churn_probability": 0.241
+    },
+    "parker groschl": {
+      "churn_probability": 0.452
+    },
+    "parker pinnell": {
+      "churn_probability": 0.515
+    },
+    "parker schroder": {
+      "churn_probability": 0.021
+    },
+    "patricia collins": {
+      "churn_probability": 0.351
+    },
+    "paul schurmann": {
+      "churn_probability": 0.596
+    },
+    "pedro sousa": {
+      "churn_probability": 0.012
+    },
+    "peighton pesl": {
+      "churn_probability": 0.633
+    },
+    "penelope morton": {
+      "churn_probability": 0.425
+    },
+    "penn piegari": {
+      "churn_probability": 0.363
+    },
+    "peter robinson": {
+      "churn_probability": 0.033
+    },
+    "phillip hinderaker": {
+      "churn_probability": 0.035
+    },
+    "phoenix greene": {
+      "churn_probability": 0.434
+    },
+    "phoenix hollingsworth salinas": {
+      "churn_probability": 0.256
+    },
+    "pia pozzoli": {
+      "churn_probability": 0.064
+    },
+    "pierce owens": {
+      "churn_probability": 0.383
+    },
+    "piper bova": {
+      "churn_probability": 0.072
+    },
+    "pj bruegger": {
+      "churn_probability": 0.063
+    },
+    "prathna makkar": {
+      "churn_probability": 0.652
+    },
+    "preston kradjian": {
+      "churn_probability": 0.024
+    },
+    "preston pannell": {
+      "churn_probability": 0.02
+    },
+    "qirin wijaya": {
+      "churn_probability": 0.453
+    },
+    "quinn gallo": {
+      "churn_probability": 0.014
+    },
+    "quinn pausche": {
+      "churn_probability": 0.05
+    },
+    "quintus yan": {
+      "churn_probability": 0.843
+    },
+    "rachel duran": {
+      "churn_probability": 0.475
+    },
+    "rachel wang": {
+      "churn_probability": 0.233
+    },
+    "rafi ahmad": {
+      "churn_probability": 0.272
+    },
+    "raiden kilroy": {
+      "churn_probability": 0.465
+    },
+    "ramzy abdallah": {
+      "churn_probability": 0.332
+    },
+    "razi hassanzadeh": {
+      "churn_probability": 0.022
+    },
+    "remy paal": {
+      "churn_probability": 0.297
+    },
+    "renner campbell": {
+      "churn_probability": 0.017
+    },
+    "reynold nebel": {
+      "churn_probability": 0.2
+    },
+    "rhea saxena": {
+      "churn_probability": 0.314
+    },
+    "rhett mcmillan": {
+      "churn_probability": 0.132
+    },
+    "rhys sullivan": {
+      "churn_probability": 0.03
+    },
+    "ricardo qui\u00f1onez": {
+      "churn_probability": 0.143
+    },
+    "richard smith": {
+      "churn_probability": 0.697
+    },
+    "rithik thomas": {
+      "churn_probability": 0.42
+    },
+    "river garwil": {
+      "churn_probability": 0.507
+    },
+    "robert jones": {
+      "churn_probability": 0.417
+    },
+    "robert salazar": {
+      "churn_probability": 0.011
+    },
+    "rohan thomas": {
+      "churn_probability": 0.42
+    },
+    "roman krieger": {
+      "churn_probability": 0.066
+    },
+    "roman martinez": {
+      "churn_probability": 0.656
+    },
+    "rook abasolo": {
+      "churn_probability": 0.299
+    },
+    "rory farnham": {
+      "churn_probability": 0.086
+    },
+    "rory journeay": {
+      "churn_probability": 0.772
+    },
+    "rose bolon-egan": {
+      "churn_probability": 0.387
+    },
+    "rowan sisco": {
+      "churn_probability": 0.339
+    },
+    "ruhaan talreja": {
+      "churn_probability": 0.382
+    },
+    "rushil bansal": {
+      "churn_probability": 0.159
+    },
+    "russ haws": {
+      "churn_probability": 0.2
+    },
+    "sabrina trauschke": {
+      "churn_probability": 0.775
+    },
+    "safiyya nizami": {
+      "churn_probability": 0.511
+    },
+    "samuel elder": {
+      "churn_probability": 0.127
+    },
+    "samuel smith": {
+      "churn_probability": 0.147
+    },
+    "santiago parra": {
+      "churn_probability": 0.003
+    },
+    "sara tirschwell": {
+      "churn_probability": 0.162
+    },
+    "savannah matheson": {
+      "churn_probability": 0.417
+    },
+    "sebastian anez": {
+      "churn_probability": 0.465
+    },
+    "sebastian harrison": {
+      "churn_probability": 0.124
+    },
+    "sebastian wexler": {
+      "churn_probability": 0.174
+    },
+    "seby henrichs": {
+      "churn_probability": 0.352
+    },
+    "shanelle bershad": {
+      "churn_probability": 0.239
+    },
+    "shiloh williams": {
+      "churn_probability": 0.583
+    },
+    "shivani aranke": {
+      "churn_probability": 0.29
+    },
+    "simon hewamudalige": {
+      "churn_probability": 0.383
+    },
+    "simone huse": {
+      "churn_probability": 0.076
+    },
+    "simran lacy": {
+      "churn_probability": 0.109
+    },
+    "sofi sotuyo": {
+      "churn_probability": 0.768
+    },
+    "sofia lopez": {
+      "churn_probability": 0.159
+    },
+    "sofia shanley": {
+      "churn_probability": 0.332
+    },
+    "sonny gardenhire": {
+      "churn_probability": 0.281
+    },
+    "sophia yared": {
+      "churn_probability": 0.35
+    },
+    "sorin tutos": {
+      "churn_probability": 0.271
+    },
+    "spencer ellahham": {
+      "churn_probability": 0.36
+    },
+    "spencer levitt": {
+      "churn_probability": 0.757
+    },
+    "stella reeves": {
+      "churn_probability": 0.01
+    },
+    "stella salazar": {
+      "churn_probability": 0.02
+    },
+    "sudarshan ganesh": {
+      "churn_probability": 0.507
+    },
+    "suri navai": {
+      "churn_probability": 0.587
+    },
+    "sydney ahles": {
+      "churn_probability": 0.088
+    },
+    "sydney may": {
+      "churn_probability": 0.213
+    },
+    "theo ropper": {
+      "churn_probability": 0.584
+    },
+    "thomas autrique": {
+      "churn_probability": 0.332
+    },
+    "thomas dunn": {
+      "churn_probability": 0.408
+    },
+    "thomas knox": {
+      "churn_probability": 0.046
+    },
+    "thompson rice": {
+      "churn_probability": 0.578
+    },
+    "tierra bami": {
+      "churn_probability": 0.013
+    },
+    "todd beeby": {
+      "churn_probability": 0.155
+    },
+    "tommy greer": {
+      "churn_probability": 0.163
+    },
+    "trey hinkle": {
+      "churn_probability": 0.386
+    },
+    "tristan davis": {
+      "churn_probability": 0.312
+    },
+    "troy hawkes": {
+      "churn_probability": 0.075
+    },
+    "tyler jensen-roman": {
+      "churn_probability": 0.397
+    },
+    "valentin gokhman": {
+      "churn_probability": 0.297
+    },
+    "valentina betancourt": {
+      "churn_probability": 0.198
+    },
+    "ved agrawal": {
+      "churn_probability": 0.253
+    },
+    "veronica behera": {
+      "churn_probability": 0.016
+    },
+    "vianne nguyen": {
+      "churn_probability": 0.07
+    },
+    "vic wang": {
+      "churn_probability": 0.453
+    },
+    "victoria romero": {
+      "churn_probability": 0.591
+    },
+    "vida chung": {
+      "churn_probability": 0.723
+    },
+    "vikram aiyer": {
+      "churn_probability": 0.23
+    },
+    "vikram hariharan": {
+      "churn_probability": 0.72
+    },
+    "violette haisler": {
+      "churn_probability": 0.498
+    },
+    "vivienne haisler": {
+      "churn_probability": 0.588
+    },
+    "walker brown": {
+      "churn_probability": 0.621
+    },
+    "wesley siesennop": {
+      "churn_probability": 0.043
+    },
+    "will bisson": {
+      "churn_probability": 0.071
+    },
+    "william counts": {
+      "churn_probability": 0.073
+    },
+    "william elder": {
+      "churn_probability": 0.109
+    },
+    "william jensen": {
+      "churn_probability": 0.271
+    },
+    "william mccooey": {
+      "churn_probability": 0.015
+    },
+    "winnie griffin": {
+      "churn_probability": 0.18
+    },
+    "wren o'pry": {
+      "churn_probability": 0.767
+    },
+    "xavier lizarraga": {
+      "churn_probability": 0.393
+    },
+    "ximena duque": {
+      "churn_probability": 0.42
+    },
+    "xonali vela": {
+      "churn_probability": 0.088
+    },
+    "yasmine de la rosa": {
+      "churn_probability": 0.129
+    },
+    "yates griffin": {
+      "churn_probability": 0.052
+    },
+    "zach meyers": {
+      "churn_probability": 0.185
+    },
+    "zachary allen": {
+      "churn_probability": 0.057
+    },
+    "zachary bang": {
+      "churn_probability": 0.917
+    },
+    "zachary harmon": {
+      "churn_probability": 0.165
+    },
+    "zara raza": {
+      "churn_probability": 0.065
+    },
+    "zoey guevera": {
+      "churn_probability": 0.54
+    }
+  }
+}
