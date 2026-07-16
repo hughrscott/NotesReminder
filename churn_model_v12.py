@@ -366,8 +366,10 @@ def train_v12(comm_features):
     labeled = pd.read_csv(labeled_path)
     print(f"\n  Labeled students: {len(labeled)} ({labeled['churned'].sum()} churned)")
 
-    # Merge with comm features
-    merged = labeled.merge(comm_features, left_on="student_name", right_on="student", how="left")
+    # Merge with comm features (case-insensitive)
+    labeled["name_lower"] = labeled["student_name"].str.lower().str.strip()
+    comm_features["student_lower"] = comm_features["student"].str.lower().str.strip()
+    merged = labeled.merge(comm_features, left_on="name_lower", right_on="student_lower", how="left")
 
     # Fill missing comm features with 0 (no comms = zero signal)
     comm_cols = [c for c in comm_features.columns if c != "student"]

@@ -1,4 +1,4 @@
-"""Quick one-shot: scrape ex-members (has_membership: f, Last Membership End Date non-empty)
+"""Quick one-shot: scrape ex-members (last_membership_end non-empty)
 Stores in pike13_memberships table."""
 import asyncio, sys, sqlite3, os
 from datetime import datetime, timezone
@@ -12,7 +12,8 @@ SCHOOL = sys.argv[1] if len(sys.argv) > 1 else "westu-sor"
 
 async def main():
     subdomain = f"{SCHOOL}.pike13.com"
-    url = f"https://{subdomain}/desk/reports#/people/details?filters=(has_membership:!((eq:!(f))))&hide=1,4,5,6,7,8,10,13,16,17,18,19,24,25,26,28,29,30,31,32,34,36,37,38,39,57"
+    # Use People Details report with last_membership_end filter (all dates, not just date range)
+    url = f"https://{subdomain}/desk/reports#/people/details?filters=(last_membership_end:!((empty:!(no))))&sort=(col:last_membership_end,order:d)&hide=1,4,5,6,7,8,10,13,16,17,18,19,24,25,26,28,29,30,31,32,34,36,37,38,39,57"
 
     conn = sqlite3.connect(DB)
     captured_at = datetime.now(timezone.utc).isoformat()

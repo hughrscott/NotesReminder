@@ -19021,8 +19021,8 @@
     "avg_score": 5.25,
     "score_trend": "stable",
     "keyword_hits": {
-      "financial": 4,
-      "positive": 4
+      "positive": 4,
+      "financial": 4
     },
     "is_on_hold": false
   },
@@ -30144,8 +30144,8 @@
     "avg_score": null,
     "score_trend": "stable",
     "keyword_hits": {
-      "cancellation": 6,
-      "scheduling_stress": 2
+      "scheduling_stress": 2,
+      "cancellation": 6
     },
     "is_on_hold": false
   },
