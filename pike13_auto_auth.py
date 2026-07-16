@@ -155,32 +155,38 @@ async def enter_mfa_code(page, code: str) -> bool:
     """Enter the 6-digit MFA code into Pike13's OTP input fields."""
     print(f"  Entering MFA code: {code}")
 
-    # Pike13 has two sets of OTP inputs:
-    #   1. Hidden inputs with class="otp-digit" (0x0, not visible)
-    #   2. Visible inputs with class="otp-digit email-otp-digit"
-    # Target the VISIBLE ones. Button text is "Verify and Sign In".
-
+    # Pike13 OTP inputs: visible inputs with class="otp-digit email-otp-digit"
     otp_inputs = page.locator('input.otp-digit.email-otp-digit')
     otp_count = await otp_inputs.count()
     print(f"  Visible OTP inputs found: {otp_count}")
 
     if otp_count >= 6:
-        for i, digit in enumerate(code):
-            await otp_inputs.nth(i).fill(digit, timeout=10000)
-            await page.wait_for_timeout(100)
+        # Click first input to focus, then type the code — keyboard events
+        # trigger JS validation that .fill() misses
+        await otp_inputs.nth(0).click(timeout=5000)
+        await page.wait_for_timeout(200)
+        await page.keyboard.type(code, delay=80)
+        await page.wait_for_timeout(1500)
 
-        await page.wait_for_timeout(1000)
+        # Check if auto-submit happened (some OTP forms submit on 6th digit)
+        current_url = page.url
+        if "two_factor" not in current_url:
+            print("  OTP auto-submitted — already past MFA")
+            return True
 
+        # Otherwise click Verify button
         verify_btn = page.locator(
-            'button:has-text("Verify"), input[type="submit"]:has-text("Verify")'
-        )
-        if await verify_btn.count() > 0:
-            await verify_btn.first.click()
+            'button:has-text("Verify"), input[type="submit"]'
+        ).first
+        if await verify_btn.count() > 0 and await verify_btn.is_visible():
+            await verify_btn.click(timeout=5000)
             print("  Clicked Verify and Sign In")
             await page.wait_for_timeout(5000)
             return True
         else:
-            print("  No Verify button found")
+            # Try pressing Enter on the last OTP field
+            print("  No Verify button — trying Enter on last field")
+            await otp_inputs.nth(5).press("Enter", timeout=5000)
             await page.wait_for_timeout(5000)
             return True
 

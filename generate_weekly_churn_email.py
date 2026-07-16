@@ -30,8 +30,9 @@ TRACKING_PATH = MODELS_DIR / "weekly_recommendations.json"
 
 TODAY = date.today()
 LOOKBACK = 90
-TOP_N_CHURN = 10   # How many at-risk students to highlight
-TOP_N_RETURN = 5   # How many returning students to highlight
+TOP_N_CHURN = 10       # How many at-risk students to highlight
+TOP_N_RETURN = 5       # How many returning students to highlight
+CHURN_THRESHOLD = 0.5  # Pareto: top ~5% of churn scores among real members
 
 
 # ─── 1. DATA LOADING ───
@@ -221,74 +222,76 @@ def generate_reasons(feat, student_name, con):
         reasons.append(f"No lessons in {feat['days_since_last']} days")
     if feat["freq_decline_ratio"] < 0.5:
         reasons.append(f"Attendance declining (last 30d: {feat['lessons_30d']} vs prior: {feat['freq_decline_ratio']:.1f}x)")
-    if feat["max_gap_days"] > 30:
-        reasons.append(f"Longest gap: {feat['max_gap_days']} days between lessons")
     if feat["gap_std"] > 15:
         reasons.append("Inconsistent attendance pattern")
-    if feat["comms_engagement_total"] == 0:
-        reasons.append("No parent communication — 'quiet quit' risk")
-    if feat["comms_engagement_avg_risk"] > 0.3:
+    if feat["max_gap_days"] > 30 and feat["days_since_last"] < 14:
+        reasons.append(f"Historical gap: {feat['max_gap_days']} days between lessons (now back to regular attendance)")
+    elif feat["max_gap_days"] > 30:
+        reasons.append(f"Longest gap: {feat['max_gap_days']} days between lessons")
+    if feat["comms_engagement_total"] == 0 and feat["days_since_last"] > 14:
+        reasons.append("No parent communication and attendance gap — 'quiet quit' risk")
+    elif feat["comms_engagement_total"] == 0:
+        reasons.append("No parent communication on record")
+    if feat["comms_engagement_avg_risk"] > 0.5:
         reasons.append(f"Recent comms show disengagement (risk: {feat['comms_engagement_avg_risk']:.1f})")
     if feat["comms_engagement_cancellation_rate"] > 0:
         reasons.append(f"Cancellation calls: {feat['comms_engagement_cancellation_rate']:.0%} of comms")
     if feat["lessons_30d"] == 0 and feat["lessons_60d"] > 3:
         reasons.append("Recent attendance drop-off")
     
+    if not reasons:
+        reasons.append("Model-flagged based on lesson pattern decline")
     return reasons
 
 
 def generate_actions(feat, student_info, student_name, con):
-    """Generate personalized action recommendations."""
+    """Generate specific, actionable recommendations based on data signals."""
     actions = []
-    
-    # Contact-based actions
+    days = feat["days_since_last"]
+    comms_total = feat["comms_engagement_total"]
     phone = student_info.get("phone", "")
     email = student_info.get("email", "")
+    name = student_info.get("full_name", student_name)
     
-    if feat["days_since_last"] > 14:
-        if phone:
-            actions.append(f"📞 Call parent at {phone} — check on attendance gap")
-        elif email:
-            actions.append(f"📧 Email {email} — check on attendance gap")
+    # 1. Attendance gap
+    if days > 21:
+        actions.append(f"No lessons in {days} days. Call {phone or email} to ask if they intend to return and whether scheduling is the issue. If no response within 5 days, follow up once more before archiving.")
+    elif days > 14:
+        actions.append(f"{days} days since last lesson. Reach out to confirm next scheduled session and address any barriers to attendance.")
     
+    # 2. Quiet quit — no communication
+    if comms_total == 0 and days > 14:
+        actions.append(f"No parent communication on record. Send a brief, friendly check-in — \"Hi, wanted to make sure everything is going well with {name}'s lessons. Let us know if there's anything we can adjust.\"")
+    
+    # 3. Cancellation pattern
     if feat["comms_engagement_cancellation_rate"] > 0:
-        actions.append("Discuss schedule flexibility — recent cancellations suggest scheduling conflict")
+        actions.append(f"Recent cancellations suggest scheduling friction. Offer to move to a more convenient time slot or discuss a temporary pause rather than a full stop.")
     
-    if feat["comms_engagement_total"] == 0:
-        if phone:
-            actions.append(f"📱 Send personalized SMS to {phone} — no communication in record, re-engage")
-        elif email:
-            actions.append(f"📧 Send re-engagement email to {email}")
-    
+    # 4. Frequency decline
     if feat["freq_decline_ratio"] < 0.5:
-        actions.append("Offer make-up lesson or schedule adjustment")
+        actions.append(f"Lesson frequency has dropped. Ask whether the current pace still works — suggest consolidating to fewer but longer sessions if that would help.")
     
-    # Look for recent instructor notes for personalization
-    notes_text = ""
+    # 5. Instructor note signal
     notes_rows = con.execute("""
-        SELECT ln.note_score_explanation, l.lesson_date
-        FROM lesson_notes ln JOIN lessons l ON ln.lesson_id = l.lesson_id
-        WHERE l.students_raw LIKE ? AND ln.note_score_explanation IS NOT NULL
-        ORDER BY l.lesson_date DESC LIMIT 3
-    """, (f"%{student_info.get('full_name', student_name)}%",)).fetchall()
+        SELECT ln.note_score, l.lesson_date, l.lesson_type, i.instructor_name
+        FROM lesson_notes ln 
+        JOIN lessons l ON ln.lesson_id = l.lesson_id
+        LEFT JOIN instructors i ON l.instructor_id = i.instructor_id
+        WHERE l.students_raw LIKE ? AND ln.note_score IS NOT NULL
+        ORDER BY l.lesson_date DESC LIMIT 1
+    """, (f"%{name}%",)).fetchone()
     
-    for nr in notes_rows:
-        if nr[0]:
-            notes_text += nr[0][:200] + " "
-    
-    if notes_text:
-        actions.append(f"📝 Recent note insight: \"{notes_text[:150].strip()}...\"")
-    
-    # Look for recent comms for personalization
-    comms_rows = con.execute("""
-        SELECT body, message_at FROM dialpad_sms_messages
-        WHERE body IS NOT NULL AND body != '' AND (body LIKE ? OR body LIKE ?)
-        ORDER BY message_at DESC LIMIT 2
-    """, (f"%{student_info.get('first_name', '')}%", f"%{student_name.split('_')[0]}%")).fetchall()
-    
-    if comms_rows:
-        for cr in comms_rows:
-            actions.append(f"💬 Recent SMS: \"{cr[0][:120]}...\"")
+    if notes_rows:
+        score = notes_rows[0] or 0
+        lesson_type = notes_rows[2] or ""
+        instructor = notes_rows[3] or "instructor"
+        
+        if score >= 8:
+            actions.append(f"Recent lesson note scored {score:.0f}/10 (detailed and substantive) — {instructor} noted good progress. Leverage this by suggesting a performance milestone or recording to build commitment.")
+        elif score <= 4:
+            actions.append(f"Recent instructor note scored {score:.0f}/10 (brief/generic — not necessarily a student issue). Follow up with {instructor} to get a real read on how {name} is doing.")
+        else:
+            actions.append(f"Recent {lesson_type} ({score:.0f}/10) with {instructor}. Check in to confirm {name} is progressing and hasn't plateaued.")
     
     return actions
 
@@ -358,8 +361,9 @@ def generate_return_talking_points(student, con):
     if last_note:
         points.append(f'Note: "{last_note[0][:200]}"')
     
-    points.append(f"Welcome back after {student['days_on_hold']} days — check schedule availability")
-    points.append("Ask: 'What brought you back?' and listen for commitment signals")
+    # Standard talking points
+    points.append(f"Returning after {student['days_on_hold']} days — confirm schedule availability")
+    points.append("Ask what brought them back and listen for commitment signals")
     
     return points
 
@@ -384,7 +388,7 @@ def check_followups(prev_recs, con):
             if "call" in action.lower() or "📞" in action:
                 calls = con.execute("""
                     SELECT COUNT(*) FROM dialpad_calls
-                    WHERE date >= ? AND date <= ?
+                    WHERE date_started >= ? AND date_started <= ?
                 """, (last_week, str(TODAY))).fetchone()[0]
                 statuses.append(f"{'✓' if calls > 0 else '✗'} Phone call {'made' if calls > 0 else 'NOT made'}")
             
@@ -409,105 +413,93 @@ def check_followups(prev_recs, con):
 # ─── 7. EMAIL GENERATION ───
 
 def format_email(at_risk, returning, score_changes, followups, total_students):
-    """Format the weekly churn intelligence email as markdown."""
+    """Format the weekly churn intelligence email — professional, dense, no emoji."""
     lines = []
-    
-    # Subject
-    lines.append(f"# 🎸 Weekly Churn Intelligence — {TODAY.strftime('%B %d, %Y')}")
+
+    # Header
+    lines.append(f"School of Rock — Weekly Churn Intelligence")
+    lines.append(f"{TODAY.strftime('%B %d, %Y')}")
+    lines.append("=" * 60)
     lines.append("")
-    
+
     # Executive Summary
-    at_risk_count = len(at_risk)
-    returning_count = len(returning)
-    total_at_risk = sum(1 for _, s in score_changes.items() if s["churn_probability"] > 0.3)
-    followup_incomplete = sum(1 for f in followups if not f["all_done"])
-    
-    lines.append("## 📊 Executive Summary")
+    n_at_risk = len(at_risk)
+    n_returning = len(returning)
+    n_changes = len(score_changes)
+    n_followup = len(followups)
+
+    lines.append(f"{total_students} students monitored. {n_at_risk} at risk (churn probability >= {CHURN_THRESHOLD:.0%}).")
+    lines.append(f"{n_returning} returning from on-hold. {n_followup} follow-up items from last week.")
     lines.append("")
-    lines.append(f"| Metric | Value |")
-    lines.append(f"|---|---|")
-    lines.append(f"| Students monitored | {total_students} |")
-    lines.append(f"| At risk (score > 0.3) | **{total_at_risk}** |")
-    lines.append(f"| Top churn risks | {at_risk_count} highlighted below |")
-    lines.append(f"| Returning from hold | {returning_count} |")
-    lines.append(f"| Follow-ups incomplete | {followup_incomplete} |")
-    lines.append("")
-    
-    # Section 1: Likely to Churn
-    lines.append("---")
-    lines.append(f"## 🚨 Top {at_risk_count} Students Likely to Churn")
-    lines.append("")
-    
-    for i, student in enumerate(at_risk, 1):
-        s = student
-        lines.append(f"### {i}. {s['name']} — Churn Risk: **{s['churn']:.0%}**")
-        if s.get("score_change"):
-            delta = s["score_change"]
-            arrow = "↑" if delta > 0.05 else "↓" if delta < -0.05 else "→"
-            lines.append(f"*Score change: {arrow} {delta:+.0%}*")
+
+    # Section 1: At-Risk Students
+    if at_risk:
+        lines.append("AT-RISK STUDENTS")
+        lines.append("-" * 60)
         lines.append("")
-        lines.append(f"**School:** {s['school']} | **Membership:** {s['membership']}")
+        for i, s in enumerate(at_risk, 1):
+            school = s["school"]
+            membership = s["membership"]
+            lines.append(f"{i}. {s['name']}  |  {s['churn']:.0%} risk  |  {school}  |  {membership}")
+            if s.get("score_change") and abs(s["score_change"]) > 0.02:
+                arrow = "+" if s["score_change"] > 0 else ""
+                lines[-1] += f"  |  {arrow}{s['score_change']:+.0%} change"
+            lines.append(f"   Risk factors: {'; '.join(s['reasons'][:3])}")
+            lines.append(f"   Actions: {'; '.join(s['actions'][:3])}")
+            lines.append("")
         lines.append("")
-        lines.append("**Why at risk:**")
-        for reason in s["reasons"]:
-            lines.append(f"- {reason}")
-        lines.append("")
-        lines.append("**Recommended actions:**")
-        for action in s["actions"]:
-            lines.append(f"- {action}")
-        lines.append("")
-    
-    # Section 2: Returning from Hold
+
+    # Section 2: Returning from On-Hold
     if returning:
-        lines.append("---")
-        lines.append(f"## 🔙 Returning from On-Hold — Next 2 Weeks")
+        lines.append("RETURNING FROM ON-HOLD (next 14 days)")
+        lines.append("-" * 60)
         lines.append("")
-        
-        for i, student in enumerate(returning, 1):
-            s = student
-            lines.append(f"### {i}. {s['name']} — Back after {s['days_on_hold']} days")
-            lines.append(f"*On hold since: {s['end_date']} | Last lesson: {s['last_lesson'].date()} ({s['lesson_gap_days']} days ago)*")
+        for s in returning:
+            lines.append(f"  {s['name']} — {s['days_on_hold']} days on hold")
+            lines.append(f"  Last lesson: {s['last_lesson'].date()} ({s['lesson_gap_days']} days ago)")
+            if s.get("talking_points"):
+                tp = s["talking_points"][0] if s["talking_points"] else ""
+                lines.append(f"  {tp}")
             lines.append("")
-            lines.append("**Talking points:**")
-            for point in s["talking_points"]:
-                lines.append(f"- {point}")
-            lines.append("")
-    
+        lines.append("")
+
     # Section 3: Score Changes
-    lines.append("---")
-    lines.append(f"## 📈 Churn Score Changes (Week-over-Week)")
-    lines.append("")
-    
     if score_changes:
-        changes = sorted(score_changes.items(), key=lambda x: abs(x[1].get("change", 0)), reverse=True)[:5]
-        lines.append("| Student | Current Score | Change | Trend |")
-        lines.append("|---|---|---|---|")
-        for name, info in changes:
-            curr = info["churn_probability"]
-            change = info.get("change", 0) if info.get("change") is not None else 0
-            arrow = "🔺" if change > 0.02 else "🔻" if change < -0.02 else "➖"
-            lines.append(f"| {info.get('name', name)} | {curr:.0%} | {change:+.0%} | {arrow} |")
-        lines.append("")
-    else:
-        lines.append("*No prior week data for comparison — baseline scores established this week.*")
-        lines.append("")
-    
-    # Section 4: Follow-Ups
-    if followups:
-        lines.append("---")
-        lines.append(f"## ✅ Follow-Up: Last Week's Recommendations")
-        lines.append("")
-        
-        for f in followups:
-            status_icon = "✅" if f["all_done"] else "⚠️"
-            lines.append(f"### {status_icon} {f['student']}")
-            for s in f["statuses"]:
-                lines.append(f"- {s}")
+        significant = [(n, i) for n, i in score_changes.items() if i.get("change") and abs(i["change"]) > 0.02]
+        if significant:
+            lines.append("SCORE CHANGES (>2pp movement)")
+            lines.append("-" * 60)
+            lines.append(f"  {'Student':<25s} {'Score':>6s} {'Change':>8s}")
+            lines.append(f"  {'-'*25} {'-'*6} {'-'*8}")
+            for name, info in sorted(significant, key=lambda x: -abs(x[1]["change"]))[:10]:
+                curr = info["churn_probability"]
+                change = info["change"]
+                lines.append(f"  {info.get('name', name):<25s} {curr:>5.0%} {change:>+8.0%}")
             lines.append("")
-    
-    lines.append("---")
-    lines.append(f"*Generated by Hermes Churn Intelligence | {TODAY.strftime('%Y-%m-%d %H:%M')}*")
-    
+        else:
+            lines.append("SCORE CHANGES")
+            lines.append("-" * 60)
+            lines.append("  No significant changes this week (baseline established).")
+            lines.append("")
+
+    # Section 4: Follow-Ups (only if real data from prior week)
+    if followups:
+        real_followups = [f for f in followups if f.get("statuses")]
+        # Check if any follow-up has actual status items (not just first-run empty)
+        has_real = any("NOT sent" not in s and "PENDING" not in s for f in real_followups for s in f.get("statuses", []))
+        if real_followups and has_real:
+            lines.append("FOLLOW-UP STATUS")
+            lines.append("-" * 60)
+            for f in real_followups:
+                status = "DONE" if f["all_done"] else "PENDING"
+                lines.append(f"  {f['student']}: {status}")
+                for s in f["statuses"]:
+                    lines.append(f"    {s}")
+            lines.append("")
+
+    lines.append("=" * 60)
+    lines.append(f"Generated {TODAY.strftime('%Y-%m-%d')} | Hermes Churn Intelligence v14")
+
     return "\n".join(lines)
 
 
@@ -531,8 +523,23 @@ def main():
     scored = sorted(predictions.items(), key=lambda x: -x[1]["churn_probability"])
     at_risk = []
     
-    for name, info in scored[:TOP_N_CHURN]:
-        if info["churn_probability"] < 0.15:
+    for name, info in scored:
+        # Skip trial/lead entries — not real members
+        membership = (info.get("membership") or "").lower()
+        if not membership or "trial" in membership or "free" in membership or "camp" in membership:
+            continue
+        
+        # Skip students with no Pike13 profile (no membership data)
+        if membership == "unknown" or info.get("school", "unknown").lower() == "unknown":
+            continue
+        
+        # Skip if they're already on hold (leavers list)
+        if name in leavers:
+            continue
+        
+        if len(at_risk) >= TOP_N_CHURN:
+            break
+        if info["churn_probability"] < CHURN_THRESHOLD:
             break
         reasons = generate_reasons(info["features"], name, con)
         actions = generate_actions(info["features"], info, name, con)
