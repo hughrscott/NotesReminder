@@ -19,7 +19,17 @@ async def scrape_holds(school_slug):
         
         url = f"https://{school_slug}.pike13.com/desk/reports#/person_plans/details?filters=(is_on_hold:!((eq:!(t))))"
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        await page.wait_for_timeout(10000)
+        # Wait on evidence, not a blind sleep: an authenticated report has a
+        # table; an expired session redirects to sign-in / two-factor.
+        await page.wait_for_function(
+            """() => document.querySelector('table') !== null
+                    || location.pathname.includes('sign_in')
+                    || location.pathname.includes('two_factor')""",
+            timeout=30000,
+        )
+        if "sign_in" in page.url or "two_factor" in page.url:
+            raise RuntimeError(f"Pike13 session expired while loading hold report: {page.url}")
+        await page.wait_for_timeout(2000)
         
         rows = await page.evaluate("""() => {
             const tables = document.querySelectorAll('table');
@@ -39,7 +49,10 @@ async def scrape_holds(school_slug):
             return result;
         }""")
         
-        await context.browser.close()
+        await context.close()
+
+        if not rows:
+            raise RuntimeError(f"Hold report rendered no rows for {school_slug}")
         
         # Filter to only those actively on hold and extract key fields
         holds = []

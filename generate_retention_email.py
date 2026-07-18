@@ -167,22 +167,28 @@ def _load_pike13_holds():
         if path.exists():
             data = json.load(open(path))
             for r in data:
-                # Pike13 table uses capitalized headers: "Client", "First Name", etc.
-                client = r.get("Client", "").strip()
+                # Accept both the raw Pike13 report schema and the normalized
+                # schema written by scrape_pike13_holds.py.  This keeps a
+                # successful browser refresh from silently disabling hold
+                # matching in the retention report.
+                client = (r.get("client") or r.get("Client") or "").strip()
                 if not client:
                     continue
                 info = {
                     "client": client,
-                    "first_name": r.get("First Name", ""),
-                    "last_name": r.get("Last Name", ""),
-                    "plan": r.get("Plan Name", ""),
+                    "first_name": r.get("first_name") or r.get("First Name", ""),
+                    "last_name": r.get("last_name") or r.get("Last Name", ""),
+                    "plan": r.get("plan") or r.get("Plan Name", ""),
                     "on_hold": True,
-                    "hold_start": r.get("Last Hold Start Date", ""),
-                    "hold_end": r.get("Last Hold End Date", ""),
-                    "hold_indefinite": r.get("Last Hold Indefinite?", "") == "Yes",
-                    "hold_by": r.get("Last Hold By", ""),
-                    "account_emails": r.get("Account Manager Emails", ""),
-                    "account_phones": r.get("Account Manager Phones", ""),
+                    "hold_start": r.get("hold_start") or r.get("Last Hold Start Date", ""),
+                    "hold_end": r.get("hold_end") or r.get("Last Hold End Date", ""),
+                    "hold_indefinite": (
+                        bool(r.get("hold_indefinite"))
+                        or r.get("Last Hold Indefinite?", "") == "Yes"
+                    ),
+                    "hold_by": r.get("hold_by") or r.get("Last Hold By", ""),
+                    "account_emails": r.get("account_emails") or r.get("Account Manager Emails", ""),
+                    "account_phones": r.get("account_phones") or r.get("Account Manager Phones", ""),
                 }
                 holds[client.lower()] = info
                 # Also index by first+last
