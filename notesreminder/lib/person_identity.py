@@ -55,7 +55,8 @@ def _phone(value):
     normalized = normalize_phone(value)
     if not normalized or len(normalized) < 7:
         return None
-    return normalized
+    # U.S. source systems disagree on whether the leading country code is stored.
+    return normalized[-10:] if len(normalized) >= 10 else normalized
 
 
 def _identity(identity_type, value):

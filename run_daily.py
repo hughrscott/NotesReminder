@@ -647,13 +647,13 @@ def ensure_pike13_column():
     conn.close()
 
 def should_skip_lesson(lesson_type, students, instructor=None):
-    lt = (lesson_type or "").lower()
+    lt = normalize_students_field(lesson_type).lower()
     if "admin" in lt or "meeting" in lt:
         return True
     if students and isinstance(students, str) and ',' in students:
         return True
-    if instructor:
-        instructor_clean = instructor.strip().lower()
+    instructor_clean = normalize_students_field(instructor).lower()
+    if instructor_clean:
         if not re.search(r"[a-zA-Z]", instructor_clean):
             return True
         if "admin" in instructor_clean or "trial" in instructor_clean or "rookies" in instructor_clean:
@@ -1072,22 +1072,27 @@ async def main():
     report_completed_notes = []
     seen_completed = set()
     for lesson in completed_lessons:
+        instructor_clean = normalize_students_field(lesson.get('instructor'))
+        lesson_date_clean = normalize_students_field(lesson.get('date'))
+        lesson_type_clean = normalize_students_field(lesson.get('lesson_type'))
+        students_clean = normalize_students_field(lesson.get('students'))
         dedup_key = (
-            lesson.get('instructor', '').strip(),
-            lesson.get('date', '').strip(),
-            normalize_lesson_time(lesson.get('time', '')),
-            lesson.get('lesson_type', '').strip(),
-            normalize_students_field(lesson.get('students'))
+            instructor_clean,
+            lesson_date_clean,
+            normalize_lesson_time(normalize_students_field(lesson.get('time'))),
+            lesson_type_clean,
+            students_clean,
         )
         if dedup_key in seen_completed:
             continue
         seen_completed.add(dedup_key)
         report_completed_notes.append({
             **lesson,
-            'time': normalize_lesson_time(lesson.get('time', '')),
-            'instructor': lesson.get('instructor', '').strip(),
-            'lesson_type': lesson.get('lesson_type', '').strip(),
-            'students': normalize_students_field(lesson.get('students'))
+            'date': lesson_date_clean,
+            'time': normalize_lesson_time(normalize_students_field(lesson.get('time'))),
+            'instructor': instructor_clean,
+            'lesson_type': lesson_type_clean,
+            'students': students_clean,
         })
 
     total_reportable_lessons = len(report_missing_notes) + len(report_completed_notes)

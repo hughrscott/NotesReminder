@@ -99,6 +99,46 @@ def insert_email(conn, message_id, direction, message_at, external_email):
 
 
 class SchoolEmailTests(unittest.TestCase):
+    def test_identity_refresh_accepts_customers_without_trusted_flag(self):
+        conn = open_db()
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO hubspot_contacts (
+                contact_id, full_name, email_normalized, phone_normalized,
+                raw_json, updated_at
+            )
+            VALUES ('contact-unflagged', 'Customer Name', 'customer@example.com',
+                    '17135551212', '{}', ?)
+            """,
+            (now,),
+        )
+        conn.execute(
+            """
+            INSERT INTO pike13_people (
+                person_id, full_name, email_normalized, phone_normalized,
+                school, updated_at
+            )
+            VALUES ('person-customer', 'Customer Name', 'customer@example.com',
+                    '7135551212', 'West U', ?)
+            """,
+            (now,),
+        )
+        refresh_identity_matches(conn)
+
+        matches = {
+            (row[0], row[1], row[2])
+            for row in conn.execute(
+                """
+                SELECT target_table, target_id, match_type
+                FROM identity_matches
+                WHERE source_table = 'hubspot_contacts'
+                  AND source_id = 'contact-unflagged'
+                """
+            )
+        }
+        self.assertIn(('pike13_people', 'person-customer', 'email_exact'), matches)
+
     def test_email_direction_and_external_email(self):
         self.assertEqual(
             normalize_email_list("Calvin <Calvin@SchoolOfRock.com>, Lead <lead@example.com>"),

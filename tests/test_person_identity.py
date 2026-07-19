@@ -67,7 +67,7 @@ class PersonIdentityTests(unittest.TestCase):
                 associated_deal_ids, raw_json, updated_at
             )
             VALUES ('contact-1', 'Customer One', 'customer@example.com',
-                    '7135551212', 'deal-1', ?, ?)
+                    '17135551212', 'deal-1', ?, ?)
             """,
             (json.dumps({"trusted": True}), now),
         )

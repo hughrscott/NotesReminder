@@ -4,8 +4,6 @@ import json
 import sqlite3
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-
 from lead_followup_schema import ensure_lead_followup_schema, upsert_identity_match
 from lead_gap_analysis import build_gap_report
 
@@ -203,7 +201,6 @@ def json_value_counts(conn, table, json_field, json_path, where_sql="1=1", param
 def trusted_contact_condition():
     return """
         LOWER(COALESCE(email_normalized, '')) NOT LIKE '%@schoolofrock.com'
-        AND COALESCE(json_extract(raw_json, '$.trusted'), 0) = 1
     """
 
 
