@@ -716,7 +716,13 @@ def update_reminders_from_dataframe(
         notes_value = row['Notes']
         notes_str = (notes_value if isinstance(notes_value, str) else str(notes_value or "")).strip()
         normalized_notes = notes_str.lower()
-        has_notes = notes_str != "" and normalized_notes not in ("no notes", "nan", "none")
+        has_notes = (
+            notes_str != ""
+            and normalized_notes not in ("no notes", "nan", "none")
+            and "link to a website" not in normalized_notes
+            and not normalized_notes.startswith("finish")
+            and normalized_notes not in ("link to a website\n\n\n\n\nfinish\n\n\ncancel", "")
+        )
         notes_text = notes_str if has_notes else None
         note_timestamp = row.get('Note Timestamp', None)
 
