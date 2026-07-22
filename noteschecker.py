@@ -242,7 +242,7 @@ async def scrape_lessons(
                     if freshness["status"] == "fresh":
                         if verbose:
                             print(f"ℹ️ Injecting {cookie_payload.get('cookie_count', 0)} saved Pike13 cookies...")
-                        injected = inject_cookies_into_context(context, cookie_payload)
+                        injected = await inject_cookies_into_context(context, cookie_payload)
                         if verbose:
                             print(f"  Injected {injected} valid cookies")
                         cookie_auth_attempted = True
@@ -252,7 +252,7 @@ async def scrape_lessons(
                         await wait_until_ready()
 
                         # Restore localStorage tokens from the cookie payload
-                        inject_storage_into_page(page, cookie_payload, school=school_subdomain)
+                        await inject_storage_into_page(page, cookie_payload, school=school_subdomain)
 
                         if await is_authenticated():
                             if verbose:
@@ -354,56 +354,82 @@ async def scrape_lessons(
                         print(f"Page title: {await page.title()}")
                         print(f"Current URL: {page.url}")
                     
-                    # ── Step 1: Get lesson IDs and metadata from Pike13 API ──
-                    client_id = "WWgvG1fId8iDU3rgoFXvz4A2kLnxDBSsOFacfk8X"
-                    from_ts = f"{date}T06:00:00Z"
-                    date_parts = date.split("-")
-                    next_day = f"{date_parts[0]}-{date_parts[1]}-{str(int(date_parts[2])+1).zfill(2)}"
-                    to_ts = f"{next_day}T05:59:59Z"
-                    api_url = f"https://{school_subdomain}.pike13.com/api/v2/front/event_occurrences.json?client_id={client_id}&from={from_ts}&to={to_ts}"
+                    # ── Step 1: Get lesson IDs from authenticated day view via Angular scope ──
+                    day_url = f"https://{school_subdomain}.pike13.com/schedule#/day?dt={date}&lt=staff&el=1"
+                    if verbose:
+                        print(f"  Loading day view for {date}...")
+                    if not await goto_with_retry(day_url):
+                        if verbose:
+                            print(f"⚠️ Skipping {date}: day view navigation failed")
+                        continue
+                    await page.wait_for_timeout(8000)
+                    await safe_screenshot(f"screenshots/schedule_{date}.png", full_page=True)
                     
-                    api_occurrences = {}  # occ_id → {name, start_at, end_at, url}
+                    # Extract lesson IDs and basic metadata from Angular lane scopes
+                    api_occurrences = {}
                     try:
-                        api_resp = await page.goto(api_url, timeout=15000)
-                        if api_resp and api_resp.status == 200:
-                            api_body = await page.evaluate("() => document.body.innerText")
-                            api_data = json.loads(api_body)
-                            for occ in api_data.get("event_occurrences", []):
-                                occ_id = occ.get("id")
-                                if occ_id:
-                                    api_occurrences[occ_id] = {
-                                        "name": occ.get("name", ""),
-                                        "start_at": occ.get("start_at", ""),
-                                        "end_at": occ.get("end_at", ""),
-                                        "url": occ.get("url", ""),
-                                    }
-                            if verbose:
-                                print(f"🔍 API returned {len(api_occurrences)} occurrences on {date}.")
-                        else:
-                            if verbose:
-                                print(f"⚠️ API returned status {api_resp.status if api_resp else 'none'}")
+                        raw_lessons = await page.evaluate("""() => {
+                            const lanes = document.querySelectorAll('.calendar-lane');
+                            let all = [];
+                            lanes.forEach(lane => {
+                                let scope = null;
+                                try { scope = angular.element(lane).scope(); } catch(e) {}
+                                if (!scope || !scope.lane) return;
+                                let occs = scope.lane.event_occurrences || [];
+                                occs.forEach(eo => {
+                                    let name = (eo.name || '').trim();
+                                    let person = (eo.person_name || '').trim();
+                                    let staff = (eo.staff_name || eo.staff_member_name || '').trim();
+                                    // Skip unavailable, open, IT Admin, appointment availability, admin time
+                                    if (staff === 'IT Admin') return;
+                                    if (!name && !person) return;
+                                    if (name.includes('(Open)')) return;
+                                    if (name.includes('Appointment Availability')) return;
+                                    if (name.includes('Admin Time')) return;
+                                    if (name.includes('Unavailable - ')) return;
+                                    all.push({
+                                        id: eo.id,
+                                        name: name,
+                                        start_at: eo.start_at || '',
+                                        end_at: eo.end_at || ''
+                                    });
+                                });
+                            });
+                            return all;
+                        }""")
+                        for occ in raw_lessons:
+                            occ_id = occ.get("id")
+                            if occ_id:
+                                api_occurrences[str(occ_id)] = {
+                                    "name": occ.get("name", ""),
+                                    "start_at": occ.get("start_at", ""),
+                                    "end_at": occ.get("end_at", ""),
+                                    "url": "",
+                                }
+                        if verbose:
+                            print(f"🔍 Day view returned {len(api_occurrences)} lessons on {date}.")
                     except Exception as e:
                         if verbose:
-                            print(f"⚠️ API call failed: {e}")
+                            print(f"⚠️ Day view extraction failed: {e}")
                     
                     if verbose:
                         print(f"🔍 Found {len(api_occurrences)} lessons on {date}.")
                     
-                    # Process each lesson using API metadata + notes scraping
+                    # Process each lesson using the lesson detail page + notes scraping
                     for idx, (occ_id, meta) in enumerate(api_occurrences.items(), start=1):
                         lesson_id = str(occ_id)
+                        lesson_url = f"https://{school_subdomain}.pike13.com/e/{lesson_id}"
                         notes_url = f"https://{school_subdomain}.pike13.com/desk/e/{lesson_id}/notes"
                         
-                        # Use API metadata directly (no detail page scraping needed)
+                        # Defaults from scope data (will be overwritten by detail page)
                         lesson_type = meta.get("name", "")
                         start_at = meta.get("start_at", "")
                         
-                        # Parse start_at into time and date
+                        # Parse start_at into time
                         lesson_time = ""
                         if start_at:
                             try:
                                 dt = datetime.strptime(start_at.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S%z")
-                                # Convert to Central time
                                 from datetime import timezone as tz_mod
                                 central = dt.astimezone(tz_mod(timedelta(hours=-5)))
                                 lesson_time = central.strftime("%I:%M%p").lstrip("0")
@@ -411,18 +437,88 @@ async def scrape_lessons(
                                 lesson_time = start_at
                         
                         try:
-                            # Navigate to notes page
-                            if not await goto_with_retry(notes_url):
-                                if verbose:
-                                    print(f"⚠️ Skipping notes for lesson {lesson_id}: navigation failed")
-                                notes = "No notes"
-                                note_timestamp = ""
-                            else:
+                            # ── Step 2: Scrape lesson detail page for metadata ──
+                            instructor = ""
+                            students_str = ""
+                            location = ""
+                            attendance_status = "unknown"
+                            
+                            if await goto_with_retry(lesson_url):
+                                try:
+                                    await page.wait_for_selector("span#title", timeout=10000)
+                                    await safe_screenshot(f"screenshots/lesson_{lesson_id}.png")
+                                    
+                                    # Lesson type
+                                    try:
+                                        lesson_type = (await page.text_content("span#title") or lesson_type).strip()
+                                    except Exception:
+                                        pass
+                                    
+                                    # Time + location from subtitle
+                                    try:
+                                        subtitle = (await page.text_content("span#subtitle") or "").strip()
+                                        subtitle = re.sub(r'\s+', ' ', subtitle)
+                                        if " - " in subtitle:
+                                            time_part, _, loc_part = subtitle.rpartition(" - ")
+                                            lesson_time = time_part.strip()
+                                            location = loc_part.strip()
+                                        if " on " in lesson_time:
+                                            lesson_time = lesson_time.split(" on ", 1)[0].strip()
+                                    except Exception:
+                                        pass
+                                    
+                                    # Instructor from sidebar
+                                    try:
+                                        inst_el = await page.query_selector(
+                                            ".sidebar_group.sidebar_menu li.person_menu_item a"
+                                        )
+                                        if inst_el:
+                                            instructor = ((await inst_el.text_content()) or "").strip()
+                                    except Exception:
+                                        pass
+                                    
+                                    # Students
+                                    try:
+                                        student_els = await page.query_selector_all(".person-name a.name-link")
+                                        students = []
+                                        for elem in student_els:
+                                            raw = await elem.text_content()
+                                            if raw:
+                                                clean = ' '.join(raw.replace('\n', ' ').split())
+                                                students.append(clean)
+                                        students_str = ", ".join(students)
+                                    except Exception:
+                                        pass
+                                    
+                                    # Attendance status
+                                    try:
+                                        status_els = await page.query_selector_all(
+                                            '.person-name, .attendance-status, .status, '
+                                            '[class*="status"], [class*="attendance"]'
+                                        )
+                                        for elem in status_els:
+                                            text = ((await elem.text_content()) or "").strip().lower()
+                                            for word in ['confirmed', 'canceled', 'cancelled', 
+                                                         'complete', 'no show', 'pending', 'booked']:
+                                                if word in text:
+                                                    attendance_status = word.replace('cancelled', 'canceled')
+                                                    break
+                                            if attendance_status != "unknown":
+                                                break
+                                    except Exception:
+                                        pass
+                                except Exception as e:
+                                    if verbose:
+                                        print(f"⚠️ Detail page scrape for {lesson_id}: {e}")
+                            
+                            # ── Step 3: Scrape notes page ──
+                            notes = "No notes"
+                            note_timestamp = ""
+                            if await goto_with_retry(notes_url):
                                 await page.wait_for_timeout(3000)
                                 await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
                                 
                                 # Extract notes — try multiple selectors
-                                notes = "No notes"
                                 for note_sel in [
                                     "div.richtext_output.unbordered",
                                     "div.richtext_output",
@@ -442,7 +538,6 @@ async def scrape_lessons(
                                         continue
                                 
                                 # Extract timestamp
-                                note_timestamp = ""
                                 for ts_sel in ["small.timestamp", "time", "[class*='timestamp']"]:
                                     try:
                                         ts_el = await page.query_selector(ts_sel)
@@ -453,19 +548,21 @@ async def scrape_lessons(
                                                 break
                                     except Exception:
                                         continue
+                            elif verbose:
+                                print(f"⚠️ Skipping notes for lesson {lesson_id}: navigation failed")
                             
                             lessons_data.append({
                                 "School": school_subdomain,
                                 "Lesson ID": lesson_id,
                                 "Date": date,
                                 "Time": lesson_time,
-                                "Instructor": "",
-                                "Students": "",
+                                "Instructor": instructor,
+                                "Students": students_str,
                                 "Lesson Type": lesson_type,
                                 "Notes": notes,
                                 "Note Timestamp": note_timestamp,
-                                "Attendance Status": "unknown",
-                                "Location": ""
+                                "Attendance Status": attendance_status,
+                                "Location": location
                             })
                             
                             if verbose:

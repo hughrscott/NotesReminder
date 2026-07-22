@@ -51,6 +51,7 @@ for SCHOOL in westu-sor theheights-sor; do
         --start-date "$YESTERDAY" \
         --end-date "$YESTERDAY" \
         --verbose \
+        --pike13-profile-dir ~/.hermes/SOR/pike13_profile \
         --to $SCHOOL_TO \
         --cc hugh.scott@gmail.com || echo "FAILED: ${SCHOOL} ${YESTERDAY}"
 done

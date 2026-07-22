@@ -92,7 +92,7 @@ def check_cookie_freshness(payload: Optional[dict] = None, max_age_days: Optiona
     return result
 
 
-def inject_cookies_into_context(context, payload: Optional[dict] = None):
+async def inject_cookies_into_context(context, payload: Optional[dict] = None):
     """Inject saved cookies into a Playwright browser context. Must be called BEFORE navigating."""
     if payload is None:
         payload = load_cookies()
@@ -123,11 +123,11 @@ def inject_cookies_into_context(context, payload: Optional[dict] = None):
             "sameSite": c.get("sameSite", "Lax"),
         })
 
-    context.add_cookies(valid_cookies)
+    await context.add_cookies(valid_cookies)
     return len(valid_cookies)
 
 
-def inject_storage_into_page(page, payload: Optional[dict] = None, school: str = "westu-sor"):
+async def inject_storage_into_page(page, payload: Optional[dict] = None, school: str = "westu-sor"):
     """Inject localStorage items into a page that's already on the Pike13 domain."""
     if payload is None:
         payload = load_cookies()
