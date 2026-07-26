@@ -86,22 +86,25 @@ def _tg_last_update_id() -> int:
 async def wait_for_telegram_approval(
     school_slug: str,
     timeout_seconds: float | None = None,
+    message: str | None = None,
 ) -> None:
     """
     Send a Telegram prompt to Hugh and block until he replies
     with 'go', 'ready', 'start', 'yes', 'proceed', or 'continue'.
 
     Args:
-        school_slug: School name for the prompt message.
+        school_slug: School/context name for the prompt message.
         timeout_seconds: None = wait forever.
+        message: Optional custom message. If None, a default payroll prompt is used.
     """
-    prompt = (
-        f"\U0001f468\U0001f3fb\u200d\U0001f4bc <b>Payroll: {school_slug} needs MFA</b>\n\n"
-        f"Pike13 requires a verification code sent to the SOR email. "
-        f"Reply <b>go</b>, <b>ready</b>, or <b>start</b> to authorize."
-    )
+    if message is None:
+        message = (
+            f"\U0001f468\U0001f3fb\u200d\U0001f4bc <b>Payroll: {school_slug} needs MFA</b>\n\n"
+            f"Pike13 requires a verification code sent to the SOR email. "
+            f"Reply <b>go</b>, <b>ready</b>, or <b>start</b> to authorize."
+        )
 
-    sent_id = _tg_send(prompt)
+    sent_id = _tg_send(message)
     if sent_id is None:
         raise RuntimeError("Could not send Telegram approval request for MFA")
 

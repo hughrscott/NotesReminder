@@ -17,6 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from date_window_lead_load import validate_target_db, validate_window  # noqa: E402
+from scripts.okta_auth import (  # noqa: E402
+    is_okta_login_url,
+    okta_credentials_available,
+    run_okta_mfa_with_gate,
+)
 from lead_followup_schema import (  # noqa: E402
     ensure_lead_followup_schema,
     finish_import_run,
@@ -48,71 +53,14 @@ def gmail_search_url(query):
     return "https://mail.google.com/mail/u/0/#search/" + quote(query, safe="")
 
 
-def okta_credentials_available():
-    return bool(okta_username() and okta_password())
-
-
-def okta_username():
-    return os.getenv("OKTA_USERNAME") or os.getenv("SOR_OKTA_USERNAME") or os.getenv("OKTA_USER")
-
-
-def okta_password():
-    return os.getenv("OKTA_PASSWORD") or os.getenv("SOR_OKTA_PASSWORD")
-
-
-def is_okta_login_url(url):
-    lowered = (url or "").lower()
-    return "sor.okta.com" in lowered and ("login" in lowered or "signin" in lowered)
-
-
-def fill_okta_login(page):
-    username = okta_username()
-    password = okta_password()
-    if not username or not password:
-        return False
-    username_input = page.locator('input[name="username"], input#okta-signin-username, input[type="text"]').first
-    password_input = page.locator('input[name="password"], input#okta-signin-password, input[type="password"]').first
-    username_input.wait_for(timeout=15000)
-    username_input.fill(username)
-    password_input.fill(password)
-    remember_me = page.locator('input[type="checkbox"][name="remember"], input[type="checkbox"]')
-    if remember_me.count():
-        try:
-            if not remember_me.first.is_checked():
-                remember_me.first.check(timeout=3000)
-        except Exception:
-            pass
-    page.get_by_role("button", name=re.compile(r"sign in", re.IGNORECASE)).click(timeout=10000)
-    return True
-
-
-def wait_for_okta_push(page, timeout_seconds):
-    deadline = time.time() + timeout_seconds
-    notified = False
-    while time.time() < deadline:
-        lowered_url = page.url.lower()
-        try:
-            body = page.locator("body").inner_text(timeout=5000).lower()
-        except PlaywrightTimeoutError:
-            body = ""
-        if "mail.google.com" in lowered_url and "signin" not in lowered_url:
-            return
-        if not notified and ("push sent" in body or "okta verify" in body):
-            print("Okta Verify push sent by NotesReminder. Please approve it on your phone.", flush=True)
-            notified = True
-        time.sleep(2)
-    raise RuntimeError("Timed out waiting for Okta Verify approval.")
-
-
 def wait_for_gmail(page, interactive_login=False, login_timeout=300):
     lowered_url = page.url.lower()
     if "accounts.google.com" in lowered_url or "signin" in lowered_url or is_okta_login_url(page.url):
         if not interactive_login:
             raise RuntimeError(f"Gmail profile is not authenticated; final_url={page.url}")
         if is_okta_login_url(page.url) and okta_credentials_available():
-            print("Filling Okta username/password from environment. Approve only the Okta Verify push you expect from NotesReminder.", flush=True)
-            fill_okta_login(page)
-            wait_for_okta_push(page, login_timeout)
+            # Telegram-gated Okta MFA: ask Hugh first, then submit + wait for push
+            run_okta_mfa_with_gate(page, "School Email (Gmail)", login_timeout)
         else:
             print("Complete Google/Okta login in the opened browser, then press Enter here.")
             input()
@@ -244,7 +192,9 @@ def clean_snippet(value):
 def run_extraction(args):
     validate_window(args.start_date, args.end_date)
     db_path = validate_target_db(args.db, allow_production=args.allow_production_db)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     ensure_lead_followup_schema(conn)
     run_id = start_import_run(
         conn,
@@ -280,49 +230,94 @@ def run_extraction(args):
                         except PlaywrightTimeoutError:
                             pass
                         rows = visible_message_rows(page, args.limit_per_query)
-                        print(f"Found visible Gmail rows: {len(rows)}", flush=True)
-                        metadata["queries"].append({"mailbox": mailbox, "direction": direction, "rows": len(rows)})
-                        for row_meta in rows:
-                            rows_seen += 1
-                            row = page.locator("tr.zA").nth(row_meta["index"])
-                            try:
-                                row.click(timeout=15000)
-                                page.wait_for_load_state("domcontentloaded", timeout=15000)
-                                page.wait_for_timeout(1500)
-                            except PlaywrightTimeoutError:
-                                print(f"[warn] mail view did not settle for row {row_meta['index']}; continuing", flush=True)
-                            try:
-                                message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
-                            except PlaywrightTimeoutError:
-                                message_text = ""
-                            write_raw_capture(
-                                conn,
-                                source="school_email",
-                                capture_type="school_email_message_text",
-                                content=message_text,
-                                source_url=page.url,
-                                metadata={
-                                    "mailbox": mailbox,
-                                    "direction": direction,
-                                    "query": query,
-                                    "row_index": row_meta["index"],
-                                },
-                                import_run_id=run_id,
-                                extension="txt",
-                                label=f"{mailbox}-{direction}-{rows_seen}",
-                            )
-                            parsed = parse_open_message(page, row_meta, mailbox, direction)
-                            if parsed.get("message_id"):
-                                upsert_school_email_message(conn, parsed)
-                                rows_written += 1
-                                print(f"[info] wrote message_id={parsed['message_id']} subject={parsed['subject']!r}", flush=True)
+                        processed_ids = set()
+                        total_this_query = 0
+                        empty_pages = 0
+                        max_pages = 50
+                        page_num = 0
+                        while rows and page_num < max_pages:
+                            page_num += 1
+                            new_rows = []
+                            for r in rows:
+                                key = r.get("legacy_message_id") or r.get("legacy_thread_id") or r.get("text", "")[:80]
+                                if key not in processed_ids:
+                                    processed_ids.add(key)
+                                    new_rows.append(r)
+                            if not new_rows:
+                                empty_pages += 1
+                                if empty_pages >= 2:
+                                    print(f"No new rows for {empty_pages} consecutive pages; stopping pagination.", flush=True)
+                                    break
                             else:
-                                print(f"[warn] skipped row {row_meta['index']} because no message_id could be extracted", flush=True)
-                            try:
-                                page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
-                                page.wait_for_selector("tr.zA", timeout=args.query_timeout * 1000)
-                            except Exception as nav_exc:
-                                print(f"[error] failed to return to search results: {nav_exc!r}", flush=True)
+                                empty_pages = 0
+                            print(f"Page {page_num}: {len(rows)} visible, {len(new_rows)} new (total so far: {total_this_query})", flush=True)
+                            metadata["queries"].append({"mailbox": mailbox, "direction": direction, "rows": len(rows), "new_rows": len(new_rows), "page": page_num})
+                            for row_meta in new_rows:
+                                rows_seen += 1
+                                total_this_query += 1
+                                row = page.locator("tr.zA").nth(row_meta["index"])
+                                try:
+                                    row.click(timeout=15000)
+                                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                                    page.wait_for_timeout(1500)
+                                except PlaywrightTimeoutError:
+                                    print(f"[warn] mail view did not settle for row {row_meta['index']}; continuing", flush=True)
+                                try:
+                                    message_text = page.locator("body").inner_text(timeout=args.query_timeout * 1000)
+                                except PlaywrightTimeoutError:
+                                    message_text = ""
+                                write_raw_capture(
+                                    conn,
+                                    source="school_email",
+                                    capture_type="school_email_message_text",
+                                    content=message_text,
+                                    source_url=page.url,
+                                    metadata={
+                                        "mailbox": mailbox,
+                                        "direction": direction,
+                                        "query": query,
+                                        "row_index": row_meta["index"],
+                                        "page": page_num,
+                                    },
+                                    import_run_id=run_id,
+                                    extension="txt",
+                                    label=f"{mailbox}-{direction}-{rows_seen}",
+                                )
+                                parsed = parse_open_message(page, row_meta, mailbox, direction)
+                                if parsed.get("message_id"):
+                                    upsert_school_email_message(conn, parsed)
+                                    rows_written += 1
+                                else:
+                                    print(f"[warn] skipped row {row_meta['index']} — no message_id", flush=True)
+                                # Commit every 10 messages so kills don't lose everything
+                                if rows_written % 10 == 0:
+                                    conn.commit()
+                                try:
+                                    page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
+                                    page.wait_for_selector("tr.zA", timeout=args.query_timeout * 1000)
+                                except Exception as nav_exc:
+                                    print(f"[error] nav failed: {nav_exc!r}; retrying goto", flush=True)
+                                    try:
+                                        page.goto(url, wait_until="domcontentloaded", timeout=args.query_timeout * 1000)
+                                    except Exception:
+                                        pass
+                            # Scroll to load more results
+                            if page_num < max_pages and empty_pages < 2:
+                                try:
+                                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                                    page.wait_for_timeout(3000)
+                                    rows = visible_message_rows(page, args.limit_per_query)
+                                except Exception:
+                                    print("[warn] scroll failed; trying Older link", flush=True)
+                                    try:
+                                        page.locator("a:has-text('Older'), div[aria-label='Older']").first.click(timeout=5000)
+                                        page.wait_for_load_state("domcontentloaded", timeout=15000)
+                                        page.wait_for_selector("tr.zA", timeout=15000)
+                                        rows = visible_message_rows(page, args.limit_per_query)
+                                    except Exception:
+                                        rows = []
+                        print(f"Query complete for {mailbox}/{direction}: {total_this_query} new emails across {page_num} pages", flush=True)
+                        metadata["queries"].append({"mailbox": mailbox, "direction": direction, "total_new": total_this_query, "pages": page_num})
             finally:
                 context.close()
         finish_import_run(conn, run_id, "success", rows_seen, rows_written, 0, metadata=metadata)

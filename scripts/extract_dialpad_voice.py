@@ -24,6 +24,11 @@ from lead_followup_schema import (  # noqa: E402
     start_import_run,
     utc_now_iso,
 )
+from scripts.okta_auth import (  # noqa: E402
+    is_okta_login_url,
+    okta_credentials_available,
+    run_okta_mfa_with_gate,
+)
 
 
 HISTORY_URLS = {
@@ -302,6 +307,13 @@ def wait_for_authenticated_page(page, target_url, interactive_login=False, timeo
             text = ""
         if is_dialpad_app_page(page.url, text):
             return
+        # Non-interactive Okta SSO re-auth: if we landed on the Okta login
+        # page and credentials are available, run the Telegram-gated MFA.
+        if not interactive_login and is_okta_login_url(page.url) and okta_credentials_available():
+            print("Okta session expired. Requesting Telegram approval for MFA...", flush=True)
+            run_okta_mfa_with_gate(page, "Dialpad", timeout_seconds)
+            # After MFA the SAML redirect lands back on Dialpad
+            continue
         if interactive_login:
             print("Dialpad login required. Complete login in the opened browser window; extraction will continue automatically.")
             while time.time() < deadline:
