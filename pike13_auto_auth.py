@@ -17,11 +17,14 @@ Usage:
 """
 
 import asyncio
+import json
 import os
 import re
 import time
 import imaplib
 import email as email_lib
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 from typing import Optional, Set
 
@@ -29,6 +32,113 @@ SOR_EMAIL = os.environ.get("SOR_EMAIL", "huscott@schoolofrock.com")
 SOR_APP_PASSWORD = os.environ.get("SOR_APP_PASSWORD", "")
 PIKE13_USER = os.environ.get("PIKE13_USER", "")
 PIKE13_PASS = os.environ.get("PIKE13_PASSWORD", "")
+
+# ── Telegram approval gate ──────────────────────────────────────────────────
+
+TELEGRAM_CHAT_ID = "8520226556"
+
+
+def _tg_bot_token() -> str:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is not set in environment")
+    return token
+
+
+def _tg_send(text: str) -> int | None:
+    """Send a Telegram message to Hugh. Returns message_id on success."""
+    data = json.dumps({
+        "chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"
+    }).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{_tg_bot_token()}/sendMessage",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        resp = json.loads(urllib.request.urlopen(req, timeout=15).read())
+        if resp.get("ok"):
+            return resp["result"]["message_id"]
+    except (urllib.error.URLError, json.JSONDecodeError, KeyError):
+        pass
+    return None
+
+
+def _tg_last_update_id() -> int:
+    """Get the latest update_id from the chat (non-blocking, best-effort)."""
+    data = json.dumps({"limit": 1, "allowed_updates": ["message"]}).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{_tg_bot_token()}/getUpdates",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        resp = json.loads(urllib.request.urlopen(req, timeout=15).read())
+        if resp.get("ok") and resp.get("result"):
+            return resp["result"][-1]["update_id"]
+    except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError):
+        pass
+    return 0
+
+
+async def wait_for_telegram_approval(
+    school_slug: str,
+    timeout_seconds: float | None = None,
+) -> None:
+    """
+    Send a Telegram prompt to Hugh and block until he replies
+    with 'go', 'ready', 'start', 'yes', 'proceed', or 'continue'.
+
+    Args:
+        school_slug: School name for the prompt message.
+        timeout_seconds: None = wait forever.
+    """
+    prompt = (
+        f"\U0001f468\U0001f3fb\u200d\U0001f4bc <b>Payroll: {school_slug} needs MFA</b>\n\n"
+        f"Pike13 requires a verification code sent to the SOR email. "
+        f"Reply <b>go</b>, <b>ready</b>, or <b>start</b> to authorize."
+    )
+
+    sent_id = _tg_send(prompt)
+    if sent_id is None:
+        raise RuntimeError("Could not send Telegram approval request for MFA")
+
+    last_known = _tg_last_update_id()
+    deadline = None if timeout_seconds is None else time.monotonic() + timeout_seconds
+
+    while True:
+        if deadline is not None and time.monotonic() >= deadline:
+            raise RuntimeError("Timed out waiting for Telegram MFA approval from Hugh")
+
+        data = json.dumps({
+            "offset": last_known + 1,
+            "timeout": 10,
+            "allowed_updates": ["message"],
+        }).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{_tg_bot_token()}/getUpdates",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            resp = json.loads(urllib.request.urlopen(req, timeout=15).read())
+            if not resp.get("ok") or not resp.get("result"):
+                await asyncio.sleep(5)
+                continue
+            for update in resp["result"]:
+                uid = update.get("update_id", 0)
+                if uid > last_known:
+                    last_known = uid
+                text = (update.get("message", {}).get("text") or "").strip().lower()
+                if any(w in text for w in ("go", "ready", "start", "yes", "proceed", "continue")):
+                    return  # approved
+        except (urllib.error.URLError, json.JSONDecodeError):
+            pass
+
+        await asyncio.sleep(5)
 
 
 def snapshot_inbox() -> Set[str]:
@@ -254,7 +364,10 @@ async def authenticate_pike13(
 
     # Step 3: Handle MFA if required
     if "/account/two_factor" in current_url:
-        print("Step 3: MFA required — waiting for new verification code email...")
+        print("Step 3: MFA required — Telegram gate: asking Hugh for approval...")
+
+        # Wait for Hugh's "go" reply via Telegram before proceeding
+        await wait_for_telegram_approval(school_subdomain)
 
         # Click "Resend code" to ensure a fresh email is sent
         resend_btn = page.locator('button:has-text("Resend")')
