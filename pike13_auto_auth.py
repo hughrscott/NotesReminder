@@ -364,10 +364,7 @@ async def authenticate_pike13(
 
     # Step 3: Handle MFA if required
     if "/account/two_factor" in current_url:
-        print("Step 3: MFA required — Telegram gate: asking Hugh for approval...")
-
-        # Wait for Hugh's "go" reply via Telegram before proceeding
-        await wait_for_telegram_approval(school_subdomain)
+        print("Step 3: MFA required — reading verification code from email...")
 
         # Click "Resend code" to ensure a fresh email is sent
         resend_btn = page.locator('button:has-text("Resend")')

@@ -26,7 +26,7 @@ PIKE13_PASS = os.environ.get("PIKE13_PASSWORD")
 
 # Auto-MFA support: import the auto-auth MFA handler
 try:
-    from pike13_auto_auth import read_mfa_code_via_imap, enter_mfa_code, snapshot_inbox, wait_for_telegram_approval
+    from pike13_auto_auth import read_mfa_code_via_imap, enter_mfa_code, snapshot_inbox
     _AUTO_MFA_AVAILABLE = True
 except ImportError:
     _AUTO_MFA_AVAILABLE = False
@@ -298,12 +298,7 @@ async def scrape_lessons(
                 # Auto-handle MFA if we hit the two_factor page
                 if "/account/two_factor" in page.url and _AUTO_MFA_AVAILABLE:
                     if verbose:
-                        print("MFA required — Telegram gate: asking Hugh for approval...")
-                    # Wait for Hugh's "go" reply via Telegram before proceeding
-                    await wait_for_telegram_approval(
-                        school_subdomain,
-                        timeout_seconds=None,  # wait indefinitely
-                    )
+                        print("MFA required — auto-handling via email code...")
                     existing_ids = snapshot_inbox()
                     resend_btn = page.locator('button:has-text("Resend")')
                     if await resend_btn.count() > 0:
