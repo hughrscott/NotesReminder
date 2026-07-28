@@ -1,0 +1,222 @@
+{
+  "mapped_at": "2026-07-19T17:59:27.338373+00:00",
+  "auth_path": "Pike13 SSO",
+  "safety_boundary": "read-only structural mapping; no record values persisted",
+  "routes": [
+    {
+      "url": "https://pike13.com/oauth/authorize?client_id&display&redirect_uri&response_type",
+      "title": "Authorization Request"
+    }
+  ],
+  "ui": {
+    "links": [
+      {
+        "text": "Switch accounts.",
+        "href": "https://pike13.com/accounts/sign_out?return_to"
+      },
+      {
+        "text": "Cancel",
+        "href": "https://pike13.com/oauth/authorize?client_id&display&redirect_uri&response_type"
+      }
+    ],
+    "buttons": [
+      "Allow Access"
+    ],
+    "headings": [
+      "Authorization Request"
+    ]
+  },
+  "endpoints": {
+    "GET https://method.schoolofrock.com/external-api-keys.json": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/external-api-keys.json",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "domain",
+        "fb_app_id",
+        "google_analytics_4_id",
+        "oauth_id",
+        "recaptcha_key"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/policy": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/policy",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "allow_create",
+        "allow_student_creation_without_invite",
+        "click_on_note",
+        "confirmable",
+        "default_backing",
+        "generic_assignments",
+        "languages",
+        "log_missing_translations",
+        "min_mobile_version",
+        "no_new_users",
+        "no_recaptcha",
+        "pike13",
+        "server_conf_id",
+        "subscriptions",
+        "teacher_allow_text_exercise_creation",
+        "teacher_reports",
+        "translation_type",
+        "use_onboarding",
+        "user_feedback_allowed"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/instruments/get_instruments_dict": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/instruments/get_instruments_dict",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "5-str. Electric Bass",
+        "5-str. Electric Bass (tablature)",
+        "Accordion",
+        "Acoustic Guitar",
+        "Acoustic Guitar (tablature)",
+        "Alto Clarinet",
+        "Alto Saxophone",
+        "Alto Voice",
+        "Banjo",
+        "Banjo (tablature)",
+        "Baritone Horn",
+        "Baritone Saxophone",
+        "Baritone Voice",
+        "Bass Clarinet",
+        "Bass Drum",
+        "Bass Guitar",
+        "Bass Guitar (tablature)",
+        "Bass Voice",
+        "Bassoon",
+        "Bb Trumpet",
+        "Cello",
+        "Chimes",
+        "Clarinet",
+        "Classical Guitar",
+        "Classical Guitar (tablature)",
+        "Claves",
+        "Contrabass",
+        "Cornet",
+        "Double Bass",
+        "Drum Kit",
+        "Drums",
+        "Electric Guitar",
+        "Electric Guitar (tablature)",
+        "Euphonium",
+        "Euphonium T.C.",
+        "Flugelhorn",
+        "Flute",
+        "French Horn",
+        "Guitar",
+        "Hand Bells",
+        "Hand Cymbals",
+        "Harmonica",
+        "Harp",
+        "Harpsichord",
+        "Horn in F",
+        "Keyboard",
+        "Lute",
+        "Mandolin",
+        "Marimba (grand staff)",
+        "Marimba (single staff)"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/auth/status": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/auth/status",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "isLoggedIn"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/meta/languages/sor/en.json": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/meta/languages/sor/en.json",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "Active_Assignments",
+        "Archived",
+        "Assignments",
+        "Back",
+        "CCPA_Notice",
+        "Change_language",
+        "Children",
+        "Comment",
+        "Contact_Us",
+        "Contact_us",
+        "Content",
+        "Events",
+        "Failed",
+        "Has_student_comment",
+        "Knowledge_Base",
+        "Last_activity",
+        "Log_Back_In_As",
+        "Log_Out",
+        "No",
+        "No_assignments",
+        "No_assignments_helper",
+        "No_assignments_helper_parent",
+        "No_assignments_helper_teacher_part1",
+        "No_assignments_helper_teacher_part2",
+        "Not_reviewed",
+        "Not_submitted",
+        "Not_submitted_yet",
+        "Parent",
+        "Please_wait",
+        "Privacy_Policy",
+        "Processing",
+        "Restart_tutorial",
+        "Resume_tutorial",
+        "Reviewed",
+        "Score",
+        "Server_error",
+        "Sign_in",
+        "Status",
+        "Student_name",
+        "Students",
+        "Submitted",
+        "Success",
+        "Teacher",
+        "Terms_of_Service",
+        "Title",
+        "Updating",
+        "Waiting_for_reply",
+        "Yes",
+        "moderator",
+        "schoolmoderator"
+      ],
+      "count": 1
+    }
+  },
+  "screenshot": "/home/ubuntu/projects/hughrscott/NotesReminder/models/method_home.png"
+}

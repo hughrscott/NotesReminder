@@ -1,0 +1,1053 @@
+{
+  "mapped_at": "2026-07-19T20:31:26.907237+00:00",
+  "auth_path": "Pike13 SSO",
+  "safety_boundary": "read-only structural mapping; no record values persisted",
+  "routes": [
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/dashboard",
+      "title": "School of Rock Method - Dashboard"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/dashboard",
+      "title": "School of Rock Method - Dashboard"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/students",
+      "title": "School of Rock Method - Students"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/active",
+      "title": "School of Rock Method - Active Assignments"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/school_students",
+      "title": "School of Rock Method - School Students"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/collections",
+      "title": "School of Rock Method - Collections"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/collections?page",
+      "title": "School of Rock Method - Collections"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/fav_collections",
+      "title": "School of Rock Method - Favorite Collections"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/my_exercises",
+      "title": "School of Rock Method - My Exercises"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/content_view_aggregated_report",
+      "title": "School of Rock Method - Statistics"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/rta_chat_report",
+      "title": "School of Rock Method - Statistics"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/rta_session_report",
+      "title": "School of Rock Method - Statistics"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/assignment_report",
+      "title": "School of Rock Method - Statistics"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/student_report",
+      "title": "School of Rock Method - Statistics"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/school_report",
+      "title": "School of Rock Method - Activity"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/profile",
+      "title": "School of Rock Method - Profile"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/dashboard",
+      "title": "School of Rock Method - Dashboard"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/dashboard",
+      "title": "School of Rock Method - Dashboard"
+    },
+    {
+      "url": "https://method.schoolofrock.com/comp.html#/dashboard",
+      "title": "School of Rock Method - Dashboard"
+    }
+  ],
+  "ui": {
+    "links": [
+      {
+        "text": "",
+        "href": "https://method.schoolofrock.com/comp.html#/"
+      },
+      {
+        "text": "Sign in",
+        "href": "https://method.schoolofrock.com/comp.html#/login"
+      },
+      {
+        "text": "dashboard Dashboard",
+        "href": "https://method.schoolofrock.com/comp.html#/dashboard"
+      },
+      {
+        "text": "Students",
+        "href": "https://method.schoolofrock.com/comp.html#/students"
+      },
+      {
+        "text": "person Active 0",
+        "href": "https://method.schoolofrock.com/comp.html#/active"
+      },
+      {
+        "text": "group My Students",
+        "href": "https://method.schoolofrock.com/comp.html#/students"
+      },
+      {
+        "text": "group All School Students",
+        "href": "https://method.schoolofrock.com/comp.html#/school_students"
+      },
+      {
+        "text": "Songs & Exercises",
+        "href": "https://method.schoolofrock.com/comp.html#/collections"
+      },
+      {
+        "text": "book All",
+        "href": "https://method.schoolofrock.com/comp.html#/collections?page"
+      },
+      {
+        "text": "favorite Favorites",
+        "href": "https://method.schoolofrock.com/comp.html#/fav_collections"
+      },
+      {
+        "text": "user_content My Exercises",
+        "href": "https://method.schoolofrock.com/comp.html#/my_exercises"
+      },
+      {
+        "text": "Management",
+        "href": "https://method.schoolofrock.com/comp.html#/content_view_aggregated_report"
+      },
+      {
+        "text": "insert_chart Content View Report",
+        "href": "https://method.schoolofrock.com/comp.html#/content_view_aggregated_report"
+      },
+      {
+        "text": "insert_chart Online Chat Report",
+        "href": "https://method.schoolofrock.com/comp.html#/rta_chat_report"
+      },
+      {
+        "text": "insert_chart Online Session Report",
+        "href": "https://method.schoolofrock.com/comp.html#/rta_session_report"
+      },
+      {
+        "text": "insert_chart Assignment Report",
+        "href": "https://method.schoolofrock.com/comp.html#/assignment_report"
+      },
+      {
+        "text": "insert_chart Activity Report",
+        "href": "https://method.schoolofrock.com/comp.html#/student_report"
+      },
+      {
+        "text": "insert_chart School Activity Report",
+        "href": "https://method.schoolofrock.com/comp.html#/school_report"
+      },
+      {
+        "text": "face My Account",
+        "href": "https://method.schoolofrock.com/comp.html#/profile"
+      },
+      {
+        "text": "rate_reviewReview Exercises",
+        "href": "https://method.schoolofrock.com/comp.html#/review_exercises"
+      },
+      {
+        "text": "build Admin Panel",
+        "href": "https://method.schoolofrock.com/comp.html#/admin"
+      },
+      {
+        "text": "livechat Leave Us a Message",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "local_library Knowledge Base",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "EN",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "ES",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "PT",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "TW",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "DE",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "exit_to_app Sign Out",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "skip tour",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "[record]",
+        "href": "https://method.schoolofrock.com/comp.html#/assignment/:id"
+      },
+      {
+        "text": "Terms of Service",
+        "href": "https://method.schoolofrock.com/comp.html"
+      },
+      {
+        "text": "Privacy Policy",
+        "href": "https://method.schoolofrock.com/comp.html"
+      }
+    ],
+    "buttons": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "APPLICATION SETTINGS",
+      "Add password Update password",
+      "All",
+      "Apply Filter",
+      "Collections",
+      "Exercises",
+      "Go to Popular Collections",
+      "Link With Google",
+      "PROFILE",
+      "Show All Collections",
+      "Sign In Info",
+      "Unlink from Google",
+      "View Comments",
+      "add",
+      "add Add E-mail and Password Login",
+      "add CREATE EXERCISE",
+      "arrow_back",
+      "arrow_collapse_horizontal",
+      "assignment_assign",
+      "assignment_assign Create generic assignment",
+      "clear",
+      "cloud_download Download aggregated report",
+      "contact_mail CONTACT US",
+      "delete Delete account",
+      "delete_forever Remove",
+      "exit_to_app SIGN OUT",
+      "face MY PROFILE",
+      "favorite",
+      "favorite FAVORITES",
+      "favorite_off",
+      "filter_list",
+      "filter_list FILTER",
+      "fullscreen Enter fullscreen false",
+      "help",
+      "info",
+      "more_vert",
+      "notifications",
+      "people MY STUDENTS",
+      "person_add Add",
+      "person_add Add Students",
+      "queue Create new collection",
+      "refresh Clear All",
+      "refresh Reset filter",
+      "replay Reset filter",
+      "replay Show last month",
+      "save Save",
+      "search",
+      "search EXPLORE",
+      "settings APPLICATION SETTINGS",
+      "user_content MY EXERCISES",
+      "\u00ab",
+      "\u00bb",
+      "\u00d7",
+      "\u2039",
+      "\u203a"
+    ],
+    "headings": [
+      "ACCOUNT SETTINGS",
+      "Active Assignments",
+      "Activity",
+      "All School Students",
+      "Books and Collections (126)",
+      "Collections",
+      "E-mail and Password",
+      "Exercise list",
+      "Favorite Collections",
+      "Google",
+      "Home",
+      "MY ACCOUNT",
+      "MY EXERCISES",
+      "MY FAVORITES",
+      "My Exercises",
+      "My Students",
+      "ONLINE CHAT REPORT",
+      "Online Chat Report",
+      "Online Session Report",
+      "POPULAR BOOKS AND COLLECTIONS",
+      "POPULAR SONGS AND EXERCISES",
+      "Profile",
+      "SCHOOL ACTIVITY REPORT (JUNE, 2026)",
+      "SONGS & EXERCISES",
+      "STUDENTS",
+      "Search Results (126)",
+      "Search returned no results",
+      "Song and exercise usage statistics",
+      "Statistics",
+      "Students",
+      "WELCOME, [USER]!"
+    ]
+  },
+  "endpoints": {
+    "GET https://method.schoolofrock.com/external-api-keys.json": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/external-api-keys.json",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "domain",
+        "fb_app_id",
+        "google_analytics_4_id",
+        "oauth_id",
+        "recaptcha_key"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/policy": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/policy",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "allow_create",
+        "allow_student_creation_without_invite",
+        "click_on_note",
+        "confirmable",
+        "default_backing",
+        "generic_assignments",
+        "languages",
+        "log_missing_translations",
+        "min_mobile_version",
+        "no_new_users",
+        "no_recaptcha",
+        "pike13",
+        "server_conf_id",
+        "subscriptions",
+        "teacher_allow_text_exercise_creation",
+        "teacher_reports",
+        "translation_type",
+        "use_onboarding",
+        "user_feedback_allowed"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/instruments/get_instruments_dict": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/instruments/get_instruments_dict",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "5-str. Electric Bass",
+        "5-str. Electric Bass (tablature)",
+        "Accordion",
+        "Acoustic Guitar",
+        "Acoustic Guitar (tablature)",
+        "Alto Clarinet",
+        "Alto Saxophone",
+        "Alto Voice",
+        "Banjo",
+        "Banjo (tablature)",
+        "Baritone Horn",
+        "Baritone Saxophone",
+        "Baritone Voice",
+        "Bass Clarinet",
+        "Bass Drum",
+        "Bass Guitar",
+        "Bass Guitar (tablature)",
+        "Bass Voice",
+        "Bassoon",
+        "Bb Trumpet",
+        "Cello",
+        "Chimes",
+        "Clarinet",
+        "Classical Guitar",
+        "Classical Guitar (tablature)",
+        "Claves",
+        "Contrabass",
+        "Cornet",
+        "Double Bass",
+        "Drum Kit",
+        "Drums",
+        "Electric Guitar",
+        "Electric Guitar (tablature)",
+        "Euphonium",
+        "Euphonium T.C.",
+        "Flugelhorn",
+        "Flute",
+        "French Horn",
+        "Guitar",
+        "Hand Bells",
+        "Hand Cymbals",
+        "Harmonica",
+        "Harp",
+        "Harpsichord",
+        "Horn in F",
+        "Keyboard",
+        "Lute",
+        "Mandolin",
+        "Marimba (grand staff)",
+        "Marimba (single staff)"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/auth/status": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/auth/status",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "isLoggedIn",
+        "userInfo"
+      ],
+      "count": 5
+    },
+    "GET https://method.schoolofrock.com/meta/languages/sor/en.json": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/meta/languages/sor/en.json",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "Active_Assignments",
+        "Archived",
+        "Assignments",
+        "Back",
+        "CCPA_Notice",
+        "Change_language",
+        "Children",
+        "Comment",
+        "Contact_Us",
+        "Contact_us",
+        "Content",
+        "Events",
+        "Failed",
+        "Has_student_comment",
+        "Knowledge_Base",
+        "Last_activity",
+        "Log_Back_In_As",
+        "Log_Out",
+        "No",
+        "No_assignments",
+        "No_assignments_helper",
+        "No_assignments_helper_parent",
+        "No_assignments_helper_teacher_part1",
+        "No_assignments_helper_teacher_part2",
+        "Not_reviewed",
+        "Not_submitted",
+        "Not_submitted_yet",
+        "Parent",
+        "Please_wait",
+        "Privacy_Policy",
+        "Processing",
+        "Restart_tutorial",
+        "Resume_tutorial",
+        "Reviewed",
+        "Score",
+        "Server_error",
+        "Sign_in",
+        "Status",
+        "Student_name",
+        "Students",
+        "Submitted",
+        "Success",
+        "Teacher",
+        "Terms_of_Service",
+        "Title",
+        "Updating",
+        "Waiting_for_reply",
+        "Yes",
+        "moderator",
+        "schoolmoderator"
+      ],
+      "count": 2
+    },
+    "POST https://method.schoolofrock.com/api/auth/pike13/authenticate": {
+      "method": "POST",
+      "url_shape": "https://method.schoolofrock.com/api/auth/pike13/authenticate",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "abtest",
+        "active",
+        "all_login_types",
+        "avatar_url",
+        "braintree_id",
+        "creation_time",
+        "dummy",
+        "email",
+        "firstname",
+        "gender",
+        "id",
+        "initials",
+        "instrument",
+        "lang",
+        "lastname",
+        "login_type",
+        "lti_id",
+        "metainfo",
+        "moderator_metainfo",
+        "name",
+        "pike13_id",
+        "playback_countin",
+        "roles",
+        "school",
+        "send_emails",
+        "student",
+        "subscription",
+        "teacher",
+        "token",
+        "username"
+      ],
+      "count": 1
+    },
+    "PUT https://method.schoolofrock.com/api/auth/onetime_token": {
+      "method": "PUT",
+      "url_shape": "https://method.schoolofrock.com/api/auth/onetime_token",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "isLoggedIn",
+        "userInfo"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/gist": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/gist",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "exercise_review_results",
+        "min_mobile_version",
+        "n_assigned_today",
+        "n_students",
+        "n_students_active",
+        "n_teacher_active_assignments",
+        "n_teacher_invites",
+        "user_active_subscription",
+        "user_subscription"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/teacher/students": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/students",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [],
+      "count": 4
+    },
+    "GET https://method.schoolofrock.com/api/teacher/students/collections": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/students/collections",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "collections"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/teacher/students/collection?collection_id": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/students/collection?collection_id",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "collection"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/teacher/active": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/active",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "assignments"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/teacher/students/school": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/students/school",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "abtest",
+        "active",
+        "all_login_types",
+        "avatar_url",
+        "braintree_id",
+        "creation_time",
+        "dummy",
+        "email",
+        "firstname",
+        "gender",
+        "id",
+        "initials",
+        "instrument",
+        "lang",
+        "lastname",
+        "login_type",
+        "lti_id",
+        "metainfo",
+        "moderator_metainfo",
+        "my_student",
+        "name",
+        "paidStudent",
+        "pike13_id",
+        "playback_countin",
+        "roles",
+        "school",
+        "send_emails",
+        "sorStudent",
+        "student",
+        "subscription",
+        "teacher",
+        "username"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/collection/": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/collection/",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "collections",
+        "filters"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/search/get_most_popular_collections": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/search/get_most_popular_collections",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "collections"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/search/get_most_popular_exercises": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/search/get_most_popular_exercises",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "exercises"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/collection/favorite_collections": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/collection/favorite_collections",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "author_name",
+        "category",
+        "cover_img",
+        "delete_url",
+        "description",
+        "exercise_count",
+        "finalized",
+        "id",
+        "instrument",
+        "level",
+        "liked",
+        "premium",
+        "pseudo",
+        "public",
+        "publisher",
+        "route",
+        "search_title",
+        "series",
+        "style",
+        "subdivisions",
+        "title",
+        "webpage"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/teacher/my_tasks": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/teacher/my_tasks",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "author_name",
+        "category",
+        "cover_img",
+        "create_button",
+        "delete_url",
+        "description",
+        "exercise_count",
+        "exercises",
+        "finalized",
+        "id",
+        "instrument",
+        "level",
+        "liked",
+        "premium",
+        "pseudo",
+        "public",
+        "publisher",
+        "route",
+        "search_title",
+        "series",
+        "style",
+        "subdivisions",
+        "title",
+        "webpage"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/meta/c0b5fe68.images.json": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/meta/c0b5fe68.images.json",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "fav_exercises_cover",
+        "my_exercises_cover"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/content_view_aggregated_report?breakdown&limit&month&offset&year": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/content_view_aggregated_report?breakdown&limit&month&offset&year",
+      "status_codes": [
+        403
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/rta_session_report_filters": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/rta_session_report_filters",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "classes",
+        "rooms",
+        "schools",
+        "user_groups"
+      ],
+      "count": 2
+    },
+    "GET https://method.schoolofrock.com/api/statistics/rta_chat_report": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/rta_chat_report",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message",
+        "messages",
+        "pages",
+        "total"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/rta_chat_report_csv_url": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/rta_chat_report_csv_url",
+      "status_codes": [
+        400
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/assignment_report": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/assignment_report",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "assignment_count",
+        "assignments",
+        "report_download_uri",
+        "schools",
+        "students",
+        "teachers"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/assignment_report?limit&month&offset&school&year": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/assignment_report?limit&month&offset&school&year",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "assignment_count",
+        "assignments",
+        "report_download_uri",
+        "schools",
+        "students",
+        "teachers"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/student_report": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/student_report",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "kw",
+        "report_download_uri",
+        "schools",
+        "total_rows"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/student_report?limit&month&offset&school&teacher&trial&year": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/student_report?limit&month&offset&school&teacher&trial&year",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "kw",
+        "report_download_uri",
+        "schools",
+        "total_rows"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/rta_session_report?start_date": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/rta_session_report?start_date",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message",
+        "pages",
+        "sessions",
+        "total"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/school_activity_report?isPaginationChange&limit&month&offset&year": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/school_activity_report?isPaginationChange&limit&month&offset&year",
+      "status_codes": [
+        200
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "activities",
+        "activities_count",
+        "report_download_uri"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/statistics/rta_session_report_csv_url?start_date": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/statistics/rta_session_report_csv_url?start_date",
+      "status_codes": [
+        400
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message"
+      ],
+      "count": 1
+    },
+    "GET https://method.schoolofrock.com/api/review/": {
+      "method": "GET",
+      "url_shape": "https://method.schoolofrock.com/api/review/",
+      "status_codes": [
+        403
+      ],
+      "content_types": [
+        "application/json"
+      ],
+      "top_keys": [
+        "message"
+      ],
+      "count": 1
+    }
+  },
+  "aggregates": {
+    "https://method.schoolofrock.com/api/gist": {
+      "n_assigned_today": 0,
+      "n_students": 0,
+      "n_students_active": 0,
+      "n_teacher_active_assignments": 0,
+      "n_teacher_invites": 0
+    },
+    "https://method.schoolofrock.com/api/teacher/students": {
+      "teacher_students_returned": 0
+    },
+    "https://method.schoolofrock.com/api/teacher/active": {
+      "active_assignments_returned": 0
+    },
+    "https://method.schoolofrock.com/api/teacher/students/school": {
+      "school_students_returned": 375
+    },
+    "https://method.schoolofrock.com/api/statistics/rta_chat_report": {
+      "total": 0
+    },
+    "https://method.schoolofrock.com/api/statistics/assignment_report": {
+      "assignment_count": 11,
+      "assignments_returned": 11
+    },
+    "https://method.schoolofrock.com/api/statistics/assignment_report?limit&month&offset&school&year": {
+      "assignment_count": 11,
+      "assignments_returned": 11
+    },
+    "https://method.schoolofrock.com/api/statistics/student_report": {
+      "total_rows": 20
+    },
+    "https://method.schoolofrock.com/api/statistics/student_report?limit&month&offset&school&teacher&trial&year": {
+      "total_rows": 20
+    },
+    "https://method.schoolofrock.com/api/statistics/rta_session_report?start_date": {
+      "total": 0
+    },
+    "https://method.schoolofrock.com/api/statistics/school_activity_report?isPaginationChange&limit&month&offset&year": {
+      "activities_count": 1,
+      "activities_returned": 1
+    }
+  },
+  "screenshot": "/home/ubuntu/projects/hughrscott/NotesReminder/models/method_home_heights.png"
+}

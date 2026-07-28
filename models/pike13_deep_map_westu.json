@@ -1,0 +1,4358 @@
+{
+  "mapped_at": "2026-07-19T20:22:20.889078+00:00",
+  "school": "westu-sor",
+  "safety_boundary": "read-only structural map; record IDs normalized and customer values omitted",
+  "pages": [
+    {
+      "label": "insights",
+      "route": "/insights",
+      "final_route": "/insights",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "people",
+      "route": "/people",
+      "final_route": "/people",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "reports",
+      "route": "/desk/reports",
+      "final_route": "/desk/reports#/",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "schedule",
+      "route": "/schedule",
+      "final_route": "/schedule#/day?dt&el&lt",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "today",
+      "route": "/today",
+      "final_route": "/today#/list?dt",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "settings",
+      "route": "/desk/settings",
+      "final_route": "/desk/settings",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "membership-products",
+      "route": "/desk/settings/membership_products",
+      "final_route": "/desk/settings/membership_products",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "pass-products",
+      "route": "/desk/settings/pass_products",
+      "final_route": "/desk/settings/pass_products",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "services-settings",
+      "route": "/desk/settings/services",
+      "final_route": "/desk/settings/services",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "client-fields",
+      "route": "/desk/settings/client_fields",
+      "final_route": "/desk/settings/client_fields",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "registration-settings",
+      "route": "/desk/settings/registration",
+      "final_route": "/desk/settings/registration",
+      "status": 404,
+      "error": null
+    },
+    {
+      "label": "staff",
+      "route": "/staff_members",
+      "final_route": "/staff_members",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "locations",
+      "route": "/locations",
+      "final_route": "/locations",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "representative-person-profile",
+      "route": "/people/:id",
+      "final_route": "/people/:id",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "person-tab-1",
+      "route": "/people/:id",
+      "final_route": "/people/:id",
+      "status": null,
+      "error": null
+    },
+    {
+      "label": "report-1",
+      "route": "/desk/reports",
+      "final_route": "/desk/reports#/",
+      "status": 200,
+      "error": null
+    },
+    {
+      "label": "report-2",
+      "route": "/report_permissions?return_to",
+      "final_route": "/report_permissions?return_to",
+      "status": 200,
+      "error": null
+    }
+  ],
+  "endpoints": {
+    "GET /api/insights/widgets/clients_first_memberships": {
+      "method": "GET",
+      "path": "/api/insights/widgets/clients_first_memberships",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/clients_first_visits": {
+      "method": "GET",
+      "path": "/api/insights/widgets/clients_first_visits",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/expiring_memberships": {
+      "method": "GET",
+      "path": "/api/insights/widgets/expiring_memberships",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/failed_payments": {
+      "method": "GET",
+      "path": "/api/insights/widgets/failed_payments",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/last_visited": {
+      "method": "GET",
+      "path": "/api/insights/widgets/last_visited",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/late_canceled_visits": {
+      "method": "GET",
+      "path": "/api/insights/widgets/late_canceled_visits",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/new_clients": {
+      "method": "GET",
+      "path": "/api/insights/widgets/new_clients",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/noshowed_visits": {
+      "method": "GET",
+      "path": "/api/insights/widgets/noshowed_visits",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/past_due_invoices": {
+      "method": "GET",
+      "path": "/api/insights/widgets/past_due_invoices",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/payment_amounts": {
+      "method": "GET",
+      "path": "/api/insights/widgets/payment_amounts",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/refund_amounts": {
+      "method": "GET",
+      "path": "/api/insights/widgets/refund_amounts",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/unconfirmed_attendance": {
+      "method": "GET",
+      "path": "/api/insights/widgets/unconfirmed_attendance",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/insights/widgets/unpaid_visits": {
+      "method": "GET",
+      "path": "/api/insights/widgets/unpaid_visits",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/available_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/available_times.json?client_id&from&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "available_times"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/calendar_preferences/me?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/calendar_preferences/me?client_id",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "calendar_preference"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/event_occurrences.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/event_occurrences.json?client_id&from&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "event_occurrences"
+      ],
+      "item_keys": [
+        "attendance_complete",
+        "capacity_remaining",
+        "deleted_service",
+        "description",
+        "end_at",
+        "event_id",
+        "full",
+        "id",
+        "location_id",
+        "name",
+        "people",
+        "resources",
+        "service_id",
+        "staff_members",
+        "start_at",
+        "state",
+        "timezone",
+        "visits_count"
+      ]
+    },
+    "GET /api/v2/desk/locations?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/locations?client_id",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "locations"
+      ],
+      "item_keys": [
+        "address",
+        "city",
+        "country_code",
+        "description",
+        "formatted_address",
+        "hidden_at",
+        "id",
+        "latitude",
+        "longitude",
+        "name",
+        "phone",
+        "position",
+        "postal_code",
+        "resources",
+        "show_in_client_mode",
+        "slug",
+        "state_code",
+        "street_address",
+        "street_address2",
+        "timezone",
+        "timezone_friendly"
+      ]
+    },
+    "GET /api/v2/desk/rooms.json?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/rooms.json?client_id",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "calendar_resources",
+        "categories"
+      ],
+      "item_keys": [
+        "allow_staff_capacity_overbook",
+        "allow_staff_hours_overbook",
+        "availability",
+        "calendar_resource_category_id",
+        "description",
+        "id",
+        "location_id",
+        "name",
+        "position",
+        "service_ids"
+      ]
+    },
+    "GET /api/v2/desk/services?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/services?client_id",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "categories",
+        "services"
+      ],
+      "item_keys": [
+        "allow_tips",
+        "anonymous_staff",
+        "calendar_color",
+        "cancellation",
+        "category_id",
+        "category_name",
+        "cleanup_duration_in_minutes",
+        "clients_can_book",
+        "clients_can_view",
+        "description",
+        "description_short",
+        "duration_in_minutes",
+        "enrollment_window_blackout_minutes",
+        "enrollment_window_end_minutes",
+        "enrollment_window_start_minutes",
+        "free_cancellation_window_in_hours",
+        "has_skill_programs",
+        "hidden_at",
+        "id",
+        "instructions",
+        "make_up_policy",
+        "maximum_clients",
+        "members_can_book",
+        "members_can_view",
+        "name",
+        "no_merchandise_price",
+        "position",
+        "pricing",
+        "require_cc",
+        "require_plan",
+        "setup_duration_in_minutes",
+        "show_capacity_threshold",
+        "show_capacity_to_clients",
+        "show_capacity_with_spaces_remain",
+        "show_rooms_to_clients",
+        "snap_duration_in_minutes",
+        "supports_single_payer",
+        "type",
+        "visitors_can_view",
+        "waitlist_settings"
+      ]
+    },
+    "GET /api/v2/desk/staff_members/:id/available_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/staff_members/:id/available_times.json?client_id&from&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "available_times"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/staff_members/:id/event_occurrences.json?client_id&from&staff_member_ids&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/staff_members/:id/event_occurrences.json?client_id&from&staff_member_ids&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "event_occurrences"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/staff_members/:id/unavailable_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/staff_members/:id/unavailable_times.json?client_id&from&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "unavailable_times"
+      ],
+      "item_keys": []
+    },
+    "GET /api/v2/desk/staff_members?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/staff_members?client_id",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "staff_members"
+      ],
+      "item_keys": [
+        "bio",
+        "commissionable",
+        "custom_fields",
+        "deleted_at",
+        "email",
+        "first_name",
+        "hidden_at",
+        "id",
+        "last_name",
+        "location_id",
+        "middle_name",
+        "name",
+        "phone",
+        "profile_photo",
+        "role"
+      ]
+    },
+    "GET /api/v2/desk/unavailable_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/unavailable_times.json?client_id&from&to",
+      "statuses": [
+        200
+      ],
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "unavailable_times"
+      ],
+      "item_keys": []
+    }
+  },
+  "ui": {
+    "links": [
+      {
+        "page": "insights",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "people",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "people",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "people",
+        "text": "No",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "Yes",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "people",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "people",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "people",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "people",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "people",
+        "text": "Settings",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "people",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "people",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "people",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "people",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "people",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "people",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "people",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "people",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "people",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "people",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "people",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "people",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "people",
+        "text": "Reporting Menu",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "people",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "people",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "people",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "people",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "people",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "people",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "people",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "people",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "people",
+        "text": "clear_search_people",
+        "route": "/people"
+      },
+      {
+        "page": "people",
+        "text": "[person record]",
+        "route": "/people/:id"
+      },
+      {
+        "page": "people",
+        "text": "2",
+        "route": "/people?page"
+      },
+      {
+        "page": "people",
+        "text": "94",
+        "route": "/people?page"
+      },
+      {
+        "page": "people",
+        "text": "\u2192",
+        "route": "/people?page"
+      },
+      {
+        "page": "people",
+        "text": "New Client",
+        "route": "/people/new"
+      },
+      {
+        "page": "people",
+        "text": "Import Clients",
+        "route": "/desk/client_imports/new?person_type"
+      },
+      {
+        "page": "people",
+        "text": "Client Signup",
+        "route": "/client_registration_settings/:id"
+      },
+      {
+        "page": "people",
+        "text": "Custom Fields",
+        "route": "/custom_fields"
+      },
+      {
+        "page": "reports",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "reports",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "reports",
+        "text": "No",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Yes",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "reports",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "reports",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "reports",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "reports",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "reports",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "reports",
+        "text": "Settings",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "reports",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "reports",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "reports",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "reports",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "reports",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "reports",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "reports",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "reports",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "reports",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "reports",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "reports",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "reports",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "reports",
+        "text": "Reporting Menu",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "reports",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "reports",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "reports",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "reports",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "reports",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "reports",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "reports",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "reports",
+        "text": "Insights",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Favorites",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Clients & Staff",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "Financials",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "reports",
+        "text": "People with access to reports",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "reports",
+        "text": "Reporting Help",
+        "route": "/knowledge/hc/en-us/articles/205838643-how-to-use-reporting"
+      },
+      {
+        "page": "schedule",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "schedule",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "schedule",
+        "text": "No",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Yes",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "schedule",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "schedule",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "schedule",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "schedule",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "schedule",
+        "text": "Settings",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "schedule",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "schedule",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "schedule",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "schedule",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "schedule",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "schedule",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "schedule",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "schedule",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "schedule",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "schedule",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "schedule",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "schedule",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "schedule",
+        "text": "Reporting Menu",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "schedule",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "schedule",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "schedule",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "schedule",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "schedule",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "schedule",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "schedule",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "schedule",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "schedule",
+        "text": "List",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Day",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Week",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Month",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Book",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "Bulk Cancel",
+        "route": "/schedule"
+      },
+      {
+        "page": "schedule",
+        "text": "active staff only",
+        "route": "/schedule"
+      },
+      {
+        "page": "today",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "today",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "today",
+        "text": "No",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Yes",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "today",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "today",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "today",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "today",
+        "text": "Settings",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "today",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "today",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "today",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "today",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "today",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "today",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "today",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "today",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "today",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "today",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "today",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "today",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "today",
+        "text": "Reporting Menu",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "today",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "today",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "today",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "today",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "today",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "today",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "today",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "today",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "today",
+        "text": "Calvin Barnhill removed Alexander Peterson and added Mac Frazier as an instructor for Guitar Lessons - 45 minutes on Mon",
+        "route": "/e/:id"
+      },
+      {
+        "page": "today",
+        "text": "Calvin Barnhill removed Mac Frazier as an instructor for Rock 101 Rehearsal on Mon, Jul 20 at 5:00pm",
+        "route": "/e/:id"
+      },
+      {
+        "page": "today",
+        "text": "Calvin Barnhill removed Alexander Peterson and added Logan Gill as an instructor for Guitar Lessons - 45 minutes on Mon,",
+        "route": "/e/:id"
+      },
+      {
+        "page": "today",
+        "text": "[person record]",
+        "route": "/people/:id?return_to"
+      },
+      {
+        "page": "today",
+        "text": "List",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Day",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Week",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Month",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "Notifications and schedule",
+        "route": "/today"
+      },
+      {
+        "page": "today",
+        "text": "3 pending purchase requests",
+        "route": "/today/purchase_requests"
+      },
+      {
+        "page": "today",
+        "text": "54 birthdays this week",
+        "route": "/today/birthdays"
+      },
+      {
+        "page": "today",
+        "text": "0 unsigned waivers",
+        "route": "/today/waivers"
+      },
+      {
+        "page": "today",
+        "text": "0 unpaid invoices",
+        "route": "/today/unpaid_invoices"
+      },
+      {
+        "page": "today",
+        "text": "0 clients with unpaid invoices and upcoming visits",
+        "route": "/today/unpaid_invoices_and_upcoming_visits"
+      },
+      {
+        "page": "today",
+        "text": "29 clients with account credit",
+        "route": "/today/account_credit_clients"
+      },
+      {
+        "page": "today",
+        "text": "[person record]",
+        "route": "/people/:id/calendar_subscription"
+      },
+      {
+        "page": "settings",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "membership-products",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "membership-products",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "membership-products",
+        "text": "No",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Yes",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "membership-products",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "membership-products",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "membership-products",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "membership-products",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "membership-products",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "membership-products",
+        "text": "Settings",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "membership-products",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "membership-products",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "membership-products",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "membership-products",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "membership-products",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "membership-products",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "membership-products",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "membership-products",
+        "text": "Reporting Menu",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "membership-products",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "membership-products",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "membership-products",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "membership-products",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "membership-products",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "membership-products",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "membership-products",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "membership-products",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "membership-products",
+        "text": "New Recurring Plan",
+        "route": "/desk/settings/membership_products/new"
+      },
+      {
+        "page": "membership-products",
+        "text": "New Prepaid Plan",
+        "route": "/desk/settings/prepaid_products/new"
+      },
+      {
+        "page": "membership-products",
+        "text": "Duplicate Existing Plan",
+        "route": "/desk/settings/duplicate_plan_products/new"
+      },
+      {
+        "page": "membership-products",
+        "text": "clear_search_service",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "Performance Program - 45 Minute Lessons 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 45 minutes, Key",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Import",
+        "route": "/plan_imports/new?product_id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$399 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Lessons Only - 45 Minute Lessons 1 visit per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 45 minutes, Keyboard Le",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$340 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rock 101 - 45 Minute Lessons 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 45 minutes, Keyboard Lesso",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "House Band Unlimited visits \u2022 For use in House Band",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$0 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Little Wing 1 visit per Week \u2022 $125 signup fee \u2022 For use in Little Wing",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$180 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Program - 45 Minute Lessons w/ Rehearsal 2 visits per Week \u2022 $125 signup fee \u2022 For use in Adult Rehearsal, Vocal L",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Additional Lessons - 45 Minutes Weekly 1 visit per Week \u2022 For use in Vocal Lessons - 45 minutes, Keyboard Lessons - 45 m",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$190 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rock 101 - 30-Minute Lessons 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 minutes, Keyboard Lesso",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Band - Rehearsal Only Unlimited visits \u2022 $125 signup fee \u2022 For use in Adult Rehearsal, Adult Band Trial",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$250 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Performance Program - 30 Minute Lessons 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 minutes, Key",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rookies PLUS - 30 Minute Lessons 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 minutes, Keyboard L",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Lessons Only - 30 Minutes 1 visit per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 minutes, Keyboard Lessons -",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Full Year Payment Unlimited visits for 12 months \u2022 For use in Vocal Lessons - 45 minutes, Keyboard Lessons - 45 minutes,",
+        "route": "/desk/settings/prepaid_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$8,415",
+        "route": "/desk/settings/prepaid_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Additional Lessons 30 Minutes Unlimited visits \u2022 For use in Vocal Lessons - 30 minutes, Keyboard Lessons - 30 minutes, G",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$170 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Additional Show Unlimited visits \u2022 For use in Seasonal Show Rehearsal - 2hr, Prog, Arena Rock, Punk, Michael Jackson vs.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$120 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Program - 30 Minute Lessons w/ Rehearsal 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 minut",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rookies 1 visit per Week \u2022 $125 signup fee \u2022 For use in Rookies",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$230 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rookies PLUS - 45 Minute Lessons Suspended \u2022 2 visits per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 45 minutes",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$370 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Program - Lessons Only 45 Minutes Suspended \u2022 1 visit per Week \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 45 m",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$330 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rehearsals Only Suspended \u2022 1 visit per Week \u2022 For use in Adult Rehearsal, Rock 101 Rehearsal, Seasonal Show Rehearsal -",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$200 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Program - Performance Only Suspended \u2022 1 visit per Week \u2022 For use in Adult Rehearsal, Adult Band Rehearsal Only",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "On Hold Suspended \u2022 Unlimited visits \u2022 This plan doesn't pay for any services.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$20 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "One-off Lessons Only Suspended \u2022 Unlimited visits \u2022 $99 signup fee \u2022 This plan doesn't pay for any services.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Songwriting (Add-On) Suspended \u2022 Unlimited visits \u2022 This plan doesn't pay for any services.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "$150 every month",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Rock Group Suspended \u2022 2 visits per Week \u2022 $99 signup fee \u2022 This plan doesn't pay for any services.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Adult Program - Lessons Only 30 Minutes Suspended \u2022 Unlimited visits \u2022 $125 signup fee \u2022 For use in Vocal Lessons - 30 m",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "Master Class Suspended \u2022 Unlimited visits \u2022 This plan doesn't pay for any services.",
+        "route": "/desk/settings/membership_products/:id"
+      },
+      {
+        "page": "membership-products",
+        "text": "New Plan",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "membership-products",
+        "text": "See What Clients See",
+        "route": "/client_mode?then"
+      },
+      {
+        "page": "membership-products",
+        "text": "Import Existing Plans",
+        "route": "/desk/settings/membership_products#content"
+      },
+      {
+        "page": "membership-products",
+        "text": "Recurring plan",
+        "route": "/hc/en-us/articles/360029859851-creating-a-recurring-plan"
+      },
+      {
+        "page": "membership-products",
+        "text": "Prepaid plan",
+        "route": "/hc/en-us/articles/360029860711-creating-a-prepaid-plan"
+      },
+      {
+        "page": "pass-products",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "services-settings",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "client-fields",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "registration-settings",
+        "text": "Return Home",
+        "route": "/"
+      },
+      {
+        "page": "staff",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "staff",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "staff",
+        "text": "No",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "Yes",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "staff",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "staff",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "staff",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "staff",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "staff",
+        "text": "Settings",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "staff",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "staff",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "staff",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "staff",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "staff",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "staff",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "staff",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "staff",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "staff",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "staff",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "staff",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "staff",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "staff",
+        "text": "Reporting Menu",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "staff",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "staff",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "staff",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "staff",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "staff",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "staff",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "staff",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "staff",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "staff",
+        "text": "clear_search_people",
+        "route": "/staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "IT Admin No Membership \u2022 Owner (Primary)",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Hugh Scott No Membership \u2022 Owner",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "VS",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Vivian Scott No Membership \u2022 Owner",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "IT API No Membership \u2022 Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Online Booking No Membership \u2022 Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Operations Support No Membership \u2022 Owner",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Zendesk Prospect Widget No Membership \u2022 Owner",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "ZJ",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Zach Jones No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "LG",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Logan Gill No Membership \u2022 Manager",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "MM",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Matt Mireles No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Alexander Peterson No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "AY",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Andrew Yeargain No Membership \u2022 Manager",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "JM",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Joy Meis No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "RS",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Reef Stallworth No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "JK",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Jordan King No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "JR",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Jack Riggs No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "MF",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Mac Frazier No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "CA",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Carlos Arriaga No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "KS",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Kenzie Soape No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Maynor Mayorquin No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "KF",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Kimya Fotovat No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "AG",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Antoine Griggs No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "CT",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Casandra Tenorio No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "GT",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Group Trial No Membership \u2022 Limited Staff Member",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "CR",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Candi Rohn No Membership \u2022 Manager",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "RC",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Rowan Colleran No Membership \u2022 Manager",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "CB",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "Calvin Barnhill No Membership \u2022 Owner",
+        "route": "/staff_members/:id"
+      },
+      {
+        "page": "staff",
+        "text": "New Staff Member",
+        "route": "/staff_members/new"
+      },
+      {
+        "page": "staff",
+        "text": "Import Staff",
+        "route": "/desk/client_import/file_imports/new?person_type"
+      },
+      {
+        "page": "staff",
+        "text": "Run Payroll Now",
+        "route": "/desk/pay_periods"
+      },
+      {
+        "page": "staff",
+        "text": "Pay Rates",
+        "route": "/pay_rates"
+      },
+      {
+        "page": "staff",
+        "text": "Tips",
+        "route": "/tippable_services"
+      },
+      {
+        "page": "staff",
+        "text": "Commission Rates",
+        "route": "/commission_structures"
+      },
+      {
+        "page": "staff",
+        "text": "Commissioned Staff",
+        "route": "/commissioned_staff_members"
+      },
+      {
+        "page": "staff",
+        "text": "Setting up payroll",
+        "route": "/hc/en-us/articles/205838193-Configuring-Payroll"
+      },
+      {
+        "page": "staff",
+        "text": "Running payroll",
+        "route": "/hc/en-us/articles/205838603-Running-Payroll"
+      },
+      {
+        "page": "locations",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "locations",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "locations",
+        "text": "No",
+        "route": "/locations"
+      },
+      {
+        "page": "locations",
+        "text": "Yes",
+        "route": "/locations"
+      },
+      {
+        "page": "locations",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "locations",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "locations",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "locations",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "locations",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "locations",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "locations",
+        "text": "Settings",
+        "route": "/locations"
+      },
+      {
+        "page": "locations",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "locations",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "locations",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "locations",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "locations",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "locations",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "locations",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "locations",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "locations",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "locations",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "locations",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "locations",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "locations",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "locations",
+        "text": "Reporting Menu",
+        "route": "/locations"
+      },
+      {
+        "page": "locations",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "locations",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "locations",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "locations",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "locations",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "locations",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "locations",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "locations",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "locations",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "locations",
+        "text": "School of Rock West U 2607 Bissonnet St, Houston, TX, 77005",
+        "route": "/locations/school-of-rock-west-u"
+      },
+      {
+        "page": "locations",
+        "text": "Add Location 2",
+        "route": "/locations/new"
+      },
+      {
+        "page": "locations",
+        "text": "General Details",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "locations",
+        "text": "Primary Owner",
+        "route": "/desk/settings/primary_owner"
+      },
+      {
+        "page": "locations",
+        "text": "Contact Information",
+        "route": "/contact_info"
+      },
+      {
+        "page": "locations",
+        "text": "Locations",
+        "route": "/locations"
+      },
+      {
+        "page": "locations",
+        "text": "Business Logo",
+        "route": "/logo"
+      },
+      {
+        "page": "locations",
+        "text": "Staff Website",
+        "route": "/desk/colors"
+      },
+      {
+        "page": "locations",
+        "text": "Settings",
+        "route": "/client_registration_settings/:id"
+      },
+      {
+        "page": "locations",
+        "text": "Waivers",
+        "route": "/client_registration_settings/:id?focus"
+      },
+      {
+        "page": "locations",
+        "text": "Welcome Email",
+        "route": "/client_registration_settings/:id?focus"
+      },
+      {
+        "page": "locations",
+        "text": "Custom Fields",
+        "route": "/custom_fields"
+      },
+      {
+        "page": "locations",
+        "text": "Custom Staff Fields",
+        "route": "/staff_registration_settings/:id"
+      },
+      {
+        "page": "locations",
+        "text": "Zendesk",
+        "route": "/zendesk_account"
+      },
+      {
+        "page": "locations",
+        "text": "Make-up Reasons",
+        "route": "/desk/settings/make_up_reasons"
+      },
+      {
+        "page": "locations",
+        "text": "Recurring Billing",
+        "route": "/desk/settings/recurring_billing"
+      },
+      {
+        "page": "locations",
+        "text": "Roster Settings",
+        "route": "/desk/settings/roster_settings"
+      },
+      {
+        "page": "locations",
+        "text": "Appointments",
+        "route": "/desk/settings/service_defaults/appointments"
+      },
+      {
+        "page": "locations",
+        "text": "Classes",
+        "route": "/desk/settings/service_defaults/classes"
+      },
+      {
+        "page": "locations",
+        "text": "Courses",
+        "route": "/desk/settings/service_defaults/courses"
+      },
+      {
+        "page": "locations",
+        "text": "Accepted Payments",
+        "route": "/desk/settings/payment_types"
+      },
+      {
+        "page": "locations",
+        "text": "Account Credit",
+        "route": "/desk/settings/account_credit/edit"
+      },
+      {
+        "page": "locations",
+        "text": "Sales Tax",
+        "route": "/desk/settings/sales_taxes"
+      },
+      {
+        "page": "locations",
+        "text": "Revenue Categories",
+        "route": "/revenue_categories"
+      },
+      {
+        "page": "locations",
+        "text": "Invoice Settings",
+        "route": "/desk/settings/invoice_settings"
+      },
+      {
+        "page": "locations",
+        "text": "Plan Import",
+        "route": "/plan_imports"
+      },
+      {
+        "page": "locations",
+        "text": "Settings",
+        "route": "/email"
+      },
+      {
+        "page": "locations",
+        "text": "Account Emails",
+        "route": "/sample_emails?tab"
+      },
+      {
+        "page": "locations",
+        "text": "Event Emails",
+        "route": "/sample_emails?tab"
+      },
+      {
+        "page": "locations",
+        "text": "Billing Emails",
+        "route": "/sample_emails?tab"
+      },
+      {
+        "page": "locations",
+        "text": "Mailchimp",
+        "route": "/mailchimp_account"
+      },
+      {
+        "page": "locations",
+        "text": "Emma",
+        "route": "/emma_account"
+      },
+      {
+        "page": "locations",
+        "text": "Pay Rates",
+        "route": "/pay_rates"
+      },
+      {
+        "page": "locations",
+        "text": "Tips",
+        "route": "/tippable_services"
+      },
+      {
+        "page": "locations",
+        "text": "Commission Rates",
+        "route": "/commission_structures"
+      },
+      {
+        "page": "locations",
+        "text": "Commissioned Staff",
+        "route": "/commissioned_staff_members"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "/people",
+        "route": "/people"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/start_document_signing?signer_id"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/person_resend/resend_welcome"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/notes"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/shop"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/contact_info?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/shop?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/profile_photo/new?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/notes?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/signed_documents/new?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/edit?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/notifications?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/balances?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/form_of_payments?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/account_credit?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/barcodes?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/recurring_enrollments?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/activity?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/history?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/photos?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/visits?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/invoices?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/signed_documents?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/email_logs?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/dependents/new?return_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/edit?return_to#relationship_fields"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Merge This Person",
+        "route": "/people?merge_to"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/existing_plans/choose"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/people/:id/promote"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/make_non_client"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id/hide"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "[person record]",
+        "route": "/desk/people/:id"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "/people",
+        "route": "/people"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/start_document_signing?signer_id"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/person_resend/resend_welcome"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/notes"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/shop"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/contact_info?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/shop?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/profile_photo/new?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/notes?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/signed_documents/new?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/edit?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/notifications?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/balances?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/form_of_payments?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/account_credit?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/barcodes?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/recurring_enrollments?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/activity?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/history?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/photos?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/visits?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/invoices?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/signed_documents?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/email_logs?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/dependents/new?return_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/edit?return_to#relationship_fields"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Merge This Person",
+        "route": "/people?merge_to"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/existing_plans/choose"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/people/:id/promote"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/make_non_client"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id/hide"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "[person record]",
+        "route": "/desk/people/:id"
+      },
+      {
+        "page": "report-1",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "report-1",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "report-1",
+        "text": "No",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Yes",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "report-1",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "report-1",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "report-1",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "report-1",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "report-1",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "report-1",
+        "text": "Settings",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "report-1",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "report-1",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "report-1",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "report-1",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "report-1",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "report-1",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "report-1",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "report-1",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "report-1",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "report-1",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "report-1",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "report-1",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "report-1",
+        "text": "Reporting Menu",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "report-1",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "report-1",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "report-1",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "report-1",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "report-1",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "report-1",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "report-1",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "report-1",
+        "text": "Insights",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Favorites",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Clients & Staff",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "Financials",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-1",
+        "text": "People with access to reports",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "report-1",
+        "text": "Reporting Help",
+        "route": "/knowledge/hc/en-us/articles/205838643-how-to-use-reporting"
+      },
+      {
+        "page": "report-2",
+        "text": "Switch to mobile website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "report-2",
+        "text": "Switch to full website",
+        "route": "/force_layout?mode"
+      },
+      {
+        "page": "report-2",
+        "text": "No",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "report-2",
+        "text": "Yes",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "report-2",
+        "text": "School of Rock West U",
+        "route": "/today"
+      },
+      {
+        "page": "report-2",
+        "text": "Today",
+        "route": "/today"
+      },
+      {
+        "page": "report-2",
+        "text": "Schedule",
+        "route": "/schedule"
+      },
+      {
+        "page": "report-2",
+        "text": "Clients",
+        "route": "/people"
+      },
+      {
+        "page": "report-2",
+        "text": "Staff",
+        "route": "/staff_members"
+      },
+      {
+        "page": "report-2",
+        "text": "Store",
+        "route": "/shop"
+      },
+      {
+        "page": "report-2",
+        "text": "Settings",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "report-2",
+        "text": "Services",
+        "route": "/services"
+      },
+      {
+        "page": "report-2",
+        "text": "Rooms",
+        "route": "/desk/settings/rooms"
+      },
+      {
+        "page": "report-2",
+        "text": "Passes",
+        "route": "/desk/settings/pack_products"
+      },
+      {
+        "page": "report-2",
+        "text": "Plans",
+        "route": "/desk/settings/membership_products"
+      },
+      {
+        "page": "report-2",
+        "text": "Merchandise",
+        "route": "/desk/settings/retail_products"
+      },
+      {
+        "page": "report-2",
+        "text": "Gift Cards",
+        "route": "/desk/settings/gift_card_products"
+      },
+      {
+        "page": "report-2",
+        "text": "Coupons",
+        "route": "/desk/settings/promotions"
+      },
+      {
+        "page": "report-2",
+        "text": "Documents",
+        "route": "/desk/settings/documents"
+      },
+      {
+        "page": "report-2",
+        "text": "Staff Permissions",
+        "route": "/desk/permission_settings"
+      },
+      {
+        "page": "report-2",
+        "text": "Pike13 Website",
+        "route": "/client_website_editor"
+      },
+      {
+        "page": "report-2",
+        "text": "Apps and Add-Ons",
+        "route": "/desk/settings/apps_and_addons"
+      },
+      {
+        "page": "report-2",
+        "text": "Advanced Settings",
+        "route": "/desk/settings/general"
+      },
+      {
+        "page": "report-2",
+        "text": "Billing Info",
+        "route": "/desk/settings/billing"
+      },
+      {
+        "page": "report-2",
+        "text": "Reporting Menu",
+        "route": "/report_permissions?return_to"
+      },
+      {
+        "page": "report-2",
+        "text": "Reporting",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-2",
+        "text": "Premium Reporting",
+        "route": "/"
+      },
+      {
+        "page": "report-2",
+        "text": "[person record]",
+        "route": "/people/:id/notifications"
+      },
+      {
+        "page": "report-2",
+        "text": "See What Clients See",
+        "route": "/client_mode"
+      },
+      {
+        "page": "report-2",
+        "text": "My Dashboard",
+        "route": "/staff_members/:id?tab"
+      },
+      {
+        "page": "report-2",
+        "text": "Refer a Friend",
+        "route": "/desk/referral"
+      },
+      {
+        "page": "report-2",
+        "text": "Get Help",
+        "route": "/tickets"
+      },
+      {
+        "page": "report-2",
+        "text": "Developer",
+        "route": "/"
+      },
+      {
+        "page": "report-2",
+        "text": "Sign Out",
+        "route": "/accounts/sign_out"
+      },
+      {
+        "page": "report-2",
+        "text": "/desk/reports",
+        "route": "/desk/reports"
+      },
+      {
+        "page": "report-2",
+        "text": "[person record]",
+        "route": "/people/:id"
+      }
+    ],
+    "buttons": [
+      {
+        "page": "insights",
+        "text": "Return Home"
+      },
+      {
+        "page": "people",
+        "text": "Filters"
+      },
+      {
+        "page": "people",
+        "text": "Close"
+      },
+      {
+        "page": "people",
+        "text": "Clear"
+      },
+      {
+        "page": "people",
+        "text": "Apply"
+      },
+      {
+        "page": "people",
+        "text": "Sort: First Name (A-Z)"
+      },
+      {
+        "page": "schedule",
+        "text": "Today"
+      },
+      {
+        "page": "schedule",
+        "text": "Close"
+      },
+      {
+        "page": "today",
+        "text": "Today"
+      },
+      {
+        "page": "today",
+        "text": "Close"
+      },
+      {
+        "page": "settings",
+        "text": "Return Home"
+      },
+      {
+        "page": "pass-products",
+        "text": "Return Home"
+      },
+      {
+        "page": "services-settings",
+        "text": "Return Home"
+      },
+      {
+        "page": "client-fields",
+        "text": "Return Home"
+      },
+      {
+        "page": "registration-settings",
+        "text": "Return Home"
+      },
+      {
+        "page": "staff",
+        "text": "Sort: Custom Order"
+      },
+      {
+        "page": "staff",
+        "text": "Close"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Submit form"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Submit form"
+      }
+    ],
+    "fields": [
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "qt",
+        "id": "qt",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "order",
+        "id": "order",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "q",
+        "id": "search_field",
+        "placeholder": "Find someone",
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_members",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_passes",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_plan",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_scheduled",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "date",
+        "name": null,
+        "id": "scheduled_from_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "date",
+        "name": null,
+        "id": "scheduled_to_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_birthday",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_from_month_input",
+        "id": "birthday_from_month_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_from_day_input",
+        "id": "birthday_from_day_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_to_month_input",
+        "id": "birthday_to_month_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_to_day_input",
+        "id": "birthday_to_day_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_age",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_month_input",
+        "id": "age_from_month_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_day_input",
+        "id": "age_from_day_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_year_input",
+        "id": "age_from_year_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_month_input",
+        "id": "age_to_month_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_day_input",
+        "id": "age_to_day_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_year_input",
+        "id": "age_to_year_input",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_no_dob",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_first_name",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_last_name",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_created",
+        "placeholder": null,
+        "aria": null,
+        "page": "people"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null,
+        "aria": null,
+        "page": "schedule"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null,
+        "aria": null,
+        "page": "schedule"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null,
+        "aria": null,
+        "page": "today"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null,
+        "aria": null,
+        "page": "today"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "qt",
+        "id": "qt",
+        "placeholder": null,
+        "aria": null,
+        "page": "membership-products"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "q",
+        "id": "search_field",
+        "placeholder": "Search",
+        "aria": null,
+        "page": "membership-products"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "qt",
+        "id": "qt",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "order",
+        "id": "order",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "q",
+        "id": "search_field",
+        "placeholder": "Find someone",
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "sort",
+        "id": "sort_custom",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "sort",
+        "id": "sort_first_name",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "sort",
+        "id": "sort_last_name",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "sort",
+        "id": "sort_created",
+        "placeholder": null,
+        "aria": null,
+        "page": "staff"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "_method",
+        "id": "",
+        "placeholder": null,
+        "aria": null,
+        "page": "representative-person-profile"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "authenticity_token",
+        "id": "",
+        "placeholder": null,
+        "aria": null,
+        "page": "representative-person-profile"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "person[permissions[manage_website_settings]]",
+        "id": "person_permissions[manage_website_settings]",
+        "placeholder": null,
+        "aria": null,
+        "page": "representative-person-profile"
+      },
+      {
+        "tag": "INPUT",
+        "type": "submit",
+        "name": "commit",
+        "id": "",
+        "placeholder": null,
+        "aria": "Submit form",
+        "page": "representative-person-profile"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "_method",
+        "id": "",
+        "placeholder": null,
+        "aria": null,
+        "page": "person-tab-1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "authenticity_token",
+        "id": "",
+        "placeholder": null,
+        "aria": null,
+        "page": "person-tab-1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "person[permissions[manage_website_settings]]",
+        "id": "person_permissions[manage_website_settings]",
+        "placeholder": null,
+        "aria": null,
+        "page": "person-tab-1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "submit",
+        "name": "commit",
+        "id": "",
+        "placeholder": null,
+        "aria": "Submit form",
+        "page": "person-tab-1"
+      }
+    ],
+    "headings": [
+      {
+        "page": "people",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "people",
+        "text": "Clients"
+      },
+      {
+        "page": "people",
+        "text": "Show clients who..."
+      },
+      {
+        "page": "people",
+        "text": "Filter Clients"
+      },
+      {
+        "page": "people",
+        "text": "Sort by"
+      },
+      {
+        "page": "reports",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "reports",
+        "text": "Insights"
+      },
+      {
+        "page": "schedule",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "schedule",
+        "text": "Sunday, July 19, 2026"
+      },
+      {
+        "page": "today",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "today",
+        "text": "Today"
+      },
+      {
+        "page": "today",
+        "text": "You have 5 new notifications today"
+      },
+      {
+        "page": "today",
+        "text": "Your Schedule"
+      },
+      {
+        "page": "membership-products",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "membership-products",
+        "text": "Plans"
+      },
+      {
+        "page": "membership-products",
+        "text": "What kind of plan?"
+      },
+      {
+        "page": "membership-products",
+        "text": "Recurring plans"
+      },
+      {
+        "page": "membership-products",
+        "text": "Prepaid visit plans"
+      },
+      {
+        "page": "membership-products",
+        "text": "Duplicate existing plan"
+      },
+      {
+        "page": "staff",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "staff",
+        "text": "Staff"
+      },
+      {
+        "page": "staff",
+        "text": "Sort by"
+      },
+      {
+        "page": "locations",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "locations",
+        "text": "Locations"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "representative-person-profile",
+        "text": "Notes"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "person-tab-1",
+        "text": "Notes"
+      },
+      {
+        "page": "report-1",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "report-1",
+        "text": "Insights"
+      },
+      {
+        "page": "report-2",
+        "text": "Are you sure?"
+      },
+      {
+        "page": "report-2",
+        "text": "People with reporting access"
+      }
+    ],
+    "tabs": [
+      {
+        "text": "",
+        "route": "/people/:id"
+      }
+    ]
+  },
+  "counts": {
+    "links": 795,
+    "buttons": 20,
+    "fields": 46,
+    "headings": 34,
+    "tabs": 1,
+    "pages": 17,
+    "endpoints": 24
+  }
+}

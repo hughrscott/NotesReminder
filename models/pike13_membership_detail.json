@@ -1,0 +1,19 @@
+{
+  "pulled_at": "2026-07-16T03:39:41.708036+00:00",
+  "school": "westu-sor",
+  "tables": {
+    "last_memberships": [
+      "Annabelle Ruan\t\t\t5100 Valerie St, Bellaire, TX, 77401, United States of America\tMake-up Lesson - 45 Minutes, Performance Program - 45 Minute Lessons",
+      "Will Bisson\t\t\t\tLessons Only - 45 Minute Lessons",
+      "Maxwell Wilson\t\t\t\tLessons Only - 30 Minutes, Make-up Lesson - 30 Minutes",
+      "Nina Loperena\t\t7132996830\t1605 RUTH ST,HOUSTON,Texas,77004,USA\tPerformance Program - 45 Minute Lessons"
+    ]
+  },
+  "api_calls": [
+    {
+      "name": "configuration.json",
+      "url": "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json",
+      "rows": 13
+    }
+  ]
+}

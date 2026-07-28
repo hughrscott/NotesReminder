@@ -728,6 +728,11 @@ def generate_reports(profiles, risk_scores, data):
                 lines.append(f"  {p['student']} — {p['v12_risk']:.0%} risk | {badge}")
                 lines.append(f"  🏷️  {primary.get('archetype', '?')} ({primary.get('speed', '?')}) — {primary.get('confidence', '?')} confidence")
                 if secondary: lines.append(f"     Also: {secondary['archetype']}")
+                # v13 cancellation-risk overlay (Pike13 ground-truth leavers model)
+                vr = p.get("v13_risk")
+                if vr is not None:
+                    vbadge = {"critical":"🔴","high":"🟠","watch":"🟡","low":"🟢"}.get(p.get("v13_tier"),"⚪")
+                    lines.append(f"     v13 cancellation-risk: {vbadge} {vr:.0%} ({p.get('v13_tier')})")
                 
                 for advice_item in primary.get("playbook", []):
                     prefix = {"headline": "", "breakdown": "", "breakdown_item": "", "hook": "💬", "red_flag": "🚩", "action": "→", "concern": "⚠️", "positive": "✅", "context": "📋", "gap": "❓", "hold_action": "⏰", "hold_returned": "✅", "hold_expired": "⚠️"}.get(advice_item["type"], "•")
@@ -795,6 +800,7 @@ def generate_reports(profiles, risk_scores, data):
     save_action_tracker(tracker)
     
     json_out = [{"student": p["student"], "school": p["school"], "v12_risk": p.get("v12_risk", 0),
+                 "v13_risk": p.get("v13_risk"), "v13_tier": p.get("v13_tier"),
                  "archetypes": p.get("archetypes", []), "days_idle": p["days_idle"],
                  "avg_score": p["avg_score"], "score_trend": p["score_trend"],
                  "keyword_hits": p["keyword_hits"], "is_on_hold": p["is_on_hold"]} for p in profiles]
@@ -808,7 +814,26 @@ def main():
     risk_scores = pd.read_csv(MODELS_DIR / "v11_risk_scores.csv")
     active = risk_scores[risk_scores["risk"] >= 0.10]
     profiles = [p for name in active["student_name"] if (p := build_student_profile(str(name), data))]
-    print(f"  Profiles: {len(profiles)}")
+
+    # ── Merge v13 cancellation-risk scores (ground-truth leavers model) ──
+    v13_path = MODELS_DIR / "v13_risk_scores.csv"
+    if v13_path.exists():
+        v13 = pd.read_csv(v13_path)
+        v13_idx = {str(r["student_name"]).lower(): r for _, r in v13.iterrows()}
+        for p in profiles:
+            m = v13_idx.get(p["student"].lower())
+            if m is not None:
+                p["v13_risk"] = float(m["v13_risk"])
+                p["v13_tier"] = str(m["v13_tier"])
+            else:
+                p["v13_risk"] = None
+                p["v13_tier"] = "n/a"
+    else:
+        for p in profiles:
+            p["v13_risk"] = None
+            p["v13_tier"] = "n/a"
+
+    print(f"  Profiles: {len(profiles)} (v13 scores merged: {sum(1 for p in profiles if p.get('v13_risk') is not None)})")
     generate_reports(profiles, risk_scores, data)
     print("\nDone.")
 

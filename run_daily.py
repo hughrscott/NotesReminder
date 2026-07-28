@@ -77,6 +77,37 @@ def parse_args():
     return parser.parse_args()
 
 
+from notesreminder.lib.note_page_probe import VALID_STATUSES
+
+
+def assert_no_uncertain_recent_notes(db_path, days=7):
+    """Pipeline guardrail: fail loudly if any uncertain notes exist.
+
+    Any lesson in the last `days` with a note_status of 'empty', 'unknown',
+    'error', 'auth_failed', or missing a lesson_notes row indicates an
+    unresolved scrape failure.  Raise RuntimeError — the pipeline must not
+    silently default to 'No notes'.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        bad = conn.execute(
+            "SELECT COUNT(*) FROM reminders r "
+            "LEFT JOIN lesson_notes ln ON r.lesson_id = ln.lesson_id "
+            "WHERE r.lesson_date >= DATE('now', ?) "
+            "AND (ln.lesson_id IS NULL OR ln.note_status NOT IN ('extracted', 'exists', 'no_note', 'no_note_page')) "
+            "AND COALESCE(r.lesson_type, '') NOT LIKE '%admin%' "
+            "AND COALESCE(r.lesson_type, '') NOT LIKE '%availability%'",
+            (f"-{days} days",)
+        ).fetchone()[0]
+        if bad:
+            raise RuntimeError(
+                f"Guardrail: {bad} lessons in last {days}d have uncertain note status. "
+                "Run backfill or fix scraper before emailing."
+            )
+    finally:
+        conn.close()
+
+
 def sync_reporting_tables(db_path):
     conn = sqlite3.connect(db_path)
     try:
@@ -790,10 +821,12 @@ def update_reminders_from_dataframe(
         note_timestamp = row.get('Note Timestamp', None)
         # Use scraper's definitive note_status if available, otherwise compute
         scraper_status = row.get('Note Status', '')
-        if scraper_status in ('no_note', 'exists', 'unknown'):
+        if scraper_status in VALID_STATUSES:
             note_status = scraper_status
+        elif has_notes:
+            note_status = 'extracted'
         else:
-            note_status = 'extracted' if (has_notes and notes_str.strip()) else ('empty' if has_notes else 'no_note')
+            note_status = 'error'  # never empty/unknown
 
         note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
         note_score = None

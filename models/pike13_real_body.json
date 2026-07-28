@@ -1,0 +1,24 @@
+{
+  "pulled_at": "2026-07-16T03:57:10.191040+00:00",
+  "school": "westu-sor",
+  "bodies": [
+    {
+      "method": "POST",
+      "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=b4084611-5aed-4cc2-884d-c91a2468174c&subdomain=westu-sor",
+      "post_data": "{\"data\":{\"type\":\"queries\",\"attributes\":{\"page\":{},\"fields\":[\"full_name\",\"email\",\"phone\",\"address\",\"current_plans\",\"person_id\"],\"total_count\":\"t\",\"filter\":[[\"btw\",\"last_membership_end_date\",[\"2026-07-15\",\"2026-08-11\"]]],\"sort\":[\"last_membership_end_date-\"]}}}",
+      "headers": {
+        "accept": "application/vnd.api+json",
+        "content-type": "application/vnd.api+json",
+        "cookie": "default_tz=Etc%2FUTC; __adroll_fpc=96d0f1ff3af021dd00fa6dfe4ebb9b45-1784174194076; __ar_v4=%7C6PRUX7JAVBCNDDF7FPIJ74%3A20260715%3A1%7CHY4EEMOGTZHILLMFWLFHN4%3A20260715%3A1%7CLC5MXUUURRHQJH66BSQGE4%3A20260715%3A1; session_id=ade7ddb733ffa625e753e656230ccfcd; NPS_9034b38f_last_seen=1784174205122; _frontdesk_r4_session=Py3dPAYZBJ8bEnORps0Lp7zSDPbAyKqo%2B4E2Dys2KGrW4SQuV7mcMPd7%2FuNW78FLrvsruY17wEyjNPhiT9OqSqIWYe3fM9wEUuH59Y8rIaYZvOcGPgyD%2B5wDU%2F9LIigB1aEUpYRow9Bi%2FYvBBXbC2uhJJb4mb58RqzXL84dBlK%2F%2FQ8ouet1vrmej1I5QOzekoYGt8edp1XgFFIR8xLQlOH8oZXgJPd%2BKQiH5muvexQ10kR3HSL%2FIa27HsVCfYN6VXsWMRhqwCEv%2BG3LVyIxTm8EquEdk1DkJCjm2BJrYte2q30QHUOMOwZHjrg8x4FKzMbNkPoXRxRQIBxMoJmBo8VJxq3MP8%2BoTeMLM28WyCSjaVQgEMAcevHLxnT6aUdf%2FXg0vKMsntIsajD9Cxy%2FHiHnZqviTFW2UHE17aZtIVCeSgkdUuHWp%2BdtfZaNgL5vllG4ZzLqAuAMiRoD3iNztTQjoDMAub4OGHLoPjo4R1el4bOv5PXAUlXrtb4tR0H6BIQ%3D%3D--Gk9YVh7qB%2BrGYs%2By--u29crM43QTf2T6n%2Bk70TRA%3D%3D",
+        "origin": "https://westu-sor.pike13.com",
+        "referer": "https://westu-sor.pike13.com/desk/reports",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "x-csrf-token": "eiFLvg7CyTzlZc1Oc5WlN1dky7UUVg7_H2zwbOrITfsJOWl0-iofjRBcEwaTB8zSj_SEeqTDFmHRoeUHO12t_g",
+        "x-requested-with": "XMLHttpRequest",
+        "sec-ch-ua": "\"Not:A-Brand\";v=\"99\", \"HeadlessChrome\";v=\"145\", \"Chromium\";v=\"145\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Windows\""
+      }
+    }
+  ]
+}

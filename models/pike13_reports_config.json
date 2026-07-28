@@ -1,0 +1,3799 @@
+{
+  "name": "people",
+  "api_endpoint": "clients",
+  "display_name": "Clients",
+  "filter_types": {
+    "boolean": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    "enum": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    "string": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    "currency": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        }
+      ]
+    },
+    "number": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    "float": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ]
+    },
+    "date": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    "datetime": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    "time": {
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ]
+    }
+  },
+  "filters": [
+    {
+      "name": "full_name",
+      "type": "string",
+      "display_name": "Client",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "display_name": "Client Status",
+      "options": [
+        {
+          "name": "active",
+          "display_name": "Active"
+        },
+        {
+          "name": "deactivated",
+          "display_name": "Hidden"
+        },
+        {
+          "name": "deleted",
+          "display_name": "Deleted"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "display_name": "Email",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "display_name": "Phone",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "display_name": "Address",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "street_address",
+      "type": "string",
+      "display_name": "Street Address",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "street_address2",
+      "type": "string",
+      "display_name": "Street Address 2",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "display_name": "City",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "state_code",
+      "type": "string",
+      "display_name": "State Code",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "postal_code",
+      "type": "string",
+      "display_name": "Postal Code",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "country_code",
+      "type": "string",
+      "display_name": "Country Code",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "birthdate",
+      "type": "date",
+      "display_name": "Birthdate",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "age",
+      "type": "number",
+      "display_name": "Age",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "days_until_birthday",
+      "type": "number",
+      "display_name": "Days Until Birthday",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "became_client_date",
+      "type": "date",
+      "display_name": "Client Since",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "days_as_client",
+      "type": "number",
+      "display_name": "Tenure",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "last_site_visit_at",
+      "type": "date",
+      "display_name": "Last Site Access Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "last_visit_date",
+      "type": "date",
+      "display_name": "Last Completed Visit Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "last_visit_service_name",
+      "type": "string",
+      "display_name": "Last Completed Visit Service",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "last_visit_days_since",
+      "type": "number",
+      "display_name": "Days Since Last Completed Visit",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "completed_visit_count",
+      "type": "number",
+      "display_name": "Completed Visits",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "future_visit_count",
+      "type": "number",
+      "display_name": "Future Visits",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "unpaid_visit_count",
+      "type": "number",
+      "display_name": "Unpaid Visits",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "account_claimed_date",
+      "type": "date",
+      "display_name": "Account Claim Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "has_signed_waiver",
+      "type": "boolean",
+      "display_name": "Signed Waiver?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "has_membership",
+      "type": "boolean",
+      "display_name": "Has Membership?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "has_plan_on_hold",
+      "type": "boolean",
+      "display_name": "Has Plan on Hold?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "has_form_of_payment",
+      "type": "boolean",
+      "display_name": "Payment on File?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "last_membership_end",
+      "type": "date",
+      "display_name": "Last Membership End Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "next_plan_end",
+      "type": "date",
+      "display_name": "Next Pass/Plan End Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "last_bill_date",
+      "type": "date",
+      "display_name": "Last Invoice Due Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "last_bill_unpaid",
+      "type": "boolean",
+      "display_name": "Last Invoice Unpaid?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "last_bill_amount_cents",
+      "type": "currency",
+      "display_name": "Last Invoice Amount",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        }
+      ]
+    },
+    {
+      "name": "current_plans",
+      "type": "string",
+      "display_name": "Current Passes/Plans",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "current_plan_types",
+      "type": "string",
+      "display_name": "Current Passes/Plans: Types",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "current_plan_revenue_category",
+      "type": "string",
+      "display_name": "Current Passes/Plans: Revenue Categories",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "total_revenue_amount_cents",
+      "type": "currency",
+      "display_name": "Net Paid Less Tax",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        }
+      ]
+    },
+    {
+      "name": "account_credit_cents",
+      "type": "currency",
+      "display_name": "Account Credit",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        }
+      ]
+    },
+    {
+      "name": "primary_staff_member_full_name",
+      "type": "string",
+      "display_name": "Primary Staff Member",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "creating_staff_member_full_name",
+      "type": "string",
+      "display_name": "Staff Member who Created",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "dependent_names",
+      "type": "string",
+      "display_name": "Dependents",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "account_manager_full_names",
+      "type": "string",
+      "display_name": "Account Managers",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "account_manager_emails",
+      "type": "string",
+      "display_name": "Account Manager Emails",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "account_manager_phones",
+      "type": "string",
+      "display_name": "Account Manager Phones",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "guardian_name",
+      "type": "string",
+      "display_name": "Guardian Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "guardian_email",
+      "type": "string",
+      "display_name": "Guardian Email",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "home_location_name",
+      "type": "string",
+      "display_name": "Client Home Location",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "last_email_bounced",
+      "type": "boolean",
+      "display_name": "Last Email Bounced?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "account_manager_only",
+      "type": "boolean",
+      "display_name": "Account Manager Only?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "is_staff_member",
+      "type": "boolean",
+      "display_name": "Also Staff?",
+      "options": [
+        {
+          "name": "t",
+          "display_name": "Yes"
+        },
+        {
+          "name": "f",
+          "display_name": "No"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        }
+      ]
+    },
+    {
+      "name": "source_name",
+      "type": "enum",
+      "display_name": "Added By",
+      "options": [
+        {
+          "name": "client",
+          "display_name": "Client"
+        },
+        {
+          "name": "file",
+          "display_name": "File import"
+        },
+        {
+          "name": "staff",
+          "display_name": "Staff"
+        },
+        {
+          "name": "unknown",
+          "display_name": "Unknown"
+        },
+        {
+          "name": "kiosk",
+          "display_name": "Kiosk"
+        },
+        {
+          "name": "google",
+          "display_name": "Google"
+        },
+        {
+          "name": "facebook",
+          "display_name": "Facebook"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "first_visit_date",
+      "type": "date",
+      "display_name": "First Completed Visit Date",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "last_signed_waiver_name",
+      "type": "string",
+      "display_name": "Last Signed Waiver Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "first_name",
+      "type": "string",
+      "display_name": "First Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "middle_name",
+      "type": "string",
+      "display_name": "Middle Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "last_name",
+      "type": "string",
+      "display_name": "Last Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "person_id",
+      "type": "number",
+      "display_name": "Client ID",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "equals"
+        },
+        {
+          "type": "gt",
+          "name": "is greater than"
+        },
+        {
+          "type": "lt",
+          "name": "is less than"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163802",
+      "type": "string",
+      "display_name": "Emergency Contact Name",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163803",
+      "type": "string",
+      "display_name": "Emergency Contact Number",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163805",
+      "type": "enum",
+      "display_name": "Gender",
+      "options": [
+        {
+          "name": "Male",
+          "display_name": "Male"
+        },
+        {
+          "name": "Female",
+          "display_name": "Female"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163806",
+      "type": "enum",
+      "display_name": "Instrument",
+      "options": [
+        {
+          "name": "Bass",
+          "display_name": "Bass"
+        },
+        {
+          "name": "Drums",
+          "display_name": "Drums"
+        },
+        {
+          "name": "Guitar",
+          "display_name": "Guitar"
+        },
+        {
+          "name": "Keys",
+          "display_name": "Keys"
+        },
+        {
+          "name": "Vocals",
+          "display_name": "Vocals"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163810",
+      "type": "string",
+      "display_name": "Mobile Phone",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163812",
+      "type": "enum",
+      "display_name": "Referral Source",
+      "options": [
+        {
+          "name": "Referral ",
+          "display_name": "Referral "
+        },
+        {
+          "name": "Flyer",
+          "display_name": "Flyer"
+        },
+        {
+          "name": "Drive-by",
+          "display_name": "Drive-by"
+        },
+        {
+          "name": "Online",
+          "display_name": "Online"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163813",
+      "type": "enum",
+      "display_name": "Skill Level",
+      "options": [
+        {
+          "name": "Beginner",
+          "display_name": "Beginner"
+        },
+        {
+          "name": "Intermediate",
+          "display_name": "Intermediate"
+        },
+        {
+          "name": "Advanced",
+          "display_name": "Advanced"
+        }
+      ],
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_166237",
+      "type": "string",
+      "display_name": "Academic School",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163800",
+      "type": "string",
+      "display_name": "Customer ID",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163804",
+      "type": "date",
+      "display_name": "First Visit",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "on"
+        },
+        {
+          "type": "gt",
+          "name": "after"
+        },
+        {
+          "type": "lt",
+          "name": "before"
+        },
+        {
+          "type": "btw",
+          "name": "is between"
+        }
+      ],
+      "range": [
+        {
+          "type": "td",
+          "name": "today"
+        },
+        {
+          "type": "yd",
+          "name": "yesterday"
+        },
+        {
+          "type": "tw",
+          "name": "this week"
+        },
+        {
+          "type": "lw",
+          "name": "last week"
+        },
+        {
+          "type": "tm",
+          "name": "this month"
+        },
+        {
+          "type": "lm",
+          "name": "last month"
+        },
+        {
+          "type": "ty",
+          "name": "this year"
+        },
+        {
+          "type": "ly",
+          "name": "last year"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163807",
+      "type": "string",
+      "display_name": "Lead Source",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163808",
+      "type": "string",
+      "display_name": "Marketing Source",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    },
+    {
+      "name": "custom_field_163814",
+      "type": "string",
+      "display_name": "Zendesk Ticket ID",
+      "operators": [
+        {
+          "type": "eq",
+          "name": "is"
+        },
+        {
+          "type": "ne",
+          "name": "is not"
+        },
+        {
+          "type": "starts",
+          "name": "starts with"
+        },
+        {
+          "type": "ends",
+          "name": "ends with"
+        },
+        {
+          "type": "contains",
+          "name": "contains"
+        },
+        {
+          "type": "wo",
+          "name": "does not contain"
+        },
+        {
+          "type": "emp",
+          "name": "empty"
+        },
+        {
+          "type": "nemp",
+          "name": "not empty"
+        }
+      ]
+    }
+  ],
+  "reports": {
+    "details": {
+      "name": "details",
+      "display_name": "Clients",
+      "summary": false,
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "meta",
+          "display_name": "Row ID",
+          "id": 40,
+          "link": null
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "string",
+          "display_name": "Client",
+          "id": 0,
+          "link": {
+            "href": "/people/%25s",
+            "params": [
+              "person_id"
+            ]
+          }
+        },
+        "status": {
+          "name": "status",
+          "type": "enum",
+          "display_name": "Client Status",
+          "id": 1,
+          "link": null,
+          "options": [
+            {
+              "name": "active",
+              "display_name": "Active"
+            },
+            {
+              "name": "deactivated",
+              "display_name": "Hidden"
+            },
+            {
+              "name": "deleted",
+              "display_name": "Deleted"
+            }
+          ]
+        },
+        "email": {
+          "name": "email",
+          "type": "string",
+          "display_name": "Email",
+          "id": 2,
+          "link": null
+        },
+        "phone": {
+          "name": "phone",
+          "type": "string",
+          "display_name": "Phone",
+          "id": 3,
+          "link": null
+        },
+        "address": {
+          "name": "address",
+          "type": "string",
+          "display_name": "Address",
+          "id": 4,
+          "link": null
+        },
+        "street_address": {
+          "name": "street_address",
+          "type": "string",
+          "display_name": "Street Address",
+          "id": 70,
+          "link": null
+        },
+        "street_address2": {
+          "name": "street_address2",
+          "type": "string",
+          "display_name": "Street Address 2",
+          "id": 71,
+          "link": null
+        },
+        "city": {
+          "name": "city",
+          "type": "string",
+          "display_name": "City",
+          "id": 72,
+          "link": null
+        },
+        "state_code": {
+          "name": "state_code",
+          "type": "string",
+          "display_name": "State Code",
+          "id": 73,
+          "link": null
+        },
+        "postal_code": {
+          "name": "postal_code",
+          "type": "string",
+          "display_name": "Postal Code",
+          "id": 74,
+          "link": null
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "string",
+          "display_name": "Country Code",
+          "id": 75,
+          "link": null
+        },
+        "birthdate": {
+          "name": "birthdate",
+          "type": "date",
+          "display_name": "Birthdate",
+          "id": 5,
+          "link": null
+        },
+        "age": {
+          "name": "age",
+          "type": "number",
+          "display_name": "Age",
+          "id": 6,
+          "link": null
+        },
+        "days_until_birthday": {
+          "name": "days_until_birthday",
+          "type": "number",
+          "display_name": "Days Until Birthday",
+          "id": 7,
+          "link": null
+        },
+        "became_client_date": {
+          "name": "became_client_date",
+          "type": "date",
+          "display_name": "Client Since",
+          "id": 8,
+          "link": null
+        },
+        "days_as_client": {
+          "name": "days_as_client",
+          "type": "number",
+          "display_name": "Tenure",
+          "id": 9,
+          "link": null
+        },
+        "last_site_visit_at": {
+          "name": "last_site_visit_at",
+          "type": "date",
+          "display_name": "Last Site Access Date",
+          "id": 10,
+          "link": null
+        },
+        "last_visit_date": {
+          "name": "last_visit_date",
+          "type": "date",
+          "display_name": "Last Completed Visit Date",
+          "id": 11,
+          "link": null
+        },
+        "last_visit_service_name": {
+          "name": "last_visit_service_name",
+          "type": "string",
+          "display_name": "Last Completed Visit Service",
+          "id": 12,
+          "link": null
+        },
+        "last_visit_days_since": {
+          "name": "last_visit_days_since",
+          "type": "number",
+          "display_name": "Days Since Last Completed Visit",
+          "id": 13,
+          "link": null
+        },
+        "completed_visit_count": {
+          "name": "completed_visit_count",
+          "type": "number",
+          "display_name": "Completed Visits",
+          "id": 14,
+          "link": null
+        },
+        "future_visit_count": {
+          "name": "future_visit_count",
+          "type": "number",
+          "display_name": "Future Visits",
+          "id": 15,
+          "link": null
+        },
+        "unpaid_visit_count": {
+          "name": "unpaid_visit_count",
+          "type": "number",
+          "display_name": "Unpaid Visits",
+          "id": 16,
+          "link": null
+        },
+        "account_claimed_date": {
+          "name": "account_claimed_date",
+          "type": "date",
+          "display_name": "Account Claim Date",
+          "id": 17,
+          "link": null
+        },
+        "has_signed_waiver": {
+          "name": "has_signed_waiver",
+          "type": "boolean",
+          "display_name": "Signed Waiver?",
+          "id": 18,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "has_membership": {
+          "name": "has_membership",
+          "type": "boolean",
+          "display_name": "Has Membership?",
+          "id": 19,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "has_plan_on_hold": {
+          "name": "has_plan_on_hold",
+          "type": "boolean",
+          "display_name": "Has Plan on Hold?",
+          "id": 20,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "has_form_of_payment": {
+          "name": "has_form_of_payment",
+          "type": "boolean",
+          "display_name": "Payment on File?",
+          "id": 21,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "last_membership_end": {
+          "name": "last_membership_end",
+          "type": "date",
+          "display_name": "Last Membership End Date",
+          "id": 22,
+          "link": null
+        },
+        "next_plan_end": {
+          "name": "next_plan_end",
+          "type": "date",
+          "display_name": "Next Pass/Plan End Date",
+          "id": 23,
+          "link": null
+        },
+        "last_bill_date": {
+          "name": "last_bill_date",
+          "type": "date",
+          "display_name": "Last Invoice Due Date",
+          "id": 24,
+          "link": {
+            "href": "/invoices/%25s",
+            "params": [
+              "last_invoice_id"
+            ]
+          }
+        },
+        "last_bill_unpaid": {
+          "name": "last_bill_unpaid",
+          "type": "boolean",
+          "display_name": "Last Invoice Unpaid?",
+          "id": 25,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "last_bill_amount_cents": {
+          "name": "last_bill_amount_cents",
+          "type": "currency",
+          "display_name": "Last Invoice Amount",
+          "id": 26,
+          "link": null
+        },
+        "current_plans": {
+          "name": "current_plans",
+          "type": "string",
+          "display_name": "Current Passes/Plans",
+          "id": 27,
+          "link": null
+        },
+        "current_plan_types": {
+          "name": "current_plan_types",
+          "type": "string",
+          "display_name": "Current Passes/Plans: Types",
+          "id": 28,
+          "link": null
+        },
+        "current_plan_revenue_category": {
+          "name": "current_plan_revenue_category",
+          "type": "string",
+          "display_name": "Current Passes/Plans: Revenue Categories",
+          "id": 29,
+          "link": null
+        },
+        "total_revenue_amount_cents": {
+          "name": "total_revenue_amount_cents",
+          "type": "currency",
+          "display_name": "Net Paid Less Tax",
+          "id": 30,
+          "link": null
+        },
+        "account_credit_cents": {
+          "name": "account_credit_cents",
+          "type": "currency",
+          "display_name": "Account Credit",
+          "id": 31,
+          "link": null
+        },
+        "primary_staff_member_full_name": {
+          "name": "primary_staff_member_full_name",
+          "type": "string",
+          "display_name": "Primary Staff Member",
+          "id": 33,
+          "link": null
+        },
+        "creating_staff_member_full_name": {
+          "name": "creating_staff_member_full_name",
+          "type": "string",
+          "display_name": "Staff Member who Created",
+          "id": 34,
+          "link": null
+        },
+        "dependent_names": {
+          "name": "dependent_names",
+          "type": "string",
+          "display_name": "Dependents",
+          "id": 58,
+          "link": null
+        },
+        "account_manager_full_names": {
+          "name": "account_manager_full_names",
+          "type": "string",
+          "display_name": "Account Managers",
+          "id": 32,
+          "link": null
+        },
+        "account_manager_emails": {
+          "name": "account_manager_emails",
+          "type": "string",
+          "display_name": "Account Manager Emails",
+          "id": 59,
+          "link": null
+        },
+        "account_manager_phones": {
+          "name": "account_manager_phones",
+          "type": "string",
+          "display_name": "Account Manager Phones",
+          "id": 60,
+          "link": null
+        },
+        "guardian_name": {
+          "name": "guardian_name",
+          "type": "string",
+          "display_name": "Guardian Name",
+          "id": 61,
+          "link": null
+        },
+        "guardian_email": {
+          "name": "guardian_email",
+          "type": "string",
+          "display_name": "Guardian Email",
+          "id": 62,
+          "link": null
+        },
+        "home_location_name": {
+          "name": "home_location_name",
+          "type": "string",
+          "display_name": "Client Home Location",
+          "id": 35,
+          "link": null
+        },
+        "last_email_bounced": {
+          "name": "last_email_bounced",
+          "type": "boolean",
+          "display_name": "Last Email Bounced?",
+          "id": 36,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "account_manager_only": {
+          "name": "account_manager_only",
+          "type": "boolean",
+          "display_name": "Account Manager Only?",
+          "id": 37,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "is_staff_member": {
+          "name": "is_staff_member",
+          "type": "boolean",
+          "display_name": "Also Staff?",
+          "id": 38,
+          "link": null,
+          "options": [
+            {
+              "name": "t",
+              "display_name": "Yes"
+            },
+            {
+              "name": "f",
+              "display_name": "No"
+            }
+          ]
+        },
+        "source_name": {
+          "name": "source_name",
+          "type": "enum",
+          "display_name": "Added By",
+          "id": 39,
+          "link": null,
+          "options": [
+            {
+              "name": "client",
+              "display_name": "Client"
+            },
+            {
+              "name": "file",
+              "display_name": "File import"
+            },
+            {
+              "name": "staff",
+              "display_name": "Staff"
+            },
+            {
+              "name": "unknown",
+              "display_name": "Unknown"
+            },
+            {
+              "name": "kiosk",
+              "display_name": "Kiosk"
+            },
+            {
+              "name": "google",
+              "display_name": "Google"
+            },
+            {
+              "name": "facebook",
+              "display_name": "Facebook"
+            }
+          ]
+        },
+        "first_visit_date": {
+          "name": "first_visit_date",
+          "type": "date",
+          "display_name": "First Completed Visit Date",
+          "id": 63,
+          "link": null
+        },
+        "last_signed_waiver_name": {
+          "name": "last_signed_waiver_name",
+          "type": "string",
+          "display_name": "Last Signed Waiver Name",
+          "id": 64,
+          "link": null
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "string",
+          "display_name": "First Name",
+          "id": 65,
+          "link": null
+        },
+        "middle_name": {
+          "name": "middle_name",
+          "type": "string",
+          "display_name": "Middle Name",
+          "id": 66,
+          "link": null
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "string",
+          "display_name": "Last Name",
+          "id": 67,
+          "link": null
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "number",
+          "display_name": "Client ID",
+          "id": 57,
+          "link": null
+        },
+        "custom_field_163802": {
+          "name": "custom_field_163802",
+          "type": "string",
+          "display_name": "Emergency Contact Name",
+          "id": "56.163802",
+          "link": null
+        },
+        "custom_field_163803": {
+          "name": "custom_field_163803",
+          "type": "string",
+          "display_name": "Emergency Contact Number",
+          "id": "56.163803",
+          "link": null
+        },
+        "custom_field_163805": {
+          "name": "custom_field_163805",
+          "type": "enum",
+          "display_name": "Gender",
+          "id": "56.163805",
+          "link": null
+        },
+        "custom_field_163806": {
+          "name": "custom_field_163806",
+          "type": "enum",
+          "display_name": "Instrument",
+          "id": "56.163806",
+          "link": null
+        },
+        "custom_field_163810": {
+          "name": "custom_field_163810",
+          "type": "string",
+          "display_name": "Mobile Phone",
+          "id": "56.163810",
+          "link": null
+        },
+        "custom_field_163812": {
+          "name": "custom_field_163812",
+          "type": "enum",
+          "display_name": "Referral Source",
+          "id": "56.163812",
+          "link": null
+        },
+        "custom_field_163813": {
+          "name": "custom_field_163813",
+          "type": "enum",
+          "display_name": "Skill Level",
+          "id": "56.163813",
+          "link": null
+        },
+        "custom_field_166237": {
+          "name": "custom_field_166237",
+          "type": "string",
+          "display_name": "Academic School",
+          "id": "56.166237",
+          "link": null
+        },
+        "custom_field_163800": {
+          "name": "custom_field_163800",
+          "type": "string",
+          "display_name": "Customer ID",
+          "id": "56.163800",
+          "link": null
+        },
+        "custom_field_163804": {
+          "name": "custom_field_163804",
+          "type": "date",
+          "display_name": "First Visit",
+          "id": "56.163804",
+          "link": null
+        },
+        "custom_field_163807": {
+          "name": "custom_field_163807",
+          "type": "string",
+          "display_name": "Lead Source",
+          "id": "56.163807",
+          "link": null
+        },
+        "custom_field_163808": {
+          "name": "custom_field_163808",
+          "type": "string",
+          "display_name": "Marketing Source",
+          "id": "56.163808",
+          "link": null
+        },
+        "custom_field_163814": {
+          "name": "custom_field_163814",
+          "type": "string",
+          "display_name": "Zendesk Ticket ID",
+          "id": "56.163814",
+          "link": null
+        }
+      }
+    },
+    "client_details": {
+      "name": "client_details",
+      "display_name": "Client Details",
+      "summary": true,
+      "columns": {
+        "person_count": {
+          "name": "person_count",
+          "type": "number",
+          "display_name": "Count",
+          "id": 44,
+          "link": null
+        },
+        "claimed_account_count": {
+          "name": "claimed_account_count",
+          "type": "number",
+          "display_name": "Claimed Accounts",
+          "id": 45,
+          "link": null
+        },
+        "visited_site_count": {
+          "name": "visited_site_count",
+          "type": "number",
+          "display_name": "Uses Site",
+          "id": 46,
+          "link": null
+        },
+        "last_bill_unpaid_count": {
+          "name": "last_bill_unpaid_count",
+          "type": "number",
+          "display_name": "Last Invoice Unpaid?",
+          "id": 47,
+          "link": null
+        },
+        "has_plan_on_hold_count": {
+          "name": "has_plan_on_hold_count",
+          "type": "number",
+          "display_name": "Plan on Hold?",
+          "id": 48,
+          "link": null
+        },
+        "has_form_of_payment_count": {
+          "name": "has_form_of_payment_count",
+          "type": "number",
+          "display_name": "Payment on File?",
+          "id": 49,
+          "link": null
+        },
+        "has_signed_waiver_count": {
+          "name": "has_signed_waiver_count",
+          "type": "number",
+          "display_name": "Signed Waiver?",
+          "id": 50,
+          "link": null
+        },
+        "sum_completed_visit_count": {
+          "name": "sum_completed_visit_count",
+          "type": "number",
+          "display_name": "Completed Visits",
+          "id": 51,
+          "link": null
+        },
+        "sum_future_visit_count": {
+          "name": "sum_future_visit_count",
+          "type": "number",
+          "display_name": "Future Visits",
+          "id": 52,
+          "link": null
+        },
+        "sum_unpaid_visit_count": {
+          "name": "sum_unpaid_visit_count",
+          "type": "number",
+          "display_name": "Unpaid Visits",
+          "id": 53,
+          "link": null
+        },
+        "sum_account_credit_cents": {
+          "name": "sum_account_credit_cents",
+          "type": "currency",
+          "display_name": "Account Credit",
+          "id": 54,
+          "link": null
+        },
+        "sum_total_revenue_amount_cents": {
+          "name": "sum_total_revenue_amount_cents",
+          "type": "currency",
+          "display_name": "Total Net Paid Less Tax",
+          "id": 55,
+          "link": null
+        }
+      }
+    }
+  },
+  "groups": [
+    {
+      "name": "home_location_name",
+      "type": "string",
+      "display_name": "Client Home Location",
+      "link": null
+    },
+    {
+      "name": "primary_staff_member_full_name",
+      "type": "string",
+      "display_name": "Primary Staff Member",
+      "link": null
+    },
+    {
+      "name": "became_client_year_month_day",
+      "type": "date",
+      "display_name": "Client Since Date",
+      "link": null
+    },
+    {
+      "name": "became_client_year_week_sun",
+      "type": "date",
+      "display_name": "Client Since Week (starts Sun)",
+      "link": null
+    },
+    {
+      "name": "became_client_year_week_mon",
+      "type": "date",
+      "display_name": "Client Since Week (starts Mon)",
+      "link": null
+    },
+    {
+      "name": "became_client_year_month",
+      "type": "date",
+      "display_name": "Client Since Month",
+      "link": null
+    },
+    {
+      "name": "became_client_year_quarter",
+      "type": "date",
+      "display_name": "Client Since Quarter",
+      "link": null
+    },
+    {
+      "name": "became_client_year",
+      "type": "date",
+      "display_name": "Client Since Year",
+      "link": null
+    },
+    {
+      "name": "became_client_age",
+      "type": "enum",
+      "display_name": "Tenure",
+      "link": null,
+      "options": [
+        {
+          "name": "0_month",
+          "display_name": "1 \u2013 30 days"
+        },
+        {
+          "name": "1_quarter",
+          "display_name": "30 - 90 days"
+        },
+        {
+          "name": "2_year",
+          "display_name": "91 days - 1 year"
+        },
+        {
+          "name": "3_two_years",
+          "display_name": "1 - 2 years"
+        },
+        {
+          "name": "4_three_years",
+          "display_name": "2 - 3 years"
+        },
+        {
+          "name": "5_over_three_years",
+          "display_name": "3+ years"
+        }
+      ]
+    },
+    {
+      "name": "staff_member_who_added",
+      "type": "string",
+      "display_name": "Staff Member who Created",
+      "link": null
+    },
+    {
+      "name": "age",
+      "type": "number",
+      "display_name": "Age",
+      "link": null
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "display_name": "Client Status",
+      "link": null,
+      "options": [
+        {
+          "name": "active",
+          "display_name": "Active"
+        },
+        {
+          "name": "deactivated",
+          "display_name": "Hidden"
+        },
+        {
+          "name": "deleted",
+          "display_name": "Deleted"
+        }
+      ]
+    },
+    {
+      "name": "source_name",
+      "type": "enum",
+      "display_name": "Added By",
+      "link": null,
+      "options": [
+        {
+          "name": "client",
+          "display_name": "Client"
+        },
+        {
+          "name": "file",
+          "display_name": "File import"
+        },
+        {
+          "name": "staff",
+          "display_name": "Staff"
+        },
+        {
+          "name": "unknown",
+          "display_name": "Unknown"
+        },
+        {
+          "name": "kiosk",
+          "display_name": "Kiosk"
+        },
+        {
+          "name": "google",
+          "display_name": "Google"
+        },
+        {
+          "name": "facebook",
+          "display_name": "Facebook"
+        }
+      ]
+    }
+  ],
+  "api_version": 3,
+  "api_version_opts": {
+    "aliases": {
+      "columns": {
+        "is_staff_member": "also_staff",
+        "status": "person_state",
+        "became_client_date": "client_since_date",
+        "became_client_age": "tenure_group",
+        "days_as_client": "tenure",
+        "last_site_visit_at": "last_site_access_date",
+        "last_visit_service_name": "last_visit_service",
+        "last_visit_days_since": "days_since_last_visit",
+        "completed_visit_count": "completed_visits",
+        "unpaid_visit_count": "unpaid_visits",
+        "future_visit_count": "future_visits",
+        "account_claimed_date": "account_claim_date",
+        "has_form_of_payment": "has_payment_on_file",
+        "last_membership_end": "last_membership_end_date",
+        "next_plan_end": "next_pass_plan_end_date",
+        "last_bill_date": "last_invoice_date",
+        "last_bill_unpaid": "last_invoice_unpaid",
+        "last_bill_amount_cents": "last_invoice_amount",
+        "total_revenue_amount_cents": "revenue_amount",
+        "account_credit_cents": "account_credit_amount",
+        "account_manager_full_names": "account_manager_names",
+        "account_manager_only": "is_schedulable",
+        "primary_staff_member_full_name": "primary_staff_name",
+        "creating_staff_member_full_name": "staff_member_who_added",
+        "claimed_account_count": "account_claim_count",
+        "last_bill_unpaid_count": "last_invoice_unpaid_count",
+        "has_form_of_payment_count": "has_payment_on_file_count",
+        "sum_completed_visit_count": "total_completed_visits",
+        "sum_future_visit_count": "total_future_visits",
+        "sum_unpaid_visit_count": "total_unpaid_visits",
+        "sum_account_credit_cents": "total_account_credit_amount",
+        "sum_total_revenue_amount_cents": "total_revenue_amount"
+      },
+      "groupings": {
+        "primary_staff_member_full_name": "primary_staff_name",
+        "became_client_year_month_day": "client_since_date",
+        "became_client_year_week_sun": "client_since_week_sun_start_date",
+        "became_client_year_week_mon": "client_since_week_mon_start_date",
+        "became_client_year_month": "client_since_month_start_date",
+        "became_client_year_quarter": "client_since_quarter_start_date",
+        "became_client_year": "client_since_year_start_date",
+        "became_client_age": "tenure_group",
+        "status": "person_state"
+      },
+      "options": {
+        "status": {
+          "deactivated": "hidden"
+        }
+      }
+    }
+  }
+}

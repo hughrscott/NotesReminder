@@ -1,0 +1,123 @@
+{
+  "pulled_at": "2026-07-16T03:42:31.866033+00:00",
+  "school": "westu-sor",
+  "exported_csv": false,
+  "csv_path": null,
+  "table_rows": 4,
+  "api_calls": [
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/last_visited",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/new_clients",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/failed_payments",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits",
+      "rows": 0,
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json",
+      "rows": 13,
+      "keys": [
+        "name",
+        "api_endpoint",
+        "display_name",
+        "filter_types",
+        "filters",
+        "reports",
+        "groups",
+        "api_version",
+        "api_version_opts"
+      ]
+    },
+    {
+      "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=3a6f3e11-7965-41f0-a23a-2894f72bec2a&subdoma",
+      "rows": 0,
+      "keys": [
+        "data",
+        "meta"
+      ]
+    }
+  ]
+}

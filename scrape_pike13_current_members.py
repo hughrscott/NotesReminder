@@ -23,6 +23,7 @@ DB_PATH = ROOT / "reminders.db"
 MODELS_DIR = ROOT / "models"
 SCHOOLS = {"westu-sor": "West U", "theheights-sor": "The Heights"}
 REPORT_PATH = "/desk/reports#/people/details?filters=(has_membership:!((eq:!(t))))"
+FULL_ROSTER_TIMEOUT_MS = 120_000
 
 
 def load_env() -> None:
@@ -66,6 +67,34 @@ def full_roster_request(base_request_body: dict[str, Any], total_count: int) -> 
     except (KeyError, TypeError) as exc:
         raise ValueError("Unexpected Pike13 report request shape") from exc
     return request_body
+
+
+def coverage_request_bodies(
+    base_request_body: dict[str, Any], total_count: int, page_limit: int = 100
+) -> list[dict[str, Any]]:
+    """Cover a roster from both ends without asking Pike13 for a 100+ row query.
+
+    Pike13's report gateway can time out on a single cumulative request larger
+    than 100 rows. For rosters up to twice the safe limit, ascending and
+    descending person_id windows overlap and together cover every member.
+    """
+    if total_count <= 0:
+        raise ValueError("Pike13 total_count must be positive")
+    if total_count > page_limit * 2:
+        raise ValueError(
+            f"Pike13 roster of {total_count} exceeds two-window coverage limit {page_limit * 2}"
+        )
+    sorts = [["person_id"]]
+    if total_count > page_limit:
+        sorts.append(["person_id-"])
+    requests = []
+    for sort in sorts:
+        request_body = json.loads(json.dumps(base_request_body))
+        attrs = request_body["data"]["attributes"]
+        attrs["page"] = {"limit": min(page_limit, total_count)}
+        attrs["sort"] = sort
+        requests.append(request_body)
+    return requests
 
 
 def store_snapshot(
@@ -255,25 +284,30 @@ async def scrape_school(slug: str, max_pages: int = 20) -> tuple[list[dict[str, 
             if total_count is None or api_url is None or base_request_body is None:
                 raise RuntimeError(f"Could not capture Pike13 report request for {slug}")
             if len(captured_rows) < total_count:
-                request_body = full_roster_request(base_request_body, total_count)
-                replay = await context.request.post(
-                    api_url,
-                    headers={
-                        "Accept": "application/vnd.api+json",
-                        "Content-Type": "application/vnd.api+json",
-                    },
-                    data=json.dumps(request_body),
-                )
-                if not replay.ok:
-                    raise RuntimeError(
-                        f"Pike13 full-roster replay failed for {slug}: HTTP {replay.status}"
+                coverage_rows: list[list[Any]] = []
+                for request_body in coverage_request_bodies(base_request_body, total_count):
+                    replay = await context.request.post(
+                        api_url,
+                        headers={
+                            "Accept": "application/vnd.api+json",
+                            "Content-Type": "application/vnd.api+json",
+                        },
+                        data=json.dumps(request_body),
+                        timeout=FULL_ROSTER_TIMEOUT_MS,
                     )
-                replay_payload = await replay.json()
-                replay_attrs = replay_payload.get("data", {}).get("attributes", {})
-                replay_fields = [f.get("name") for f in replay_attrs.get("fields", [])]
-                if replay_fields != field_names:
-                    raise RuntimeError(f"Pike13 field order changed on full-roster replay for {slug}")
-                captured_rows[:] = replay_attrs.get("rows") or []
+                    if not replay.ok:
+                        raise RuntimeError(
+                            f"Pike13 roster coverage replay failed for {slug}: HTTP {replay.status}"
+                        )
+                    replay_payload = await replay.json()
+                    replay_attrs = replay_payload.get("data", {}).get("attributes", {})
+                    replay_fields = [f.get("name") for f in replay_attrs.get("fields", [])]
+                    if replay_fields != field_names:
+                        raise RuntimeError(
+                            f"Pike13 field order changed on roster coverage replay for {slug}"
+                        )
+                    coverage_rows.extend(replay_attrs.get("rows") or [])
+                captured_rows[:] = coverage_rows
         finally:
             await context.close()
 

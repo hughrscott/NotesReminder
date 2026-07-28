@@ -487,33 +487,33 @@ def score_candidate(
     instructor = ascii_text(attendance.primary_instructor)
     if candidate.tier == "ALERT":
         candidate.action = (
-            f"VIVIAN: CALL {candidate.account_manager} AT {candidate.contact} TODAY; "
-            f"A LINKED MESSAGE CONTAINS CANCELLATION OR DISSATISFACTION LANGUAGE. "
-            f"ASK WHAT WOULD KEEP {candidate.name} ENROLLED AND OFFER A SPECIFIC "
-            f"SCHEDULE, INSTRUCTOR, OR PROGRAM FIX."
+            f"Call {candidate.account_manager} at {candidate.contact} today. A linked message "
+            "contains cancellation or dissatisfaction language. Ask what would help "
+            f"{candidate.name} stay enrolled and offer a specific schedule, instructor, or "
+            "program fix."
         )
     elif recovered_without_schedule:
         assert recent_hold is not None
         hold_end = recent_hold["end_date"]
         candidate.action = (
-            f"VIVIAN: RESTORE {candidate.name}'S POST-HOLD SCHEDULE TODAY; THE HOLD ENDED "
-            f"{hold_end.isoformat()}, THE MEMBERSHIP IS ACTIVE, AND PIKE13 SHOWS NO FUTURE "
-            f"VISITS. CONFIRM THE RESTART WITH {instructor}, THEN CONTACT "
-            f"{candidate.account_manager} AT {candidate.contact}."
+            f"Restore {candidate.name}'s post-hold schedule today. The hold ended "
+            f"{hold_end.isoformat()}, the membership is active, and Pike13 shows no future "
+            f"visits. Confirm the restart with {instructor}, then contact "
+            f"{candidate.account_manager} at {candidate.contact}."
         )
     elif candidate.tier == "VERIFY":
         candidate.action = (
-            f"VIVIAN: VERIFY {candidate.name}'S HOLD, BILLING, AND SCHEDULE STATUS IN "
-            f"PIKE13 TODAY BEFORE CONTACTING; THE ACCOUNT IS ACTIVE BUT THE LAST VISIT "
-            f"WAS {days} DAYS AGO. IF UNEXPLAINED, ASK {instructor} FOR CONTEXT, THEN "
-            f"CALL {candidate.account_manager} AT {candidate.contact}."
+            f"Check Pike13 today before contacting the family. Verify {candidate.name}'s hold, "
+            f"billing, and schedule status; the account is active but the last visit was "
+            f"{days} days ago. If the gap is unexplained, ask {instructor} for context, then "
+            f"call {candidate.account_manager} at {candidate.contact}."
         )
     else:
         candidate.action = (
-            f"VIVIAN: ASK {instructor} WHETHER {candidate.name}'S RECURRING LESSON "
-            f"FREQUENCY CHANGE ({attendance.baseline_28:.1f} TO {attendance.recent_28} PER 28 DAYS) "
-            f"IS VACATION/SCHEDULING OR DISENGAGEMENT. IF UNEXPLAINED, CONTACT "
-            f"{candidate.account_manager} AT {candidate.contact} TO REMOVE THE BARRIER."
+            f"Ask {instructor} whether {candidate.name}'s recurring lesson frequency change "
+            f"({attendance.baseline_28:.1f} to {attendance.recent_28} per 28 days) is vacation, "
+            f"scheduling, or disengagement. If it is unexplained, contact "
+            f"{candidate.account_manager} at {candidate.contact} to remove the barrier."
         )
     return candidate
 
@@ -642,19 +642,35 @@ def load_hold_returns(
     return upcoming, active_counts, recent_holds, warnings
 
 
+def sentence_case_evidence(value: str) -> str:
+    """Turn internal all-caps evidence into readable report prose."""
+    text = value.strip().rstrip(".")
+    if text.isupper():
+        text = text.lower().capitalize()
+    return text.replace("Pike13", "Pike13").replace("pike13", "Pike13")
+
+
 def format_candidate(candidate: Candidate) -> list[str]:
     att = candidate.attendance
-    evidence = "; ".join(candidate.reasons[:3])
-    header = (
-        f"{candidate.name} | {candidate.school_name.upper()} | PRIORITY {candidate.points} | "
-        f"{candidate.plans}"
+    lines = [
+        f"{candidate.name} - {candidate.school_name}",
+        f"Program: {candidate.plans}",
+        "Why this surfaced:",
+    ]
+    for reason in candidate.reasons[:3]:
+        lines.append(f"  - {sentence_case_evidence(reason)}")
+    lines.extend(
+        [
+            f"Instructor: {ascii_text(att.primary_instructor)}",
+            (
+                "Scheduled recurring lessons (current / prior / earlier 28-day windows): "
+                f"{att.recent_28} / {att.prior_28} / {att.earlier_28}"
+            ),
+            "Next step:",
+            f"  {candidate.action}",
+        ]
     )
-    metrics = (
-        f"  EVIDENCE: {evidence}. INSTRUCTOR: {ascii_text(att.primary_instructor)}. "
-        f"SCHEDULED RECURRING LESSONS: {att.recent_28}/{att.prior_28}/{att.earlier_28} "
-        f"IN THE LAST THREE 28-DAY WINDOWS."
-    )
-    return [header, metrics, f"  ACTION: {candidate.action}"]
+    return lines
 
 
 def format_report(
@@ -672,42 +688,48 @@ def format_report(
     email_max = conn.execute("SELECT MAX(message_at) FROM school_email_messages").fetchone()[0]
     call_date = parse_iso_date(call_max)
     email_date = parse_iso_date(email_max)
+    alert_count = sum(candidate.tier == "ALERT" for candidate in candidates)
+    verify_count = sum(candidate.tier == "VERIFY" for candidate in candidates)
+    monitor_count = sum(candidate.tier == "MONITOR" for candidate in candidates)
     lines = [
-        f"WEEKLY CHURN PREVENTION REPORT - {as_of.strftime('%B %d, %Y').upper()}",
+        f"Weekly retention worklist - {as_of.strftime('%B %d, %Y')}",
         "",
-        "SANITY NOTES",
-        "------------",
-        (
-            f"- LIVE PIKE13 MEMBERSHIP ROSTERS: {audit.raw_members} RECORDS; "
-            f"{audit.eligible_members} RECURRING MEMBERS WITH SUFFICIENT HISTORY."
-        ),
-        f"- SCHEDULED LESSON DATA IS COMPLETE THROUGH {attendance_through.isoformat()}; PIKE13 LAST-VISIT DATA IS LIVE.",
-        "- PRIORITY IS AN ACTION RANK, NOT A CHURN PROBABILITY. NO INVALID V11-V18 MODEL SCORE IS USED.",
-        "- MISSING CALLS, EMAILS, OR NOTES NEVER LOWER RISK OR CREATE A 'NO COMMUNICATION' CLAIM.",
-        "- ACTIVE HOLDS, NON-RECURRING PLANS, FEWER THAN 4 MATCHED LESSONS, OR UNDER 30 DAYS OF HISTORY ARE EXCLUDED.",
+        "A short list of students who may need a schedule fix, an account check, or instructor context.",
+        "Appearing here does not mean a family is expected to cancel.",
+        "",
+        "At a glance",
+        "-----------",
+        f"- {len(candidates)} students need review this week",
+        f"- {alert_count} direct follow-ups",
+        f"- {verify_count} Pike13 checks before family contact",
+        f"- {monitor_count} instructor checks",
+        "",
     ]
     stale_comms = []
     for source, source_date in (("CALLS", call_date), ("EMAIL", email_date)):
         if source_date is None:
-            stale_comms.append(f"{source} MISSING")
+            stale_comms.append(f"{source.lower()} missing")
         elif (as_of - source_date).days > 7:
-            stale_comms.append(f"{source} THROUGH {source_date.isoformat()}")
+            stale_comms.append(f"{source.lower()} through {source_date.isoformat()}")
     if stale_comms:
         lines.append(
-            "- DATA QUALITY: DIRECT COMMUNICATION ALERT COVERAGE MAY BE INCOMPLETE; "
+            "Data note: direct communication coverage may be incomplete; "
             + ", ".join(stale_comms)
             + "."
         )
     if audit.unmatched_attendance:
-        lines.append(f"- DATA QUALITY: {audit.unmatched_attendance} ELIGIBLE MEMBER(S) LACK A SAFE ATTENDANCE NAME MATCH.")
+        lines.append(
+            f"Data note: {audit.unmatched_attendance} eligible member(s) lack a safe attendance name match."
+        )
     for warning in warnings:
-        lines.append(f"- DATA QUALITY: {warning}.")
-    lines.append("")
+        lines.append(f"Data note: {sentence_case_evidence(warning)}.")
+    if stale_comms or audit.unmatched_attendance or warnings:
+        lines.append("")
 
     for tier, title in (
-        ("ALERT", "ALERT - CALL TODAY"),
-        ("VERIFY", "VERIFY - CHECK PIKE13 BEFORE CONTACT"),
-        ("MONITOR", "MONITOR - INSTRUCTOR CHECK, THEN LIGHT TOUCH"),
+        ("ALERT", "Contact today"),
+        ("VERIFY", "Check Pike13 before contacting"),
+        ("MONITOR", "Ask the instructor first"),
     ):
         group = [c for c in candidates if c.tier == tier]
         if not group:
@@ -719,9 +741,9 @@ def format_report(
 
     if not candidates:
         lines.extend([
-            "NO ACTIONABLE CHURN SIGNALS THIS WEEK",
-            "-------------------------------------",
-            "NO CURRENT MEMBER MET THE EVIDENCE THRESHOLD. DO NOT INVENT OUTREACH TO FILL A QUOTA.",
+            "No retention follow-up needed this week",
+            "---------------------------------------",
+            "No current member met the evidence threshold. There is no outreach quota to fill.",
             "",
         ])
 
@@ -729,37 +751,39 @@ def format_report(
         grouped: dict[tuple[str, date], list[dict[str, Any]]] = defaultdict(list)
         for row in hold_returns:
             grouped[(row["school"], row["end_date"])].append(row)
-        lines.extend(["HOLD RETURNS - SCHEDULE CONFIRMATION", "-----------------------------------"])
+        lines.extend(["Upcoming hold returns", "---------------------"])
         for (school, end), rows in sorted(grouped.items(), key=lambda item: item[0][1]):
             due = max(as_of, end - timedelta(days=7))
             lines.append(
-                f"{school.upper()} | {len(rows)} {'STUDENT' if len(rows) == 1 else 'STUDENTS'} "
-                f"RETURN {end.isoformat()} | "
-                f"ASSIGN SCHEDULE CONFIRMATION BY {due.isoformat()}"
+                f"- {school}: {len(rows)} {'student' if len(rows) == 1 else 'students'} "
+                f"return {end.strftime('%B %d')}; confirm schedules by {due.strftime('%B %d')}."
             )
-        lines.append("ACTION: VIVIAN SHOULD ASSIGN THE COMPANION HOLD-RETURN WORKLIST; CONTACT ONLY STUDENTS WHO LACK A CONFIRMED POST-HOLD SCHEDULE.")
+        lines.append(
+            "Use the companion worklist and contact only families without a confirmed post-hold schedule."
+        )
         lines.append("")
 
     lines.extend([
-        "COVERAGE AND EXCLUSIONS",
-        "-----------------------",
-        f"RAW CURRENT MEMBERS: {audit.raw_members}",
-        f"ELIGIBLE RECURRING MEMBERS: {audit.eligible_members}",
-        f"EXCLUDED NON-ACTIVE: {audit.excluded_non_active}",
-        f"EXCLUDED NON-RECURRING OR ON-HOLD: {audit.excluded_non_recurring}",
-        f"EXCLUDED NEW/LOW-HISTORY: {audit.excluded_new_or_low_history}",
-        f"ACTIVE HOLDS: WEST U {active_holds.get('West U', 0)} | THE HEIGHTS {active_holds.get('The Heights', 0)}",
-        f"COMMUNICATION COVERAGE THROUGH: CALLS {str(call_max)[:10]} | EMAIL {str(email_max)[:10]}",
-        f"ACTION CAPACITY: {len(candidates)} OF {MAX_ACTIONS} WEEKLY INTERVENTIONS USED",
-        "",
-        "METHOD",
-        "------",
-        "RANKING USES LIVE MEMBERSHIP STATUS, LIVE LAST VISIT, RECENT HOLD STATUS, AND EACH STUDENT'S SCHEDULED RECURRING-LESSON CHANGE ACROSS THREE 28-DAY WINDOWS. A RECENTLY ENDED HOLD WITH A CONFIRMED FUTURE SCHEDULE IS SUPPRESSED UNLESS DIRECT NEGATIVE EVIDENCE EXISTS. DIRECT LINKED MEMBERSHIP-CANCELLATION OR DISSATISFACTION LANGUAGE PROMOTES TO ALERT. 30+ DAY ABSENCE WITHOUT DIRECT NEGATIVE EVIDENCE STAYS IN VERIFY. NOTE CONTENT CAN ONLY CORROBORATE AN EXISTING ATTENDANCE SIGNAL.",
-        "",
-        "NEVER USED FOR RANKING: MISSING COMMUNICATION, NOTE-COMPLETENESS SCORES, LIFETIME INSTRUCTOR COUNT, NEXT PASS-PLAN END DATE, OR HISTORICAL V11-V18 PROBABILITIES.",
+        "About this worklist",
+        "-------------------",
+        (
+            f"Reviewed {audit.eligible_members} established recurring members from a current "
+            f"roster of {audit.raw_members}. The list is capped at {MAX_ACTIONS} actions per week."
+        ),
+        (
+            "It uses current membership status, last visit, recent hold status, and changes in "
+            "scheduled recurring lessons. Direct cancellation or dissatisfaction language is "
+            "treated as a prompt follow-up."
+        ),
+        (
+            "Active holds, non-recurring plans, and members without enough history are left out. "
+            "Missing calls, emails, or notes never count as evidence of low risk."
+        ),
+        f"Attendance data through {attendance_through.isoformat()}; calls through {str(call_max)[:10]}; email through {str(email_max)[:10]}.",
+        f"Active holds: West U {active_holds.get('West U', 0)}; The Heights {active_holds.get('The Heights', 0)}.",
         "",
     ])
-    return "\n".join(lines).upper()
+    return "\n".join(lines)
 
 
 def write_hold_worklist(path: Path, rows: list[dict[str, Any]]) -> None:

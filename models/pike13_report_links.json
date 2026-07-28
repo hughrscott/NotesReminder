@@ -1,0 +1,331 @@
+{
+  "school": "westu-sor",
+  "shots": {
+    "desk_reports": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_desk_reports.png",
+    "reports": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_reports.png",
+    "desk_insights": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_desk_insights.png",
+    "insights": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_insights.png",
+    "people": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_people.png",
+    "desk_clients": "/home/ubuntu/projects/hughrscott/NotesReminder/models/pike13_desk_clients.png"
+  },
+  "pages": {
+    "desk_reports": {
+      "url": "/desk/reports",
+      "links": [
+        {
+          "t": "Staff",
+          "h": "/staff_members"
+        },
+        {
+          "t": "Plans",
+          "h": "/desk/settings/membership_products"
+        },
+        {
+          "t": "Reporting",
+          "h": "/desk/reports"
+        },
+        {
+          "t": "Premium Reporting",
+          "h": "https://analytics.pike13.com/"
+        },
+        {
+          "t": "My Dashboard",
+          "h": "/staff_members/7441965?tab=staff_profile"
+        },
+        {
+          "t": "Insights",
+          "h": ""
+        },
+        {
+          "t": "People with access to reports",
+          "h": "/report_permissions?return_to=%2Fdesk%2Freports"
+        },
+        {
+          "t": "Reporting Help",
+          "h": "https://help.pike13.com/knowledge/hc/en-us/articles/205838643-how-to-use-reporting"
+        }
+      ],
+      "matched": 8
+    },
+    "reports": {
+      "url": "/reports",
+      "links": [],
+      "matched": 0
+    },
+    "desk_insights": {
+      "url": "/desk/insights",
+      "links": [],
+      "matched": 0
+    },
+    "insights": {
+      "url": "/insights",
+      "links": [],
+      "matched": 0
+    },
+    "people": {
+      "url": "/people",
+      "links": [
+        {
+          "t": "Staff",
+          "h": "/staff_members"
+        },
+        {
+          "t": "Plans",
+          "h": "/desk/settings/membership_products"
+        },
+        {
+          "t": "Reporting",
+          "h": "/desk/reports"
+        },
+        {
+          "t": "Premium Reporting",
+          "h": "https://analytics.pike13.com/"
+        },
+        {
+          "t": "My Dashboard",
+          "h": "/staff_members/7441965?tab=staff_profile"
+        },
+        {
+          "t": "aadqwe qwdweea\nNo Membership",
+          "h": "/people/11549451"
+        },
+        {
+          "t": "Aalayah James\nNo Membership",
+          "h": "/people/15162853"
+        },
+        {
+          "t": "Aaron Knight\nNo Membership",
+          "h": "/people/15016954"
+        },
+        {
+          "t": "Aaron Velazquez\nNo Membership",
+          "h": "/people/15259180"
+        },
+        {
+          "t": "Abigail Farfan\nNo Membership",
+          "h": "/people/8342328"
+        },
+        {
+          "t": "Addie Eliades\nNo Membership",
+          "h": "/people/10650692"
+        }
+      ],
+      "matched": 11
+    },
+    "desk_clients": {
+      "url": "/desk/clients",
+      "links": [],
+      "matched": 0
+    },
+    "ALL_NAV": [
+      {
+        "t": "Switch to mobile website",
+        "h": "/force_layout?mode=small_screen"
+      },
+      {
+        "t": "Switch to full website",
+        "h": "/force_layout?mode=large_screen"
+      },
+      {
+        "t": "No",
+        "h": ""
+      },
+      {
+        "t": "Yes",
+        "h": ""
+      },
+      {
+        "t": "School of Rock West U",
+        "h": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "t": "Today",
+        "h": "/today"
+      },
+      {
+        "t": "Schedule",
+        "h": "/schedule"
+      },
+      {
+        "t": "Clients",
+        "h": "/people"
+      },
+      {
+        "t": "Staff",
+        "h": "/staff_members"
+      },
+      {
+        "t": "Store",
+        "h": "/shop"
+      },
+      {
+        "t": "Settings",
+        "h": ""
+      },
+      {
+        "t": "Services",
+        "h": "/services"
+      },
+      {
+        "t": "Rooms",
+        "h": "/desk/settings/rooms"
+      },
+      {
+        "t": "Passes",
+        "h": "/desk/settings/pack_products"
+      },
+      {
+        "t": "Plans",
+        "h": "/desk/settings/membership_products"
+      },
+      {
+        "t": "Merchandise",
+        "h": "/desk/settings/retail_products"
+      },
+      {
+        "t": "Gift Cards",
+        "h": "/desk/settings/gift_card_products"
+      },
+      {
+        "t": "Coupons",
+        "h": "/desk/settings/promotions"
+      },
+      {
+        "t": "Documents",
+        "h": "/desk/settings/documents"
+      },
+      {
+        "t": "Staff Permissions",
+        "h": "/desk/permission_settings"
+      },
+      {
+        "t": "Pike13 Website",
+        "h": "/client_website_editor"
+      },
+      {
+        "t": "Apps and Add-Ons",
+        "h": "/desk/settings/apps_and_addons"
+      },
+      {
+        "t": "Advanced Settings",
+        "h": "/desk/settings/general"
+      },
+      {
+        "t": "Billing Info",
+        "h": "/desk/settings/billing"
+      },
+      {
+        "t": "Reporting",
+        "h": "/desk/reports"
+      },
+      {
+        "t": "Premium Reporting",
+        "h": "https://analytics.pike13.com/"
+      },
+      {
+        "t": "My Dashboard",
+        "h": "/staff_members/7441965?tab=staff_profile"
+      },
+      {
+        "t": "My Account",
+        "h": "https://pike13.com/accounts/edit"
+      },
+      {
+        "t": "Your Businesses",
+        "h": "https://pike13.com/businesses"
+      },
+      {
+        "t": "Authorized Apps",
+        "h": "https://pike13.com/client_applications"
+      },
+      {
+        "t": "Refer a Friend",
+        "h": "https://westu-sor.pike13.com/desk/referral"
+      },
+      {
+        "t": "Get Help",
+        "h": "/tickets"
+      },
+      {
+        "t": "Developer",
+        "h": "https://developer.pike13.com/"
+      },
+      {
+        "t": "Sign Out",
+        "h": "/accounts/sign_out"
+      },
+      {
+        "t": "Bowie attendance at 6:30pm was not confi",
+        "h": "https://westu-sor.pike13.com/e/293480578?return_to=/today"
+      },
+      {
+        "t": "Reef Stallworth added a note about Drum ",
+        "h": "https://westu-sor.pike13.com/desk/e/288017161/notes?return_to=/today"
+      },
+      {
+        "t": "Joy Meis added a note about MAKE UP Guit",
+        "h": "https://westu-sor.pike13.com/desk/e/297925440/notes?return_to=/today"
+      },
+      {
+        "t": "Joy Meis added a note about Guitar Lesso",
+        "h": "https://westu-sor.pike13.com/desk/e/295883990/notes?return_to=/today"
+      },
+      {
+        "t": "Rowan Colleran removed Jack Riggs and ad",
+        "h": "https://westu-sor.pike13.com/e/288741638"
+      },
+      {
+        "t": "List",
+        "h": ""
+      },
+      {
+        "t": "Day",
+        "h": ""
+      },
+      {
+        "t": "Week",
+        "h": ""
+      },
+      {
+        "t": "Month",
+        "h": ""
+      },
+      {
+        "t": "Day",
+        "h": ""
+      },
+      {
+        "t": "Notifications and schedule",
+        "h": "/today"
+      },
+      {
+        "t": "0 pending purchase requests",
+        "h": "/today/purchase_requests"
+      },
+      {
+        "t": "36 birthdays this week",
+        "h": "/today/birthdays"
+      },
+      {
+        "t": "4 unsigned waivers",
+        "h": "/today/waivers"
+      },
+      {
+        "t": "0 unpaid invoices",
+        "h": "/today/unpaid_invoices"
+      },
+      {
+        "t": "0 clients with unpaid invoices and upcom",
+        "h": "/today/unpaid_invoices_and_upcoming_visits"
+      },
+      {
+        "t": "29 clients with account credit",
+        "h": "/today/account_credit_clients"
+      },
+      {
+        "t": "Subscribe",
+        "h": "/people/7441965/calendar_subscription"
+      }
+    ]
+  }
+}

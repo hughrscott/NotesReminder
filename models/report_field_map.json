@@ -1,0 +1,48 @@
+{
+  "school": "westu-sor",
+  "discovered_at": "2026-07-16T06:37:01.060076+00:00",
+  "reports": {
+    "Last Memberships": {
+      "hash": "#/",
+      "field": null,
+      "op": null,
+      "found": true
+    },
+    "New Clients": {
+      "found": false
+    },
+    "First Memberships": {
+      "found": false
+    },
+    "First Visits": {
+      "found": false
+    },
+    "Last Visited": {
+      "found": false
+    },
+    "Expiring Memberships": {
+      "found": false
+    },
+    "Failed Transactions": {
+      "found": false
+    },
+    "No Shows": {
+      "found": false
+    },
+    "Late Cancellations": {
+      "found": false
+    },
+    "Unconfirmed Attendance": {
+      "found": false
+    },
+    "Unpaid Visits": {
+      "found": false
+    },
+    "Past Due Invoices": {
+      "found": false
+    },
+    "New Memberships": {
+      "found": false
+    }
+  }
+}

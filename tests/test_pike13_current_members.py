@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from scrape_pike13_current_members import full_roster_request, rows_to_records, store_snapshot
+from scrape_pike13_current_members import (
+    FULL_ROSTER_TIMEOUT_MS,
+    coverage_request_bodies,
+    full_roster_request,
+    rows_to_records,
+    store_snapshot,
+)
 
 
 FIELDS = [
@@ -22,6 +28,10 @@ FIELDS = [
     "has_membership",
     "has_plan_on_hold",
 ]
+
+
+def test_full_roster_request_allows_slow_pike13_reports():
+    assert FULL_ROSTER_TIMEOUT_MS >= 120_000
 
 
 def test_rows_are_mapped_by_field_name_not_assumed_position():
@@ -57,6 +67,16 @@ def test_full_roster_request_expands_limit_without_mutating_original():
     expanded = full_roster_request(original, 145)
     assert expanded["data"]["attributes"]["page"] == {"limit": 145}
     assert original["data"]["attributes"]["page"] == {}
+
+
+def test_coverage_requests_avoid_gateway_timeout_for_rosters_under_200():
+    original = {"data": {"type": "queries", "attributes": {"page": {}, "filter": []}}}
+    requests = coverage_request_bodies(original, 145)
+    assert len(requests) == 2
+    attrs = [request["data"]["attributes"] for request in requests]
+    assert [item["page"] for item in attrs] == [{"limit": 100}, {"limit": 100}]
+    assert [item["sort"] for item in attrs] == [["person_id"], ["person_id-"]]
+    assert original["data"]["attributes"] == {"page": {}, "filter": []}
 
 
 def test_store_snapshot_preserves_named_values(tmp_path: Path):

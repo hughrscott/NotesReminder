@@ -1,0 +1,134 @@
+{
+  "school": "westu-sor",
+  "from": "2026-07-15",
+  "to": "2026-08-11",
+  "probelled_at": "2026-07-16T06:42:36.616237+00:00",
+  "working_fields": {
+    "last_membership_end": {
+      "rows": 4,
+      "total_count": 4,
+      "field_names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "sample": [
+        "Annabelle Ruan",
+        null,
+        null,
+        "5100 Valerie St, Bellaire, TX, 77401, United States of America",
+        "Make-up Lesson - 45 Minutes, Performance Program - 45 Minute Lessons",
+        15181220
+      ]
+    },
+    "last_visit_date": {
+      "rows": 43,
+      "total_count": 43,
+      "field_names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "sample": [
+        "Jackson Woods",
+        null,
+        null,
+        null,
+        "Make-up Lesson - 45 Minutes, Performance Program - 45 Minute Lessons",
+        7720125
+      ]
+    }
+  },
+  "all_status": {
+    "last_membership_end": [
+      4,
+      200
+    ],
+    "last_memberships_end": [
+      0,
+      null
+    ],
+    "membership_end_date": [
+      0,
+      null
+    ],
+    "last_membership_start": [
+      0,
+      null
+    ],
+    "first_membership_start": [
+      0,
+      null
+    ],
+    "membership_start": [
+      0,
+      null
+    ],
+    "created_at": [
+      0,
+      null
+    ],
+    "client_created_at": [
+      0,
+      null
+    ],
+    "created": [
+      0,
+      null
+    ],
+    "last_visit": [
+      0,
+      null
+    ],
+    "last_visited": [
+      0,
+      null
+    ],
+    "last_visit_date": [
+      43,
+      200
+    ],
+    "first_visit": [
+      0,
+      null
+    ],
+    "first_visited": [
+      0,
+      null
+    ],
+    "first_visit_date": [
+      0,
+      200
+    ],
+    "expiring_membership": [
+      0,
+      null
+    ],
+    "expiring": [
+      0,
+      null
+    ],
+    "expiry_date": [
+      0,
+      null
+    ],
+    "email": [
+      0,
+      null
+    ],
+    "full_name": [
+      0,
+      null
+    ],
+    "status": [
+      0,
+      null
+    ]
+  }
+}

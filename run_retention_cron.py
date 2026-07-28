@@ -85,6 +85,18 @@ def refresh_sources(as_of: date) -> None:
             f"REFRESH CURRENT MEMBERS - {school}",
             [DATA_PYTHON, "scrape_pike13_current_members.py", "--school", school],
         )
+    run_step(
+        "REFRESH LATE-CANCELLATION SHADOW SOURCE",
+        [
+            DATA_PYTHON,
+            "scrape_pike13_late_cancels.py",
+            "--start-date",
+            (as_of - timedelta(days=59)).isoformat(),
+            "--end-date",
+            as_of.isoformat(),
+        ],
+        timeout=1200,
+    )
     for school in SCHOOLS:
         run_step(
             f"REFRESH HOLD STATUS - {school}",
@@ -138,6 +150,28 @@ def generate_report(as_of: date) -> tuple[Path, Path]:
     return report_path, worklist_path
 
 
+def generate_shadow(as_of: date) -> tuple[Path, Path]:
+    """Generate separate research artifacts that never enter GM ranking/email."""
+    report_path = MODELS_DIR / "late_cancel_shadow_report.txt"
+    observations_path = MODELS_DIR / "late_cancel_shadow_observations.csv"
+    run_step(
+        "GENERATE LATE-CANCELLATION SHADOW REPORT",
+        [
+            DATA_PYTHON,
+            "late_cancel_shadow.py",
+            "--db",
+            str(DB_PATH),
+            "--as-of",
+            as_of.isoformat(),
+            "--output",
+            str(report_path),
+            "--observations",
+            str(observations_path),
+        ],
+    )
+    return report_path, observations_path
+
+
 def send_report(report_path: Path, worklist_path: Path, as_of: date) -> None:
     body = report_path.read_text()
     body.encode("ascii")
@@ -178,8 +212,11 @@ def main() -> None:
     if not args.skip_refresh:
         refresh_sources(args.as_of)
     report_path, worklist_path = generate_report(args.as_of)
+    shadow_path, shadow_observations_path = generate_shadow(args.as_of)
     print(f"PREVIEW: {report_path}")
     print(f"HOLD WORKLIST: {worklist_path}")
+    print(f"SHADOW RESEARCH: {shadow_path}")
+    print(f"SHADOW OBSERVATIONS: {shadow_observations_path}")
     if args.send:
         send_report(report_path, worklist_path, args.as_of)
     else:

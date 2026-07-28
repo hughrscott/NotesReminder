@@ -1,13 +1,16 @@
 from datetime import date
 import json
+import sqlite3
 
 import pytest
 
 from actionable_churn_report import (
     Attendance,
+    AuditCounts,
     DIRECT_RISK,
     build_attendance,
     display_plans,
+    format_report,
     load_direct_evidence,
     load_hold_returns,
     norm_name,
@@ -148,8 +151,9 @@ def test_30_day_absence_without_direct_evidence_is_verify_not_alert():
     result = score_candidate(member_row(), attendance(), [])
     assert result is not None
     assert result.tier == "VERIFY"
-    assert "VERIFY" in result.action
-    assert "BEFORE CONTACTING" in result.action
+    assert "Check Pike13" in result.action
+    assert "before contacting" in result.action
+    assert "VIVIAN" not in result.action.upper()
 
 
 def test_direct_cancellation_evidence_promotes_to_alert():
@@ -161,7 +165,7 @@ def test_direct_cancellation_evidence_promotes_to_alert():
     assert result is not None
     assert result.tier == "ALERT"
     assert result.points >= 100
-    assert "CALL" in result.action
+    assert "Call" in result.action
 
 
 def test_canceling_one_lesson_is_not_a_churn_alert():
@@ -197,7 +201,8 @@ def test_recent_hold_without_future_visits_gets_schedule_recovery_action():
     assert result is not None
     assert result.tier == "VERIFY"
     assert "HOLD ENDED 2026-06-30" in result.reasons[0]
-    assert "RESTORE CALEB SHANNON'S POST-HOLD SCHEDULE" in result.action.upper()
+    assert "Restore Caleb Shannon's post-hold schedule" in result.action
+    assert "VIVIAN" not in result.action.upper()
 
 
 def test_recent_hold_with_confirmed_schedule_is_suppressed():
@@ -352,3 +357,37 @@ def test_names_and_actions_are_ascii():
     assert result is not None
     combined = result.name + result.action
     combined.encode("ascii")
+
+
+def test_report_is_a_calm_worklist_without_internal_priority_scores():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(
+        """
+        CREATE TABLE dialpad_call_reviews (event_at TEXT);
+        CREATE TABLE school_email_messages (message_at TEXT);
+        INSERT INTO dialpad_call_reviews VALUES ('2026-07-17');
+        INSERT INTO school_email_messages VALUES ('2026-07-17');
+        """
+    )
+    candidate = score_candidate(member_row(), attendance(), [])
+    assert candidate is not None
+
+    report = format_report(
+        date(2026, 7, 18),
+        [candidate],
+        AuditCounts(raw_members=1, eligible_members=1),
+        {"westu-sor": "2026-07-18"},
+        date(2026, 7, 18),
+        [],
+        {},
+        [],
+        conn,
+    )
+
+    assert "Weekly retention worklist" in report
+    assert "At a glance" in report
+    assert "Check Pike13 before contacting (1)" in report
+    assert "Why this surfaced" in report
+    assert "Next step" in report
+    assert "PRIORITY" not in report
+    assert report != report.upper()

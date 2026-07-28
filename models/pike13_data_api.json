@@ -1,0 +1,54 @@
+{
+  "pulled_at": "2026-07-16T03:43:52.283183+00:00",
+  "school": "westu-sor",
+  "exported_csv": false,
+  "csv_path": null,
+  "data_apis": [
+    {
+      "url": "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json",
+      "kind": "json",
+      "rows": 13,
+      "keys": [
+        "name",
+        "api_endpoint",
+        "display_name",
+        "filter_types",
+        "filters",
+        "reports",
+        "groups",
+        "api_version",
+        "api_version_opts"
+      ],
+      "bytes": 41503
+    }
+  ],
+  "all_apis": [
+    {
+      "url": "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json",
+      "kind": "json",
+      "rows": 13,
+      "keys": [
+        "name",
+        "api_endpoint",
+        "display_name",
+        "filter_types",
+        "filters",
+        "reports",
+        "groups",
+        "api_version",
+        "api_version_opts"
+      ],
+      "bytes": 41503
+    },
+    {
+      "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=9e03eebb-ef81-4460-bb35-872bc8add90d&subdomain=westu-sor",
+      "kind": "json",
+      "rows": 0,
+      "keys": [
+        "data",
+        "meta"
+      ],
+      "bytes": 1234
+    }
+  ]
+}

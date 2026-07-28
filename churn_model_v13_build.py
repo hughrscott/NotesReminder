@@ -262,6 +262,9 @@ print("confusion:", confusion_matrix(yte,(p>0.5).astype(int)).tolist())
 OUT = Path("/home/ubuntu/projects/hughrscott/NotesReminder/models")
 df.to_csv(OUT/"v13_labeled_dataset.csv", index=False)
 coefs.to_csv(OUT/"v13_coefficients.csv", index=False)
-import pickle; pickle.dump(clf, open(OUT/"v13_model.pkl","wb"))
-print(f"\n[saved] {OUT/'v13_labeled_dataset.csv'} | {OUT/'v13_coefficients.csv'} | {OUT/'v13_model.pkl'}")
+# Persist model + FITTED scaler + feature order as a bundle so score_v13.py
+# applies the exact same scaling the model was trained on.
+bundle = {"model": clf, "scaler": StandardScaler().fit(X), "features": FEATURES}
+import pickle; pickle.dump(bundle, open(OUT/"v13_model.pkl","wb"))
+print(f"\n[saved] {OUT/'v13_labeled_dataset.csv'} | {OUT/'v13_coefficients.csv'} | {OUT/'v13_model.pkl'} (with scaler)")
 conn.close(); print("DONE")

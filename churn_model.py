@@ -248,7 +248,7 @@ def train_model(X_train, y_train):
     Xs = scaler.fit_transform(X_train)
 
     model = LogisticRegression(
-        penalty="l2", C=0.05, class_weight="balanced",
+        l1_ratio=0, C=0.05, class_weight="balanced",
         solver="liblinear", max_iter=1000, random_state=42,
     )
     cv_scores = cross_val_score(model, Xs, y_train, cv=skf, scoring="roc_auc")

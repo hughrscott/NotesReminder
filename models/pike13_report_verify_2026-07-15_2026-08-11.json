@@ -1,0 +1,55 @@
+{
+  "school": "westu-sor",
+  "range_tested": {
+    "default": [
+      "2026-07-16",
+      "2026-08-12"
+    ],
+    "custom": [
+      "2026-07-15",
+      "2026-08-11"
+    ],
+    "narrow": [
+      "2026-07-15",
+      "2026-07-16"
+    ]
+  },
+  "pulled_at": "2026-07-16T05:35:29.383555+00:00",
+  "baseline": {
+    "url": "https://westu-sor.pike13.com/desk/reports#/people/details?filters=(last_membership_end:!((btw:!(%272026-07-16%27,%272026-08-12%27))))&sort=(col:last_membership_end,order:d)&hide=1,70,71,72,73,74,75,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,28,29,30,31,33,34,58,32,59,60,61,62,35,36,37,38,39,63,64,65,66,67,57,56.163802,56.163803,56.163805,56.163806,56.163810,56.163812,56.163813,56.166237,56.163800,56.163804,56.163807,56.163808,56.163814",
+    "table_rows": 5,
+    "queries": {
+      "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries": {
+        "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor",
+        "status": 200,
+        "rows": 4,
+        "query": "auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor"
+      }
+    }
+  },
+  "custom": {
+    "url": "https://westu-sor.pike13.com/desk/reports#/people/details?filters=(last_membership_end:!((btw:!(%272026-07-15%27,%272026-08-11%27))))&sort=(col:last_membership_end,order:d)&hide=1,70,71,72,73,74,75,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,28,29,30,31,33,34,58,32,59,60,61,62,35,36,37,38,39,63,64,65,66,67,57,56.163802,56.163803,56.163805,56.163806,56.163810,56.163812,56.163813,56.166237,56.163800,56.163804,56.163807,56.163808,56.163814",
+    "table_rows": 5,
+    "queries": {
+      "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries": {
+        "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor",
+        "status": 200,
+        "rows": 4,
+        "query": "auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor"
+      }
+    }
+  },
+  "narrow": {
+    "url": "https://westu-sor.pike13.com/desk/reports#/people/details?filters=(last_membership_end:!((btw:!(%272026-07-15%27,%272026-07-16%27))))&sort=(col:last_membership_end,order:d)&hide=1,70,71,72,73,74,75,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,28,29,30,31,33,34,58,32,59,60,61,62,35,36,37,38,39,63,64,65,66,67,57,56.163802,56.163803,56.163805,56.163806,56.163810,56.163812,56.163813,56.166237,56.163800,56.163804,56.163807,56.163808,56.163814",
+    "table_rows": 1,
+    "queries": {
+      "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries": {
+        "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor",
+        "status": 200,
+        "rows": 0,
+        "query": "auth_token=d8980948-8361-4f48-a3b1-84e2887b50f3&subdomain=westu-sor"
+      }
+    }
+  },
+  "verdict": "VERIFIED"
+}

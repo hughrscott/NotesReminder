@@ -1,0 +1,107 @@
+{
+  "school": "westu-sor",
+  "range": {
+    "from": "2026-07-15",
+    "to": "2026-08-11"
+  },
+  "pulled_at": "2026-07-16T05:18:10.125563+00:00",
+  "baseline_widgets": {
+    "refund_amounts": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "failed_payments": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/failed_payments",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "unconfirmed_attendance": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "payment_amounts": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "past_due_invoices": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "clients_first_memberships": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "new_clients": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/new_clients",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "late_canceled_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "unpaid_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "noshowed_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "last_visited": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/last_visited",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "expiring_memberships": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    },
+    "clients_first_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits",
+      "status": 200,
+      "rows": 4,
+      "query": ""
+    }
+  },
+  "filtered_widgets": {},
+  "all_widget_request_urls": [],
+  "page_urls": [
+    [
+      "after-insights-click",
+      "https://westu-sor.pike13.com/desk/reports#/"
+    ],
+    [
+      "after-apply",
+      "https://westu-sor.pike13.com/desk/reports#/"
+    ],
+    [
+      "after-reclick",
+      "https://westu-sor.pike13.com/desk/reports#/"
+    ]
+  ],
+  "modal_inputs": [],
+  "date_set_log": [],
+  "nonzero_widgets": 0
+}

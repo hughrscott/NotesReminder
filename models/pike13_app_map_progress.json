@@ -1,0 +1,1372 @@
+{
+  "endpoints": {
+    "GET /api/insights/widgets/failed_payments?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/failed_payments?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/failed_payments"
+      ]
+    },
+    "GET /api/insights/widgets/payment_amounts?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/payment_amounts?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts"
+      ]
+    },
+    "GET /api/insights/widgets/past_due_invoices?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/past_due_invoices?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices"
+      ]
+    },
+    "GET /api/insights/widgets/clients_first_memberships?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/clients_first_memberships?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships"
+      ]
+    },
+    "GET /api/insights/widgets/refund_amounts?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/refund_amounts?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts"
+      ]
+    },
+    "GET /api/insights/widgets/unconfirmed_attendance?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/unconfirmed_attendance?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance"
+      ]
+    },
+    "GET /api/insights/widgets/new_clients?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/new_clients?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/new_clients"
+      ]
+    },
+    "GET /api/insights/widgets/noshowed_visits?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/noshowed_visits?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits"
+      ]
+    },
+    "GET /api/insights/widgets/late_canceled_visits?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/late_canceled_visits?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits"
+      ]
+    },
+    "GET /api/insights/widgets/unpaid_visits?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/unpaid_visits?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits"
+      ]
+    },
+    "GET /api/insights/widgets/last_visited?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/last_visited?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/last_visited"
+      ]
+    },
+    "GET /api/insights/widgets/expiring_memberships?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/expiring_memberships?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships"
+      ]
+    },
+    "GET /api/insights/widgets/clients_first_visits?": {
+      "method": "GET",
+      "path": "/api/insights/widgets/clients_first_visits?",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "data"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits"
+      ]
+    },
+    "GET /api/v2/desk/locations?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/locations?client_id",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "locations"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/locations?client_id"
+      ]
+    },
+    "GET /api/v2/desk/rooms.json?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/rooms.json?client_id",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "calendar_resources",
+        "categories"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/rooms.json?client_id"
+      ]
+    },
+    "GET /api/v2/desk/staff_members?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/staff_members?client_id",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "staff_members"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/staff_members?client_id"
+      ]
+    },
+    "GET /api/v2/desk/calendar_preferences/me?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/calendar_preferences/me?client_id",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "calendar_preference"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/calendar_preferences/me?client_id"
+      ]
+    },
+    "GET /api/v2/desk/services?client_id": {
+      "method": "GET",
+      "path": "/api/v2/desk/services?client_id",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/services?client_id"
+      ]
+    },
+    "GET /api/v2/desk/unavailable_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/unavailable_times.json?client_id&from&to",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "unavailable_times"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/unavailable_times.json?client_id&from&to"
+      ]
+    },
+    "GET /api/v2/desk/event_occurrences.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/event_occurrences.json?client_id&from&to",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "event_occurrences"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/event_occurrences.json?client_id&from&to"
+      ]
+    },
+    "GET /api/v2/desk/available_times.json?client_id&from&to": {
+      "method": "GET",
+      "path": "/api/v2/desk/available_times.json?client_id&from&to",
+      "count": 1,
+      "content_types": [
+        "application/json; charset=utf-8"
+      ],
+      "top_keys": [
+        "available_times"
+      ],
+      "examples": [
+        "https://westu-sor.pike13.com/api/v2/desk/available_times.json?client_id&from&to"
+      ]
+    }
+  },
+  "ui": {
+    "nav_menus": [],
+    "links": [
+      {
+        "text": "Switch to mobile website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "Switch to full website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "No",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "Yes",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "School of Rock West U",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Today",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Schedule",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Clients",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "Staff",
+        "href": "https://westu-sor.pike13.com/staff_members"
+      },
+      {
+        "text": "Store",
+        "href": "https://westu-sor.pike13.com/shop"
+      },
+      {
+        "text": "Settings",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "Services",
+        "href": "https://westu-sor.pike13.com/services"
+      },
+      {
+        "text": "Rooms",
+        "href": "https://westu-sor.pike13.com/desk/settings/rooms"
+      },
+      {
+        "text": "Passes",
+        "href": "https://westu-sor.pike13.com/desk/settings/pack_products"
+      },
+      {
+        "text": "Plans",
+        "href": "https://westu-sor.pike13.com/desk/settings/membership_products"
+      },
+      {
+        "text": "Merchandise",
+        "href": "https://westu-sor.pike13.com/desk/settings/retail_products"
+      },
+      {
+        "text": "Gift Cards",
+        "href": "https://westu-sor.pike13.com/desk/settings/gift_card_products"
+      },
+      {
+        "text": "Coupons",
+        "href": "https://westu-sor.pike13.com/desk/settings/promotions"
+      },
+      {
+        "text": "Documents",
+        "href": "https://westu-sor.pike13.com/desk/settings/documents"
+      },
+      {
+        "text": "Staff Permissions",
+        "href": "https://westu-sor.pike13.com/desk/permission_settings"
+      },
+      {
+        "text": "Pike13 Website",
+        "href": "https://westu-sor.pike13.com/client_website_editor"
+      },
+      {
+        "text": "Apps and Add-Ons",
+        "href": "https://westu-sor.pike13.com/desk/settings/apps_and_addons"
+      },
+      {
+        "text": "Advanced Settings",
+        "href": "https://westu-sor.pike13.com/desk/settings/general"
+      },
+      {
+        "text": "Billing Info",
+        "href": "https://westu-sor.pike13.com/desk/settings/billing"
+      },
+      {
+        "text": "Reporting",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Premium Reporting",
+        "href": "https://analytics.pike13.com/"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/staff_members/:id?tab"
+      },
+      {
+        "text": "Refer a Friend",
+        "href": "https://westu-sor.pike13.com/desk/referral"
+      },
+      {
+        "text": "Get Help",
+        "href": "https://westu-sor.pike13.com/tickets"
+      },
+      {
+        "text": "Developer",
+        "href": "https://developer.pike13.com/"
+      },
+      {
+        "text": "Sign Out",
+        "href": "https://westu-sor.pike13.com/accounts/sign_out"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/people/:id"
+      },
+      {
+        "text": "2",
+        "href": "https://westu-sor.pike13.com/people?page"
+      },
+      {
+        "text": "94",
+        "href": "https://westu-sor.pike13.com/people?page"
+      },
+      {
+        "text": "\u2192",
+        "href": "https://westu-sor.pike13.com/people?page"
+      },
+      {
+        "text": "New Client",
+        "href": "https://westu-sor.pike13.com/people/new"
+      },
+      {
+        "text": "Import Clients",
+        "href": "https://westu-sor.pike13.com/desk/client_imports/new?person_type"
+      },
+      {
+        "text": "Client Signup",
+        "href": "https://westu-sor.pike13.com/client_registration_settings/:id"
+      },
+      {
+        "text": "Custom Fields",
+        "href": "https://westu-sor.pike13.com/custom_fields"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      },
+      {
+        "text": "Switch to mobile website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "Switch to full website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "No",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Yes",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "School of Rock West U",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Today",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Schedule",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Clients",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "Staff",
+        "href": "https://westu-sor.pike13.com/staff_members"
+      },
+      {
+        "text": "Store",
+        "href": "https://westu-sor.pike13.com/shop"
+      },
+      {
+        "text": "Settings",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Services",
+        "href": "https://westu-sor.pike13.com/services"
+      },
+      {
+        "text": "Rooms",
+        "href": "https://westu-sor.pike13.com/desk/settings/rooms"
+      },
+      {
+        "text": "Passes",
+        "href": "https://westu-sor.pike13.com/desk/settings/pack_products"
+      },
+      {
+        "text": "Plans",
+        "href": "https://westu-sor.pike13.com/desk/settings/membership_products"
+      },
+      {
+        "text": "Merchandise",
+        "href": "https://westu-sor.pike13.com/desk/settings/retail_products"
+      },
+      {
+        "text": "Gift Cards",
+        "href": "https://westu-sor.pike13.com/desk/settings/gift_card_products"
+      },
+      {
+        "text": "Coupons",
+        "href": "https://westu-sor.pike13.com/desk/settings/promotions"
+      },
+      {
+        "text": "Documents",
+        "href": "https://westu-sor.pike13.com/desk/settings/documents"
+      },
+      {
+        "text": "Staff Permissions",
+        "href": "https://westu-sor.pike13.com/desk/permission_settings"
+      },
+      {
+        "text": "Pike13 Website",
+        "href": "https://westu-sor.pike13.com/client_website_editor"
+      },
+      {
+        "text": "Apps and Add-Ons",
+        "href": "https://westu-sor.pike13.com/desk/settings/apps_and_addons"
+      },
+      {
+        "text": "Advanced Settings",
+        "href": "https://westu-sor.pike13.com/desk/settings/general"
+      },
+      {
+        "text": "Billing Info",
+        "href": "https://westu-sor.pike13.com/desk/settings/billing"
+      },
+      {
+        "text": "Reporting",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Premium Reporting",
+        "href": "https://analytics.pike13.com/"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/staff_members/:id?tab"
+      },
+      {
+        "text": "Refer a Friend",
+        "href": "https://westu-sor.pike13.com/desk/referral"
+      },
+      {
+        "text": "Get Help",
+        "href": "https://westu-sor.pike13.com/tickets"
+      },
+      {
+        "text": "Developer",
+        "href": "https://developer.pike13.com/"
+      },
+      {
+        "text": "Sign Out",
+        "href": "https://westu-sor.pike13.com/accounts/sign_out"
+      },
+      {
+        "text": "Insights",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Favorites",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Clients & Staff",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Financials",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "People with access to reports",
+        "href": "https://westu-sor.pike13.com/report_permissions?return_to"
+      },
+      {
+        "text": "Reporting Help",
+        "href": "https://help.pike13.com/knowledge/hc/en-us/articles/205838643-how-to-use-reporting"
+      },
+      {
+        "text": "Switch to mobile website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "Switch to full website",
+        "href": "https://westu-sor.pike13.com/force_layout?mode"
+      },
+      {
+        "text": "No",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Yes",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "School of Rock West U",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Today",
+        "href": "https://westu-sor.pike13.com/today"
+      },
+      {
+        "text": "Schedule",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Clients",
+        "href": "https://westu-sor.pike13.com/people"
+      },
+      {
+        "text": "Staff",
+        "href": "https://westu-sor.pike13.com/staff_members"
+      },
+      {
+        "text": "Store",
+        "href": "https://westu-sor.pike13.com/shop"
+      },
+      {
+        "text": "Settings",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Services",
+        "href": "https://westu-sor.pike13.com/services"
+      },
+      {
+        "text": "Rooms",
+        "href": "https://westu-sor.pike13.com/desk/settings/rooms"
+      },
+      {
+        "text": "Passes",
+        "href": "https://westu-sor.pike13.com/desk/settings/pack_products"
+      },
+      {
+        "text": "Plans",
+        "href": "https://westu-sor.pike13.com/desk/settings/membership_products"
+      },
+      {
+        "text": "Merchandise",
+        "href": "https://westu-sor.pike13.com/desk/settings/retail_products"
+      },
+      {
+        "text": "Gift Cards",
+        "href": "https://westu-sor.pike13.com/desk/settings/gift_card_products"
+      },
+      {
+        "text": "Coupons",
+        "href": "https://westu-sor.pike13.com/desk/settings/promotions"
+      },
+      {
+        "text": "Documents",
+        "href": "https://westu-sor.pike13.com/desk/settings/documents"
+      },
+      {
+        "text": "Staff Permissions",
+        "href": "https://westu-sor.pike13.com/desk/permission_settings"
+      },
+      {
+        "text": "Pike13 Website",
+        "href": "https://westu-sor.pike13.com/client_website_editor"
+      },
+      {
+        "text": "Apps and Add-Ons",
+        "href": "https://westu-sor.pike13.com/desk/settings/apps_and_addons"
+      },
+      {
+        "text": "Advanced Settings",
+        "href": "https://westu-sor.pike13.com/desk/settings/general"
+      },
+      {
+        "text": "Billing Info",
+        "href": "https://westu-sor.pike13.com/desk/settings/billing"
+      },
+      {
+        "text": "Reporting",
+        "href": "https://westu-sor.pike13.com/desk/reports"
+      },
+      {
+        "text": "Premium Reporting",
+        "href": "https://analytics.pike13.com/"
+      },
+      {
+        "text": "[person record]",
+        "href": "https://westu-sor.pike13.com/staff_members/:id?tab"
+      },
+      {
+        "text": "Refer a Friend",
+        "href": "https://westu-sor.pike13.com/desk/referral"
+      },
+      {
+        "text": "Get Help",
+        "href": "https://westu-sor.pike13.com/tickets"
+      },
+      {
+        "text": "Developer",
+        "href": "https://developer.pike13.com/"
+      },
+      {
+        "text": "Sign Out",
+        "href": "https://westu-sor.pike13.com/accounts/sign_out"
+      },
+      {
+        "text": "List",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Day",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Week",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Month",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Book",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Bulk Cancel",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "active staff only",
+        "href": "https://westu-sor.pike13.com/schedule"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      },
+      {
+        "text": "Return Home",
+        "href": "https://westu-sor.pike13.com/"
+      }
+    ],
+    "buttons": [
+      "Filters",
+      "Close",
+      "Clear",
+      "Apply",
+      "Sort:\nFirst Name (A-Z)",
+      "Close",
+      "Today",
+      "Close"
+    ],
+    "forms": [],
+    "fields": [
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "qt",
+        "id": "qt",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "order",
+        "id": "order",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "q",
+        "id": "search_field",
+        "placeholder": "Find someone"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_members",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_passes",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_plan",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_scheduled",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "date",
+        "name": null,
+        "id": "scheduled_from_input",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "date",
+        "name": null,
+        "id": "scheduled_to_input",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_birthday",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_from_month_input",
+        "id": "birthday_from_month_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_from_day_input",
+        "id": "birthday_from_day_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_to_month_input",
+        "id": "birthday_to_month_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "birthday_to_day_input",
+        "id": "birthday_to_day_input",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_age",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_month_input",
+        "id": "age_from_month_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_day_input",
+        "id": "age_from_day_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_from_year_input",
+        "id": "age_from_year_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_month_input",
+        "id": "age_to_month_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_day_input",
+        "id": "age_to_day_input",
+        "placeholder": null
+      },
+      {
+        "tag": "SELECT",
+        "type": null,
+        "name": "age_to_year_input",
+        "id": "age_to_year_input",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": null,
+        "id": "filter_no_dob",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_first_name",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_last_name",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "people_sort",
+        "id": "sort_created",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "today_date",
+        "id": "today_date",
+        "placeholder": null
+      }
+    ]
+  },
+  "pages_visited": [
+    "https://westu-sor.pike13.com/people",
+    "https://westu-sor.pike13.com/reports",
+    "https://westu-sor.pike13.com/desk/reports",
+    "https://westu-sor.pike13.com/schedule",
+    "https://westu-sor.pike13.com/clients",
+    "https://westu-sor.pike13.com/plans",
+    "https://westu-sor.pike13.com/billing",
+    "https://westu-sor.pike13.com/settings",
+    "https://westu-sor.pike13.com/dashboard"
+  ],
+  "updated_at": "2026-07-19T17:57:15.048178+00:00"
+}

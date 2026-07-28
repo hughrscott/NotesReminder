@@ -1,0 +1,57 @@
+{
+  "deepseek-v4-pro": {
+    "completeness_gaps": [
+      "No client/student management endpoints (e.g., GET /api/v2/desk/clients, client details, enrollments, attendance history)",
+      "No billing/invoice/payment detail endpoints beyond aggregated insights (need granular transaction data)",
+      "Missing scheduling/calendar management for creating/updating events (only read event_occurrences)",
+      "Absence of membership plan details and management endpoints",
+      "No endpoints for attendance tracking (check-in, no-show marking) or waitlist management",
+      "Lack of reporting/analytics endpoints beyond widgets (custom date ranges, exports)",
+      "Possible hidden API versions or GraphQL endpoint not yet discovered"
+    ],
+    "risk_flags": [
+      "Undocumented internal APIs can change without notice, breaking integrations overnight",
+      "Reliance on session-based authentication (staff login) risks bot detection, rate limiting, or IP blocking",
+      "Static-looking client_id token (e.g., WWgvG1fId8iDU3rgoFXvz4A2kLnxDBSsOFacfk8X) may expire or be tied to a specific user/session",
+      "Scraping violates Pike13 Terms of Service and could lead to account suspension",
+      "Data format/structure may shift with Pike13 updates, causing parsing errors",
+      "No explicit error handling or backward compatibility guarantees",
+      "Legal and compliance risks if storing/processing customer data without proper authorization"
+    ],
+    "verify_first": [
+      "GET /api/v2/desk/event_occurrences.json?client_id&from&to (core schedule data)",
+      "GET /api/v2/desk/staff_members?client_id (staff availability and assignment)",
+      "Discover and verify a client/student endpoint (e.g., GET /api/v2/desk/clients) \u2013 essential for any operational system"
+    ],
+    "official_api_advice": [
+      "Pike13 does have an official API (developer.pike13.com), but access is typically restricted to higher-tier plans or requires a partnership agreement",
+      "The discovered internal endpoints likely overlap with official API functionality, but using them is unsupported and risky",
+      "Recommend reviewing Pike13\u2019s current API offering and requesting access if not already available; even limited official endpoints are safer than scraping",
+      "If official API is too limited, consider negotiating a custom integration or exploring if a partner/ certified app pathway exists"
+    ],
+    "top_recommendation": "Prioritize obtaining legitimate API access from Pike13 to avoid sudden breakage and compliance risks, while in the short term verify scheduling and client data endpoints' stability by monitoring response consistency over a week."
+  },
+  "gemini-3.5-flash": {
+    "completeness_gaps": [
+      "Missing write/mutation endpoints (POST/PUT/DELETE) for scheduling lessons, booking classes, or updating student attendance.",
+      "No detailed student/client profile endpoints (e.g., /api/v2/desk/people or /api/v2/desk/customers) to map metrics to actual individuals.",
+      "No transaction-level billing or invoice detail endpoints, only aggregate widget metrics.",
+      "Missing authentication and session-refresh endpoints to programmatically renew the staff user session."
+    ],
+    "risk_flags": [
+      "The '/api/insights/widgets/' endpoints are highly unstable internal UI-backing APIs prone to silent schema changes or deprecation without notice.",
+      "Relying on a logged-in staff session cookie or token will cause frequent pipeline failures when sessions expire or require MFA re-auth.",
+      "Pike13 uses Cloudflare/WAF; automated scraping of these endpoints from non-residential IPs will likely trigger bot-detection challenges (JS challenges, CAPTCHAs).",
+      "The 'client_id' parameter in the examples appears to be a hardcoded public client key which can be rotated or blacklisted by Pike13 if abuse is detected."
+    ],
+    "verify_first": [
+      "GET /api/v2/desk/event_occurrences.json - Verify pagination limits, maximum date range allowed in 'from/to', and payload structure for recurring lessons.",
+      "GET /api/v2/desk/staff_members - Verify if this endpoint returns inactive staff and if it supports filtering by location.",
+      "GET /api/insights/widgets/unconfirmed_attendance - Verify if this endpoint returns actionable record IDs (e.g., event_occurrence_ids) or just pre-rendered HTML/aggregate counts."
+    ],
+    "official_api_advice": [
+      "Pike13 has an official API (developer.pike13.com) that supports OAuth 2.0. The team should immediately request official API access from the franchise owner's account settings, as the '/api/v2/' endpoints discovered are likely officially supported and documented, whereas the '/api/insights/' endpoints are not."
+    ],
+    "top_recommendation": "Prioritize reverse-engineering the authentication flow to automate token acquisition, and migrate all scheduling queries to the official '/api/v2/' namespace instead of relying on fragile '/api/insights/widgets/' endpoints."
+  }
+}

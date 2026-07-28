@@ -12,8 +12,8 @@ SUBJECT="SOR Churn Report – $(date '+%b %d, %Y')"
 cd "$PROJECT"
 source "$VENV"
 
-# Run the model
-python churn_model.py > "$REPORT" 2>&1
+# Run the model (stderr kept separate so warnings never pollute the report body)
+python churn_model.py > "$REPORT" 2> "$REPORT.err" || { echo "-- model failed; see $REPORT.err --" >> "$REPORT"; }
 
 # Email to each recipient using Himalaya raw MIME format
 for addr in $RECIPIENTS; do

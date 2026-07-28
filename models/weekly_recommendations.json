@@ -1,99 +1,40 @@
 {
   "week": "2026-07-16",
-  "generated": "2026-07-16T19:36:57.222613",
+  "generated": "2026-07-16T20:41:11.623763",
   "recommendations": {
-    "jasmin benitez": {
-      "name": "Jasmin Benitez",
-      "churn": 0.975,
-      "actions": [
-        "\ud83d\udcde Call parent at 8324528977 \u2014 check on attendance gap",
-        "Offer make-up lesson or schedule adjustment",
-        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the rehearsal, highlighting specific songs worked on and outlining a plan for future practices. It includes acti...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
-      ]
-    },
     "ian laird": {
       "name": "Ian Laird",
       "churn": 0.928,
       "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide basic information about the end of camp performance, including set times and group names. However, they lack specificity regarding t...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+        "Recent instructor note scored 4/10 (brief/generic \u2014 not necessarily a student issue). Follow up with Reef Stallworth to get a real read on how ian laird is doing."
       ]
     },
-    "zachary bang": {
-      "name": "zachary bang",
-      "churn": 0.917,
+    "david holmes jr.": {
+      "name": "David Holmes Jr.",
+      "churn": 0.663,
       "actions": [
-        "Offer make-up lesson or schedule adjustment",
-        "\ud83d\udcdd Recent note insight: \"The notes provide specific details about the lesson content, including the focus on unique voicings and rearranging chords. It acknowledges the studen...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+        "Recent CBGB (5/10) with Zach Jones. Check in to confirm david holmes jr. is progressing and hasn't plateaued."
       ]
     },
-    "gabriella webster": {
-      "name": "Gabriella Webster",
-      "churn": 0.892,
+    "thompson rice": {
+      "name": "Thompson Rice",
+      "churn": 0.578,
       "actions": [
-        "\ud83d\udcdd Recent note insight: \"The note is extremely weak and lacks any specific details about the lesson content, progress, or areas for improvement. It does not provide any action...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+        "Recent lesson note scored 9/10 (detailed and substantive) \u2014 Jordan King noted good progress. Leverage this by suggesting a performance milestone or recording to build commitment."
       ]
     },
-    "denise ben": {
-      "name": "Denise Ben",
-      "churn": 0.881,
+    "daniel romero": {
+      "name": "Daniel Romero",
+      "churn": 0.542,
       "actions": [
-        "\ud83d\udcf1 Send personalized SMS to 7139626766 \u2014 no communication in record, re-engage",
-        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, detailing specific activities like building a drum beat and discussing technique. There is evidence...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+        "Recent instructor note scored 4/10 (brief/generic \u2014 not necessarily a student issue). Follow up with Reef Stallworth to get a real read on how daniel romero is doing."
       ]
     },
-    "cashel kemp": {
-      "name": "cashel kemp",
-      "churn": 0.874,
+    "river garwil": {
+      "name": "River Garwil",
+      "churn": 0.507,
       "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson activities and progress, mentioning specific songs and techniques used. However, it lacks detailed fe...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
-      ]
-    },
-    "kareem sadoun": {
-      "name": "Kareem Sadoun",
-      "churn": 0.862,
-      "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, highlighting specific techniques practiced (dexterity, single stroke rolls, rudiments) and songs wor...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
-      ]
-    },
-    "antuaneth vereau": {
-      "name": "Antuaneth Vereau",
-      "churn": 0.849,
-      "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide a general reminder about song names and artists, which is acceptable but lacks specific details about individual student progress or...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
-      ]
-    },
-    "francisco perez": {
-      "name": "Francisco Perez",
-      "churn": 0.849,
-      "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide a clear overview of the lesson, highlighting specific songs and areas of focus for improvement. The feedback is positive and actiona...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
-      ]
-    },
-    "quintus yan": {
-      "name": "Quintus Yan",
-      "churn": 0.843,
-      "actions": [
-        "\ud83d\udcdd Recent note insight: \"The notes provide a general overview of the lesson activities and mention a specific song, but they lack detailed feedback on individual student progr...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\"",
-        "\ud83d\udcac Recent SMS: \"[redacted Dialpad SMS API message]...\""
+        "Recent Little Wing (7/10) with Jack Riggs. Check in to confirm river garwil is progressing and hasn't plateaued."
       ]
     }
   },
@@ -318,7 +259,7 @@
       "churn_probability": 0.054
     },
     "caroline serrato": {
-      "churn_probability": 0.023
+      "churn_probability": 0.021
     },
     "cas friedman": {
       "churn_probability": 0.588
@@ -363,7 +304,7 @@
       "churn_probability": 0.244
     },
     "claire nodskov": {
-      "churn_probability": 0.439
+      "churn_probability": 0.687
     },
     "claire weaver": {
       "churn_probability": 0.383
@@ -396,7 +337,7 @@
       "churn_probability": 0.546
     },
     "daniel romero": {
-      "churn_probability": 0.499
+      "churn_probability": 0.542
     },
     "daniella yalon": {
       "churn_probability": 0.11
@@ -417,7 +358,7 @@
       "churn_probability": 0.715
     },
     "david holmes": {
-      "churn_probability": 0.093
+      "churn_probability": 0.543
     },
     "david holmes jr.": {
       "churn_probability": 0.663
@@ -465,10 +406,10 @@
       "churn_probability": 0.211
     },
     "eitan yalon": {
-      "churn_probability": 0.205
+      "churn_probability": 0.26
     },
     "elena benson": {
-      "churn_probability": 0.171
+      "churn_probability": 0.198
     },
     "elijah segura": {
       "churn_probability": 0.43
@@ -495,7 +436,7 @@
       "churn_probability": 0.394
     },
     "emelia hinojosa": {
-      "churn_probability": 0.477
+      "churn_probability": 0.555
     },
     "emerson campbell": {
       "churn_probability": 0.561
@@ -798,7 +739,7 @@
       "churn_probability": 0.03
     },
     "kaiya agrawal": {
-      "churn_probability": 0.085
+      "churn_probability": 0.11
     },
     "kallum (kal) paranjpe": {
       "churn_probability": 0.365
@@ -837,16 +778,16 @@
       "churn_probability": 0.49
     },
     "krystal torres": {
-      "churn_probability": 0.603
+      "churn_probability": 0.619
     },
     "kuzey ozyeser": {
       "churn_probability": 0.161
     },
     "kyee young": {
-      "churn_probability": 0.085
+      "churn_probability": 0.099
     },
     "kyle barker": {
-      "churn_probability": 0.298
+      "churn_probability": 0.276
     },
     "lark trude": {
       "churn_probability": 0.213
@@ -951,7 +892,7 @@
       "churn_probability": 0.197
     },
     "mabel anderson-holland": {
-      "churn_probability": 0.125
+      "churn_probability": 0.14
     },
     "mackenzie castellanos-hayes": {
       "churn_probability": 0.428
@@ -975,7 +916,7 @@
       "churn_probability": 0.129
     },
     "margot fisher": {
-      "churn_probability": 0.42
+      "churn_probability": 0.725
     },
     "maria maricevich": {
       "churn_probability": 0.02
@@ -1083,7 +1024,7 @@
       "churn_probability": 0.705
     },
     "nico davis": {
-      "churn_probability": 0.332
+      "churn_probability": 0.396
     },
     "nicolas benson": {
       "churn_probability": 0.12
@@ -1194,7 +1135,7 @@
       "churn_probability": 0.063
     },
     "prathna makkar": {
-      "churn_probability": 0.652
+      "churn_probability": 0.697
     },
     "preston kradjian": {
       "churn_probability": 0.024
@@ -1227,7 +1168,7 @@
       "churn_probability": 0.465
     },
     "ramzy abdallah": {
-      "churn_probability": 0.332
+      "churn_probability": 0.381
     },
     "razi hassanzadeh": {
       "churn_probability": 0.022
@@ -1344,7 +1285,7 @@
       "churn_probability": 0.29
     },
     "simon hewamudalige": {
-      "churn_probability": 0.383
+      "churn_probability": 0.45
     },
     "simone huse": {
       "churn_probability": 0.076
@@ -1419,7 +1360,7 @@
       "churn_probability": 0.163
     },
     "trey hinkle": {
-      "churn_probability": 0.386
+      "churn_probability": 0.391
     },
     "tristan davis": {
       "churn_probability": 0.312
@@ -1437,7 +1378,7 @@
       "churn_probability": 0.198
     },
     "ved agrawal": {
-      "churn_probability": 0.253
+      "churn_probability": 0.287
     },
     "veronica behera": {
       "churn_probability": 0.016
@@ -1452,7 +1393,7 @@
       "churn_probability": 0.591
     },
     "vida chung": {
-      "churn_probability": 0.723
+      "churn_probability": 0.996
     },
     "vikram aiyer": {
       "churn_probability": 0.23

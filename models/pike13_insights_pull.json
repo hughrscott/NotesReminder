@@ -1,0 +1,100 @@
+{
+  "pulled_at": "2026-07-16T03:26:23.028542+00:00",
+  "school": "westu-sor",
+  "widgets": {
+    "clients_first_memberships": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "last_visited": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/last_visited",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "payment_amounts": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "failed_payments": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/failed_payments",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "expiring_memberships": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "past_due_invoices": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "unconfirmed_attendance": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "new_clients": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/new_clients",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "refund_amounts": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "clients_first_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "late_canceled_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "noshowed_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    },
+    "unpaid_visits": {
+      "url": "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits",
+      "rows": 0,
+      "sample_keys": [],
+      "sample": null
+    }
+  },
+  "api_calls": [
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships",
+    "https://westu-sor.pike13.com/api/insights/widgets/last_visited",
+    "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts",
+    "https://westu-sor.pike13.com/api/insights/widgets/failed_payments",
+    "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships",
+    "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices",
+    "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance",
+    "https://westu-sor.pike13.com/api/insights/widgets/new_clients",
+    "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts",
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits"
+  ],
+  "body_preview": " Loading\n\t\nSchool of Rock West U\n\tToday\tSchedule\tClients\tStaff\tStore\tSettings\t\t\t\t\t\nInsights\n$3,094.88\n\nCollected from 8 transactions in the last 7 days\n\nThu\nFri\nSat\nSun\nMon\nTue\nWed\n$0\n$500\n$1,000\n$1,500\n$160.00\n\nRefunded from 1 transactions in the last 7 days\n\nThu\nFri\nSat\nSun\nMon\nTue\nWed\n$0\n$50\n$100\n$150\n$200\n$0.00\n\nPast due from 0 invoices in the last 7 days\n\nThu\nFri\nSat\nSun\nMon\nTue\nWed\n$0\n$1\n0 Failed Transactions\n\nOccurred in the last 7 days\n\n20 New Clients\n\nCreated in the last 7 days\n\n10 First Visits\n\nScheduled in the upcoming 7 days\n\n1 First Memberships\n\nStarted in the last 7 days\n\n58 Clients Last Visit\n\nOccurred 14 to 28 days ago\n\n4 Last Memberships\n\nExpiring in the next 28 days\n\n0 Unconfirmed Attendance\n\nIn the last 7 days, ending yesterday\n\n0 Unpaid Visits\n\nOccurred in the last 7 days\n\n44 No Shows\n\nOccurred in the last 7 days\n\n12 Late Cancellations\n\nOccurred in the last 7 days\n\n\t\n Insights\n Favorites\nClients & Staff\nFinancials\nPeople with access to reports\nReporting Help\n\t"
+}

@@ -1,0 +1,193 @@
+{
+  "pulled_at": "2026-07-16T03:28:29.762217+00:00",
+  "school": "westu-sor",
+  "cards": {
+    "cards": [
+      "Loading \t School of Rock West U \tToday\tSchedule\tClients\tStaff\tStore\tSettings\t\t\t\t",
+      "Loading \t School of Rock West U \tToday\tSchedule\tClients\tStaff\tStore\tSettings\t\t\t\t",
+      "Loading \t School of Rock West U \tToday\tSchedule\tClients\tStaff\tStore\tSettings\t\t\t\t",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "// ------------------------------------------------   // Localized string table ",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "$3,094.88  Collected from 8 transactions in the last 7 days  Thu Fri Sat Sun Mon",
+      "20 New Clients  Created in the last 7 days",
+      "20 New Clients  Created in the last 7 days",
+      "20 New Clients  Created in the last 7 days",
+      "20 New Clients  Created in the last 7 days",
+      "20 New Clients  Created in the last 7 days",
+      "20 New Clients  Created in the last 7 days"
+    ],
+    "filters_after_Last Memberships": [
+      {
+        "t": "Switch to mobile website",
+        "ph": "",
+        "cls": "fasted"
+      },
+      {
+        "t": "Switch to full website",
+        "ph": "",
+        "cls": "fasted"
+      },
+      {
+        "t": "No",
+        "ph": "",
+        "cls": "fa-remove destructive_button modal_close fasted"
+      },
+      {
+        "t": "Yes",
+        "ph": "",
+        "cls": "fa-check confirm_button modal_confirm fasted"
+      },
+      {
+        "t": "Today",
+        "ph": "",
+        "cls": "fasted"
+      },
+      {
+        "t": "Store",
+        "ph": "",
+        "cls": "fasted"
+      },
+      {
+        "t": "",
+        "ph": "",
+        "cls": "button"
+      },
+      {
+        "t": "Filters",
+        "ph": "",
+        "cls": "button fa-filter"
+      },
+      {
+        "t": "People with access to reports",
+        "ph": "",
+        "cls": "fa-lock fasted"
+      }
+    ]
+  },
+  "api_calls": [
+    "https://westu-sor.pike13.com/api/insights/widgets/last_visited",
+    "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance",
+    "https://westu-sor.pike13.com/api/insights/widgets/failed_payments",
+    "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships",
+    "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts",
+    "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts",
+    "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/new_clients",
+    "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits",
+    "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices",
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships",
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits",
+    "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json",
+    "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=1ea1dcfe-4cb5-451d-9aa0-496e46aec3e8&subdomain=westu-sor"
+  ],
+  "api_detail": {
+    "https://westu-sor.pike13.com/api/insights/widgets/last_visited": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/unconfirmed_attendance": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/failed_payments": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/expiring_memberships": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/unpaid_visits": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/refund_amounts": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/payment_amounts": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/late_canceled_visits": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/new_clients": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/noshowed_visits": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/past_due_invoices": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_memberships": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/insights/widgets/clients_first_visits": {
+      "type": "json",
+      "keys": [
+        "data"
+      ]
+    },
+    "https://westu-sor.pike13.com/api/v2/desk/reports/people/configuration.json": {
+      "type": "json",
+      "keys": [
+        "name",
+        "api_endpoint",
+        "display_name",
+        "filter_types",
+        "filters",
+        "reports",
+        "groups",
+        "api_version",
+        "api_version_opts"
+      ]
+    },
+    "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=1ea1dcfe-4cb5-451d-9aa0-496e46aec3e8&subdomain=westu-sor": {
+      "type": "json",
+      "keys": [
+        "data",
+        "meta"
+      ]
+    }
+  }
+}

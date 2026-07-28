@@ -1,0 +1,11 @@
+{
+  "pulled_at": "2026-07-16T03:53:02.982596+00:00",
+  "school": "westu-sor",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://westu-sor.pike13.com/desk/api/v3/reports/clients/queries?auth_token=46937ad6-1f17-4ed7-922d-a3c2e1d49ce6&subdomain=westu-sor",
+      "post_data": null
+    }
+  ]
+}

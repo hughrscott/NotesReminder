@@ -1,0 +1,131 @@
+{
+  "school": "westu-sor",
+  "probe_at": "2026-07-16T06:49:22.130503+00:00",
+  "results": {
+    "first_visit_date": {
+      "http": 200,
+      "rows": 0,
+      "total": null,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-07-15",
+        "2026-08-11"
+      ]
+    },
+    "created_at": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-01-01",
+        "2026-08-11"
+      ]
+    },
+    "client_created_at": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-01-01",
+        "2026-08-11"
+      ]
+    },
+    "expiry_date": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-07-15",
+        "2026-08-11"
+      ]
+    },
+    "membership_start": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-01-01",
+        "2026-08-11"
+      ]
+    },
+    "first_membership_start": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-01-01",
+        "2026-08-11"
+      ]
+    },
+    "last_membership_start": {
+      "http": 200,
+      "rows": 50,
+      "total": 5154,
+      "names": [
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "current_plans",
+        "person_id"
+      ],
+      "window": [
+        "2026-01-01",
+        "2026-08-11"
+      ]
+    },
+    "start_date": {
+      "error": "Pike13 authentication failed \u2014 stuck at https://westu-sor.pike13.com/accounts/si"
+    },
+    "signup_date": {
+      "error": "Pike13 authentication failed \u2014 stuck at https://westu-sor.pike13.com/accounts/si"
+    }
+  }
+}
