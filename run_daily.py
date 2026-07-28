@@ -85,6 +85,65 @@ def sync_reporting_tables(db_path):
     finally:
         conn.close()
 
+
+def sync_lesson_notes_to_reminders(db_path):
+    """Sync reminders.note_completed = 1 where lesson_notes exists, and update compliance table."""
+    conn = sqlite3.connect(db_path)
+    try:
+        # Sync reminders flag
+        updated = conn.execute('''
+            UPDATE reminders
+            SET note_completed = 1
+            WHERE lesson_id IN (SELECT DISTINCT lesson_id FROM lesson_notes)
+              AND note_completed = 0
+        ''').rowcount
+        if updated:
+            conn.commit()
+            remaining = conn.execute(
+                "SELECT COUNT(*) FROM reminders WHERE lesson_date >= DATE('now', '-30 days') AND note_completed = 0"
+            ).fetchone()[0]
+            log(f"  Synced {updated} reminders from lesson_notes ({remaining} still un-noted last 30d)")
+
+        # Refresh note_compliance table for the last 7 days
+        conn.execute('''
+            INSERT OR REPLACE INTO note_compliance 
+            (lesson_date, instructor_name, school, total_lessons, notes_found, notes_missing)
+            SELECT
+                r.lesson_date,
+                COALESCE(r.instructor_name, 'Unknown'),
+                COALESCE(r.school, 'Unknown'),
+                COUNT(*) as total_lessons,
+                COUNT(DISTINCT ln.lesson_id) as notes_found,
+                COUNT(*) - COUNT(DISTINCT ln.lesson_id) as notes_missing
+            FROM reminders r
+            LEFT JOIN lesson_notes ln ON r.lesson_id = ln.lesson_id
+            WHERE r.lesson_date >= DATE('now', '-7 days')
+              AND r.instructor_name IS NOT NULL
+            GROUP BY r.lesson_date, COALESCE(r.instructor_name, 'Unknown'), COALESCE(r.school, 'Unknown')
+        ''')
+
+        # Log worst offenders (instructors with any missing notes in recent week)
+        worst = conn.execute('''
+            SELECT instructor_name, school, SUM(notes_missing) as total_missing
+            FROM note_compliance
+            WHERE lesson_date >= DATE('now', '-7 days')
+            GROUP BY instructor_name, school
+            HAVING total_missing > 0
+            ORDER BY total_missing DESC
+            LIMIT 5
+        ''').fetchall()
+        if worst:
+            names = ', '.join(f'{r[0]}({r[2]})' for r in worst)
+            log(f"  Note gaps: {names}")
+        conn.commit()
+
+    except Exception as e:
+        log(f"  Failed lesson_notes sync: {e}")
+    finally:
+        conn.close()
+    return updated
+
+
 def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
     """Get all lessons from the database that don't have notes for a specific school."""
     conn = sqlite3.connect(DB_PATH)
@@ -1043,6 +1102,7 @@ async def main():
 
     if not args.skip_reporting_sync:
         sync_reporting_tables(DB_PATH)
+        sync_lesson_notes_to_reminders(DB_PATH)
         log("✅ Normalized reporting tables synced from reminders.", force=args.verbose)
 
     # Now, retrieve missing notes from the DB within the requested window
