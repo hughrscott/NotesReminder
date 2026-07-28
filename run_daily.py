@@ -784,6 +784,7 @@ def update_reminders_from_dataframe(
         )
         notes_text = notes_str if has_notes else None
         note_timestamp = row.get('Note Timestamp', None)
+        note_status = 'extracted' if (has_notes and notes_str.strip()) else ('empty' if has_notes else 'no_note')
 
         note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
         note_score = None
@@ -882,6 +883,7 @@ def update_reminders_from_dataframe(
                     attendance_status = ?,
                     notes_text = ?,
                     note_timestamp = ?,
+                    note_status = ?,
                     pike13_lesson_id = COALESCE(?, pike13_lesson_id),
                     note_score = ?,
                     note_score_explanation = ?,
@@ -901,6 +903,7 @@ def update_reminders_from_dataframe(
                 row.get('Attendance Status', 'unknown'),
                 notes_text,
                 note_timestamp,
+                note_status,
                 pike13_lesson_id,
                 note_score if has_notes else None,
                 note_score_explanation if has_notes else None,
@@ -929,6 +932,7 @@ def update_reminders_from_dataframe(
                     attendance_status,
                     notes_text,
                     note_timestamp,
+                    note_status,
                     pike13_lesson_id,
                     note_score,
                     note_score_explanation,
@@ -952,6 +956,7 @@ def update_reminders_from_dataframe(
                 row.get('Attendance Status', 'unknown'),
                 notes_text,
                 note_timestamp,
+                note_status,
                 pike13_lesson_id,
                 note_score if has_notes else None,
                 note_score_explanation if has_notes else None,

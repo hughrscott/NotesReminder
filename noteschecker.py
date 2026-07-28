@@ -517,26 +517,76 @@ async def scrape_lessons(
                             if await goto_with_retry(notes_url):
                                 await page.wait_for_timeout(3000)
                                 await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
-                                
+
                                 # Extract notes — try multiple selectors
+                                raw_text = None
                                 for note_sel in [
+                                    "div.richtext_output p",
+                                    "div.richtext_output div",
                                     "div.richtext_output.unbordered",
                                     "div.richtext_output",
-                                    "div[class*='note']",
-                                    "div[class*='richtext']",
+                                    "div[class*='note-content']",
                                     ".note-content",
-                                    "main p",
                                 ]:
                                     try:
                                         note_el = await page.query_selector(note_sel)
                                         if note_el:
                                             raw = await note_el.text_content()
-                                            if raw and raw.strip() and raw.strip() not in ("No notes", ""):
-                                                notes = raw.strip()
+                                            if raw and raw.strip():
+                                                raw_text = raw.strip()
                                                 break
                                     except Exception:
                                         continue
-                                
+
+                                # If no specific element found, try main content
+                                if not raw_text:
+                                    try:
+                                        note_el = await page.query_selector("div.richtext_output")
+                                        if note_el:
+                                            raw = await note_el.text_content()
+                                            if raw and raw.strip():
+                                                raw_text = raw.strip()
+                                    except Exception:
+                                        pass
+
+                                # Filter out editor chrome (Link/Finish/Cancel toolbar)
+                                if raw_text:
+                                    chrome_patterns = [
+                                        "Link to a website", "Finish", "Cancel",
+                                        "No notes", "no notes",
+                                    ]
+                                    lines = raw_text.split('\n')
+                                    clean_lines = []
+                                    for line in lines:
+                                        stripped = line.strip()
+                                        if not stripped:
+                                            continue
+                                        if any(stripped.lower() == p.lower() for p in chrome_patterns):
+                                            continue
+                                        clean_lines.append(stripped)
+                                    filtered = '\n'.join(clean_lines).strip()
+
+                                    if filtered:
+                                        notes = filtered
+                                    else:
+                                        # Got only chrome — wait longer and retry content divs
+                                        await page.wait_for_timeout(2000)
+                                        for sel in ["div.richtext_output p", "div[class*='note-content'] p", "main p"]:
+                                            try:
+                                                els = await page.query_selector_all(sel)
+                                                texts = []
+                                                for el in els:
+                                                    t = (await el.text_content() or "").strip()
+                                                    if t and t.lower() not in ("no notes", ""):
+                                                        skip = any(t.lower() == p.lower() for p in chrome_patterns)
+                                                        if not skip:
+                                                            texts.append(t)
+                                                if texts:
+                                                    notes = ' '.join(texts)
+                                                    break
+                                            except Exception:
+                                                continue
+
                                 # Extract timestamp
                                 for ts_sel in ["small.timestamp", "time", "[class*='timestamp']"]:
                                     try:
