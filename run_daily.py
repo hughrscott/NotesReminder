@@ -1213,6 +1213,8 @@ async def main():
     include_missing_section = args.summary in ('none', 'missing', 'both')
     include_notes_section = args.summary in ('notes', 'both')
     if not args.no_email:
+        # Guardrail: fail loudly if any uncertain notes exist before emailing
+        assert_no_uncertain_recent_notes(DB_PATH, days=7)
         send_email_report(
             report_missing_notes,
             report_completed_notes,
