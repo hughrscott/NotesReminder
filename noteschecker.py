@@ -513,79 +513,96 @@ async def scrape_lessons(
                             
                             # ── Step 3: Scrape notes page ──
                             notes = "No notes"
+                            note_status = "unknown"
                             note_timestamp = ""
                             if await goto_with_retry(notes_url):
                                 await page.wait_for_timeout(3000)
                                 await safe_screenshot(f"screenshots/notes_{lesson_id}.png")
 
-                                # Extract notes — try multiple selectors
-                                raw_text = None
-                                for note_sel in [
-                                    "div.richtext_output p",
-                                    "div.richtext_output div",
-                                    "div.richtext_output.unbordered",
-                                    "div.richtext_output",
-                                    "div[class*='note-content']",
-                                    ".note-content",
-                                ]:
-                                    try:
-                                        note_el = await page.query_selector(note_sel)
-                                        if note_el:
-                                            raw = await note_el.text_content()
-                                            if raw and raw.strip():
-                                                raw_text = raw.strip()
-                                                break
-                                    except Exception:
-                                        continue
+                                # Detect note existence using Codex-recommended definitive signals:
+                                # 1. "No notes have been created" text → no note
+                                # 2. Delete button / saved-note actions → note exists
+                                # 3. Everything else → unknown
 
-                                # If no specific element found, try main content
-                                if not raw_text:
-                                    try:
-                                        note_el = await page.query_selector("div.richtext_output")
-                                        if note_el:
-                                            raw = await note_el.text_content()
-                                            if raw and raw.strip():
-                                                raw_text = raw.strip()
-                                    except Exception:
-                                        pass
+                                no_note_el = await page.query_selector(
+                                    'text="No notes have been created"'
+                                )
+                                if no_note_el:
+                                    note_status = "no_note"
+                                    notes = "No notes"
+                                else:
+                                    # Check for saved-note indicators: Delete link, public/private toggle
+                                    has_delete = await page.query_selector(
+                                        'a[href*="/notes/"][data-method="delete"], '
+                                        'a:has-text("Delete"), '
+                                        'button:has-text("Delete")'
+                                    )
+                                    has_note_actions = await page.query_selector(
+                                        'a:has-text("Public"), a:has-text("Private")'
+                                    )
 
-                                # Filter out editor chrome (Link/Finish/Cancel toolbar)
-                                if raw_text:
-                                    chrome_patterns = [
-                                        "Link to a website", "Finish", "Cancel",
-                                        "No notes", "no notes",
-                                    ]
-                                    lines = raw_text.split('\n')
-                                    clean_lines = []
-                                    for line in lines:
-                                        stripped = line.strip()
-                                        if not stripped:
-                                            continue
-                                        if any(stripped.lower() == p.lower() for p in chrome_patterns):
-                                            continue
-                                        clean_lines.append(stripped)
-                                    filtered = '\n'.join(clean_lines).strip()
-
-                                    if filtered:
-                                        notes = filtered
-                                    else:
-                                        # Got only chrome — wait longer and retry content divs
-                                        await page.wait_for_timeout(2000)
-                                        for sel in ["div.richtext_output p", "div[class*='note-content'] p", "main p"]:
+                                    if has_delete or has_note_actions:
+                                        note_status = "exists"
+                                        # Extract actual note text — avoid the compose form
+                                        raw_text = None
+                                        for sel in [
+                                            "div.richtext_output p",
+                                            "div.richtext_output div",
+                                            "div.richtext_output",
+                                        ]:
                                             try:
                                                 els = await page.query_selector_all(sel)
                                                 texts = []
                                                 for el in els:
                                                     t = (await el.text_content() or "").strip()
                                                     if t and t.lower() not in ("no notes", ""):
-                                                        skip = any(t.lower() == p.lower() for p in chrome_patterns)
-                                                        if not skip:
-                                                            texts.append(t)
+                                                        # Skip editor chrome
+                                                        if any(
+                                                            t.lower() == p.lower()
+                                                            for p in ("finish", "cancel", "link to a website")
+                                                        ):
+                                                            continue
+                                                        texts.append(t)
                                                 if texts:
-                                                    notes = ' '.join(texts)
+                                                    raw_text = ' '.join(texts)
                                                     break
                                             except Exception:
                                                 continue
+
+                                        if not raw_text:
+                                            # Fallback: try body text minus chrome
+                                            try:
+                                                body = await page.text_content("body")
+                                                if body:
+                                                    lines = body.split('\n')
+                                                    clean = []
+                                                    skip_next = False
+                                                    for line in lines:
+                                                        s = line.strip()
+                                                        if not s:
+                                                            continue
+                                                        if any(
+                                                            p.lower() in s.lower()
+                                                            for p in ("no notes have been created", "link to a website",
+                                                                      "stop viewing as a client")
+                                                        ):
+                                                            continue
+                                                        for p in ("finish", "cancel"):
+                                                            if s.lower() == p.lower():
+                                                                skip_next = True
+                                                                break
+                                                        if skip_next:
+                                                            skip_next = False
+                                                            continue
+                                                        clean.append(s)
+                                                    raw_text = ' '.join(clean)
+                                            except Exception:
+                                                pass
+
+                                        notes = (raw_text or "").strip() or "No notes"
+                                    else:
+                                        note_status = "unknown"
+                                        notes = "No notes"
 
                                 # Extract timestamp
                                 for ts_sel in ["small.timestamp", "time", "[class*='timestamp']"]:
@@ -611,6 +628,7 @@ async def scrape_lessons(
                                 "Lesson Type": lesson_type,
                                 "Notes": notes,
                                 "Note Timestamp": note_timestamp,
+                                "Note Status": note_status,
                                 "Attendance Status": attendance_status,
                                 "Location": location
                             })

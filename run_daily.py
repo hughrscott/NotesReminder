@@ -116,9 +116,9 @@ def sync_lesson_notes_to_reminders(db_path):
                 COALESCE(r.instructor_name, 'Unknown'),
                 COALESCE(r.school, 'Unknown'),
                 COUNT(*) as total_lessons,
-                COUNT(DISTINCT CASE WHEN ln.note_status = 'extracted' THEN ln.lesson_id END) as notes_found,
+                COUNT(DISTINCT CASE WHEN ln.note_status IN ('extracted', 'exists') THEN ln.lesson_id END) as notes_found,
                 COUNT(DISTINCT CASE WHEN ln.note_status = 'no_note' THEN ln.lesson_id END) as notes_missing,
-                COUNT(DISTINCT CASE WHEN ln.note_status = 'empty' THEN ln.lesson_id END) as notes_empty
+                COUNT(DISTINCT CASE WHEN ln.note_status = 'unknown' THEN ln.lesson_id END) as notes_empty
             FROM reminders r
             LEFT JOIN lesson_notes ln ON r.lesson_id = ln.lesson_id
             WHERE r.lesson_date >= DATE('now', '-7 days')
@@ -157,7 +157,7 @@ def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
     query = '''
         SELECT lesson_id, instructor_name, lesson_date, lesson_time, lesson_type, students, location
         FROM reminders
-        WHERE note_status IN ('no_note', 'empty')
+        WHERE note_status IN ('no_note', 'unknown')
         AND school = ?
     '''
     
@@ -788,7 +788,12 @@ def update_reminders_from_dataframe(
         )
         notes_text = notes_str if has_notes else None
         note_timestamp = row.get('Note Timestamp', None)
-        note_status = 'extracted' if (has_notes and notes_str.strip()) else ('empty' if has_notes else 'no_note')
+        # Use scraper's definitive note_status if available, otherwise compute
+        scraper_status = row.get('Note Status', '')
+        if scraper_status in ('no_note', 'exists', 'unknown'):
+            note_status = scraper_status
+        else:
+            note_status = 'extracted' if (has_notes and notes_str.strip()) else ('empty' if has_notes else 'no_note')
 
         note_hash = hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None
         note_score = None
