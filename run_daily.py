@@ -90,10 +90,13 @@ def sync_lesson_notes_to_reminders(db_path):
     """Sync reminders.note_completed = 1 where lesson_notes exists, and update compliance table."""
     conn = sqlite3.connect(db_path)
     try:
-        # Sync reminders flag
+        # Sync reminders.note_completed flag from lesson_notes
         updated = conn.execute('''
             UPDATE reminders
-            SET note_completed = 1
+            SET note_completed = 1,
+                note_status = COALESCE((
+                    SELECT note_status FROM lesson_notes WHERE lesson_notes.lesson_id = reminders.lesson_id
+                ), note_status)
             WHERE lesson_id IN (SELECT DISTINCT lesson_id FROM lesson_notes)
               AND note_completed = 0
         ''').rowcount
@@ -104,17 +107,18 @@ def sync_lesson_notes_to_reminders(db_path):
             ).fetchone()[0]
             log(f"  Synced {updated} reminders from lesson_notes ({remaining} still un-noted last 30d)")
 
-        # Refresh note_compliance table for the last 7 days
+        # Refresh note_compliance table for the last 7 days using note_status
         conn.execute('''
             INSERT OR REPLACE INTO note_compliance 
-            (lesson_date, instructor_name, school, total_lessons, notes_found, notes_missing)
+            (lesson_date, instructor_name, school, total_lessons, notes_found, notes_missing, notes_empty)
             SELECT
                 r.lesson_date,
                 COALESCE(r.instructor_name, 'Unknown'),
                 COALESCE(r.school, 'Unknown'),
                 COUNT(*) as total_lessons,
-                COUNT(DISTINCT ln.lesson_id) as notes_found,
-                COUNT(*) - COUNT(DISTINCT ln.lesson_id) as notes_missing
+                COUNT(DISTINCT CASE WHEN ln.note_status = 'extracted' THEN ln.lesson_id END) as notes_found,
+                COUNT(DISTINCT CASE WHEN ln.note_status = 'no_note' THEN ln.lesson_id END) as notes_missing,
+                COUNT(DISTINCT CASE WHEN ln.note_status = 'empty' THEN ln.lesson_id END) as notes_empty
             FROM reminders r
             LEFT JOIN lesson_notes ln ON r.lesson_id = ln.lesson_id
             WHERE r.lesson_date >= DATE('now', '-7 days')
@@ -153,7 +157,7 @@ def get_lessons_without_notes(school_subdomain, start_date=None, end_date=None):
     query = '''
         SELECT lesson_id, instructor_name, lesson_date, lesson_time, lesson_type, students, location
         FROM reminders
-        WHERE note_completed = 0
+        WHERE note_status IN ('no_note', 'empty')
         AND school = ?
     '''
     
